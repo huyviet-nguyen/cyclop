@@ -1,0 +1,77 @@
+package com.tbot.cyclop.Cyclop.service;
+
+import com.tbot.cyclop.Cyclop.dto.SIGNAL;
+import com.tbot.cyclop.Cyclop.dto.TokenPairData;
+import org.slf4j.Logger;
+import org.springframework.http.HttpHeaders;
+import org.springframework.web.reactive.socket.WebSocketMessage;
+import org.springframework.web.reactive.socket.client.ReactorNettyWebSocketClient;
+import org.springframework.web.reactive.socket.client.WebSocketClient;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import reactor.netty.http.client.HttpClient;
+import reactor.netty.http.client.WebsocketClientSpec;
+
+import java.net.URI;
+import java.security.SecureRandom;
+import java.time.Duration;
+import java.util.Base64;
+
+public abstract class PlatformSocketService {
+    abstract Logger getLogger();
+
+    abstract String getSocketUrl();
+
+    abstract Flux<String> getMessageFlux();
+
+    protected final WebSocketClient client = createWebSocketClient();
+
+    private WebSocketClient createWebSocketClient() {
+        HttpClient httpClient = HttpClient.create();
+        return new ReactorNettyWebSocketClient(httpClient, () -> WebsocketClientSpec.builder().maxFramePayloadLength(100000));
+    }
+
+    private static String generateWebSocketKey() {
+        // Generate random 16-byte array
+        byte[] key = new byte[8];
+        new SecureRandom().nextBytes(key);
+
+        // Encode the key to Base64
+        return Base64.getEncoder().encodeToString(key);
+    }
+
+    Flux<String> runWebSocketListener() {
+        return Flux.create(sink -> client.execute(URI.create(getSocketUrl()), session -> {
+            Mono<Void> outbound = session.send(getMessageFlux().map(s -> {
+                getLogger().info(String.format("Sending to    %s: %s", getSocketUrl(), s));
+                getLogger().info(session.getHandshakeInfo().toString());
+                return session.textMessage(s);
+            }));
+            Flux<SIGNAL> reducer = Flux.interval(Duration.ofSeconds(30))
+                    .map(i -> i % 2 == 0 ? SIGNAL.ON : SIGNAL.OFF);
+            Mono<Void> inbound = session.receive()
+                    .map(WebSocketMessage::getPayloadAsText)
+                    .map(this::normalizeJsonMessage)
+                    .doOnNext(next -> {
+                        String message = String.format("Response from %s: %s", getSocketUrl(), next.substring(0, Math.min(99, next.length())).concat("..."));
+                        getLogger().info(message);
+                        sink.next(next);
+                    })
+                    .doOnError(error -> {
+                        sink.error(error);
+                        getLogger().error(String.format("WebSocket error: %s", error.getMessage()));
+                    })
+                    .then();
+            return Mono.zip(inbound, outbound).then();
+        }).retry().subscribe());
+    }
+
+    public Flux<TokenPairData> startWebsocket() {
+        return runWebSocketListener().flatMap(this::fromStringSourceMessage);
+    }
+
+    abstract Flux<TokenPairData> fromStringSourceMessage(String string);
+
+    abstract String normalizeJsonMessage(String rawMessage);
+
+}
