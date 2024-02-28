@@ -10,7 +10,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+
 import java.time.Duration;
+import java.util.function.Predicate;
 
 @Component
 public class MexcSocketService extends PlatformSocketService {
@@ -41,6 +43,12 @@ public class MexcSocketService extends PlatformSocketService {
         return Flux.concat(
                 Mono.just(initialMessage),
                 Flux.interval(Duration.ofSeconds(15)).map(v -> pingMessage));
+    }
+
+    @Override
+    Predicate<Object> filterCriteria() {
+        // does not filter anything from MEXC
+        return a -> true;
     }
 
     @Override

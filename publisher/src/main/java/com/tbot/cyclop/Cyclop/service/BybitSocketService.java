@@ -3,6 +3,8 @@ package com.tbot.cyclop.Cyclop.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tbot.cyclop.Cyclop.dto.TokenPairData;
 import com.tbot.cyclop.Cyclop.model.BybitMarketData;
+import com.tbot.cyclop.Cyclop.model.BybitTokenPairData;
+import org.apache.kafka.streams.processor.To;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -16,6 +18,7 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 
@@ -49,6 +52,14 @@ public class BybitSocketService extends PlatformSocketService {
         return Flux.concat(
                 Mono.just(String.format(initialMessage, symbol)),
                 Flux.interval(Duration.ofSeconds(15)).map(v -> pingMessage));
+    }
+
+    @Override
+    Predicate<Object> filterCriteria() {
+        return data -> {
+            TokenPairData tokenPairData = (TokenPairData) data;
+            return tokenPairData.getIndexPrice() != 0;
+        };
     }
 
     @Override

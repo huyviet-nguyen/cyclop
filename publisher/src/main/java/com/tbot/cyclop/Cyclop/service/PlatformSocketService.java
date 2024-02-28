@@ -1,6 +1,5 @@
 package com.tbot.cyclop.Cyclop.service;
 
-import com.tbot.cyclop.Cyclop.dto.SIGNAL;
 import com.tbot.cyclop.Cyclop.dto.TokenPairData;
 import org.slf4j.Logger;
 import org.springframework.web.reactive.socket.WebSocketMessage;
@@ -12,9 +11,7 @@ import reactor.netty.http.client.HttpClient;
 import reactor.netty.http.client.WebsocketClientSpec;
 
 import java.net.URI;
-import java.security.SecureRandom;
-import java.time.Duration;
-import java.util.Base64;
+import java.util.function.Predicate;
 
 public abstract class PlatformSocketService {
     abstract Logger getLogger();
@@ -22,6 +19,8 @@ public abstract class PlatformSocketService {
     abstract String getSocketUrl();
 
     abstract Flux<String> getMessageFlux();
+
+    abstract Predicate<Object> filterCriteria();
 
     protected final WebSocketClient client = createWebSocketClient();
 
@@ -31,7 +30,7 @@ public abstract class PlatformSocketService {
     }
 
     Flux<String> runWebSocketListener() {
-        return Flux.create(sink -> client.execute(URI.create(getSocketUrl()), session -> {
+        return Flux.<String>create(sink -> client.execute(URI.create(getSocketUrl()), session -> {
             Mono<Void> outbound = session.send(getMessageFlux().map(s -> {
                 getLogger().info(String.format("Sending to    %s: %s", getSocketUrl(), s));
                 getLogger().info(session.getHandshakeInfo().toString());
@@ -55,7 +54,7 @@ public abstract class PlatformSocketService {
     }
 
     public Flux<TokenPairData> startWebsocket() {
-        return runWebSocketListener().flatMap(this::fromStringSourceMessage);
+        return runWebSocketListener().flatMap(this::fromStringSourceMessage).filter(filterCriteria());
     }
 
     abstract Flux<TokenPairData> fromStringSourceMessage(String string);
