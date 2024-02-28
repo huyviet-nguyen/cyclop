@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.tbot.cyclop.Cyclop.dto.TokenPairData;
 
-import java.time.Instant;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class MexcTokenPairData {

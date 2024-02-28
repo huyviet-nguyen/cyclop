@@ -31,7 +31,7 @@ public class BybitSocketService extends PlatformSocketService {
     @Value("${wss.bybit.initMessage}")
     private String initialMessage;
 
-    @Value("${wss.mexc.pingMessage}")
+    @Value("${wss.bybit.pingMessage}")
     private String pingMessage;
 
     @Override

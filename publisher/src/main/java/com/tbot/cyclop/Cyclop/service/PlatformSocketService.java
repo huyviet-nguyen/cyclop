@@ -3,7 +3,6 @@ package com.tbot.cyclop.Cyclop.service;
 import com.tbot.cyclop.Cyclop.dto.SIGNAL;
 import com.tbot.cyclop.Cyclop.dto.TokenPairData;
 import org.slf4j.Logger;
-import org.springframework.http.HttpHeaders;
 import org.springframework.web.reactive.socket.WebSocketMessage;
 import org.springframework.web.reactive.socket.client.ReactorNettyWebSocketClient;
 import org.springframework.web.reactive.socket.client.WebSocketClient;
@@ -31,15 +30,6 @@ public abstract class PlatformSocketService {
         return new ReactorNettyWebSocketClient(httpClient, () -> WebsocketClientSpec.builder().maxFramePayloadLength(100000));
     }
 
-    private static String generateWebSocketKey() {
-        // Generate random 16-byte array
-        byte[] key = new byte[8];
-        new SecureRandom().nextBytes(key);
-
-        // Encode the key to Base64
-        return Base64.getEncoder().encodeToString(key);
-    }
-
     Flux<String> runWebSocketListener() {
         return Flux.create(sink -> client.execute(URI.create(getSocketUrl()), session -> {
             Mono<Void> outbound = session.send(getMessageFlux().map(s -> {
@@ -47,8 +37,6 @@ public abstract class PlatformSocketService {
                 getLogger().info(session.getHandshakeInfo().toString());
                 return session.textMessage(s);
             }));
-            Flux<SIGNAL> reducer = Flux.interval(Duration.ofSeconds(30))
-                    .map(i -> i % 2 == 0 ? SIGNAL.ON : SIGNAL.OFF);
             Mono<Void> inbound = session.receive()
                     .map(WebSocketMessage::getPayloadAsText)
                     .map(this::normalizeJsonMessage)

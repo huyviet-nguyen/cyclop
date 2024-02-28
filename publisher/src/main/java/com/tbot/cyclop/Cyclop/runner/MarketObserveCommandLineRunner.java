@@ -42,9 +42,6 @@ public class MarketObserveCommandLineRunner implements CommandLineRunner {
     }
 
     @Override
-    /**
-     * Silent handling error, infinite listening
-     */
     public void run(String... args) throws Exception {
         publishMexc();
         publishBybit();
