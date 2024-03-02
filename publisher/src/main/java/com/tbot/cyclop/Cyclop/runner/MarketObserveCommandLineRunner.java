@@ -1,6 +1,6 @@
 package com.tbot.cyclop.Cyclop.runner;
 
-import com.tbot.cyclop.Cyclop.dto.TokenPairData;
+import com.tbot.cyclop.Cyclop.dto.KlineData;
 import com.tbot.cyclop.Cyclop.service.BybitSocketService;
 import com.tbot.cyclop.Cyclop.service.MexcSocketService;
 import org.slf4j.Logger;
@@ -28,13 +28,13 @@ public class MarketObserveCommandLineRunner implements CommandLineRunner {
     private final MexcSocketService mexcService;
 
     private final BybitSocketService bybitService;
-    private final KafkaSender<String, TokenPairData> producerTemplate;
+    private final KafkaSender<String, KlineData> producerTemplate;
     private final KafkaSender<String, String> errorSender;
 
     Logger logger = LoggerFactory.getLogger(MarketObserveCommandLineRunner.class);
 
 
-    public MarketObserveCommandLineRunner(MexcSocketService mexcService, BybitSocketService bybitService, KafkaSender<String, TokenPairData> producerTemplate, KafkaSender<String, String> errorSender) {
+    public MarketObserveCommandLineRunner(MexcSocketService mexcService, BybitSocketService bybitService, KafkaSender<String, KlineData> producerTemplate, KafkaSender<String, String> errorSender) {
         this.mexcService = mexcService;
         this.bybitService = bybitService;
         this.producerTemplate = producerTemplate;
@@ -57,9 +57,9 @@ public class MarketObserveCommandLineRunner implements CommandLineRunner {
         publish(bybitService.startWebsocket());
     }
 
-    private void publish(Flux<TokenPairData> tokenPairDataFlux) {
-        Flux<SenderRecord<String, TokenPairData, TokenPairData>> pub = tokenPairDataFlux
-                .map(i -> SenderRecord.create(outputTopic, null, i.getTimestamp(), i.getSymbol(), i, i));
+    private void publish(Flux<KlineData> tokenPairDataFlux) {
+        Flux<SenderRecord<String, KlineData, KlineData>> pub = tokenPairDataFlux
+                .map(i -> SenderRecord.create(outputTopic, null, i.getTimestamp(), i.getKafkaKey(), i, i));
         producerTemplate.send(pub).publishOn(Schedulers.boundedElastic()).doOnError(error -> {
             logger.error(error.getMessage());
             SenderRecord<String, String, String> senderRecord = SenderRecord.create(errorTopic, null, Instant.now().toEpochMilli(), Instant.now().toString(), error.getMessage(), error.getMessage());

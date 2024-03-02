@@ -1,6 +1,6 @@
 package com.tbot.cyclop.Cyclop.kafka;
 
-import com.tbot.cyclop.Cyclop.dto.TokenPairData;
+import com.tbot.cyclop.Cyclop.dto.KlineData;
 import org.springframework.boot.autoconfigure.kafka.KafkaProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -13,9 +13,9 @@ import java.util.Map;
 public class KafkaBeanConfig {
 
     @Bean
-    public KafkaSender<String, TokenPairData> kafkaSender(KafkaProperties kafkaProperties) {
+    public KafkaSender<String, KlineData> kafkaSender(KafkaProperties kafkaProperties) {
         Map<String, Object> props = kafkaProperties.buildProducerProperties(null);
-        return KafkaSender.create(SenderOptions.<String, TokenPairData>create(props).maxInFlight(1024));
+        return KafkaSender.create(SenderOptions.<String, KlineData>create(props).maxInFlight(1024));
     }
 
     @Bean

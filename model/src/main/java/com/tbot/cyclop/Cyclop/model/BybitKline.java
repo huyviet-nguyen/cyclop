@@ -1,0 +1,56 @@
+package com.tbot.cyclop.Cyclop.model;
+
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.tbot.cyclop.Cyclop.dto.KlineData;
+import lombok.Data;
+
+import java.util.List;
+
+@Data
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class BybitKline {
+    @JsonProperty("topic")
+    private String topic;
+
+    @JsonProperty("data")
+    private List<BybitKlineDetail> data;
+
+    @JsonProperty("ts")
+    private long timestamp;
+
+    @JsonProperty("type")
+    private String type;
+
+    public String getSymbol() {
+        return this.getTopic().split("\\.")[2];
+    }
+
+    public KlineData toDto() {
+        KlineData pairData = new KlineData();
+        pairData.setTimestamp(timestamp);
+        pairData.setSymbol(getSymbol());
+        pairData.setOpenPrice(Double.parseDouble(this.getData().get(0).getOpen()));
+        pairData.setCurrentPrice(Double.parseDouble(this.getData().get(0).getClose()));
+        pairData.setInterval(this.getData().get(0).getInterval());
+        pairData.setSourcePlatform("BYBIT");
+        return pairData;
+    }
+
+    @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class BybitKlineDetail {
+
+        @JsonProperty("interval")
+        private String interval;
+
+        @JsonProperty("open")
+        private String open;
+
+        @JsonProperty("close")
+        private String close;
+
+        @JsonProperty("timestamp")
+        private long timestamp;
+    }
+}

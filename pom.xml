@@ -49,7 +49,6 @@
     <modules>
         <module>publisher</module>
         <module>model</module>
-        <module>candlizer</module>
         <module>order-placer</module>
         <module>auditor</module>
     </modules>

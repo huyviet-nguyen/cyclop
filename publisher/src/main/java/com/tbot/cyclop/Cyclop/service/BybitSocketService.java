@@ -1,10 +1,8 @@
 package com.tbot.cyclop.Cyclop.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.tbot.cyclop.Cyclop.dto.TokenPairData;
-import com.tbot.cyclop.Cyclop.model.BybitMarketData;
-import com.tbot.cyclop.Cyclop.model.BybitTokenPairData;
-import org.apache.kafka.streams.processor.To;
+import com.tbot.cyclop.Cyclop.dto.KlineData;
+import com.tbot.cyclop.Cyclop.model.BybitKline;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -25,11 +23,14 @@ import java.util.stream.Collectors;
 @Component
 public class BybitSocketService extends PlatformSocketService {
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private static String symbol = initializeSetFromFile("output.txt");
+    private static final String symbol = initializeSetFromFile("output.txt");
     Logger logger = LoggerFactory.getLogger(BybitSocketService.class);
 
     @Value("${wss.bybit.url}")
     private String bybitWebSocketUri;
+
+    @Value("${wss.bybit.pingInterval}")
+    private String pingInterval;
 
     @Value("${wss.bybit.initMessage}")
     private String initialMessage;
@@ -49,24 +50,25 @@ public class BybitSocketService extends PlatformSocketService {
 
     @Override
     Flux<String> getMessageFlux() {
+        //TODO : To be converted to coin list of all coin support instead of just hard-coded coin
         return Flux.concat(
                 Mono.just(String.format(initialMessage, symbol)),
-                Flux.interval(Duration.ofSeconds(15)).map(v -> pingMessage));
+                Flux.interval(Duration.ofSeconds(Integer.parseInt(pingInterval))).map(v -> pingMessage));
     }
 
     @Override
     Predicate<Object> filterCriteria() {
         return data -> {
-            TokenPairData tokenPairData = (TokenPairData) data;
-            return tokenPairData.getIndexPrice() != 0;
+            KlineData klineData = (KlineData) data;
+            return klineData.getCurrentPrice() != 0;
         };
     }
 
     @Override
-    Flux<TokenPairData> fromStringSourceMessage(String string) {
+    Flux<KlineData> fromStringSourceMessage(String string) {
         try {
-            BybitMarketData bybitMarketData = objectMapper.readValue(string, BybitMarketData.class);
-            return Flux.just(bybitMarketData.getData().toDto());
+            BybitKline bybitKline = objectMapper.readValue(string, BybitKline.class);
+            return Flux.just(bybitKline.toDto());
         } catch (Exception e) {
             return Flux.empty();
         }

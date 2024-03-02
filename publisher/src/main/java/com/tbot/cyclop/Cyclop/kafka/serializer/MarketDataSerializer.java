@@ -1,12 +1,12 @@
 package com.tbot.cyclop.Cyclop.kafka.serializer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.tbot.cyclop.Cyclop.dto.TokenPairData;
+import com.tbot.cyclop.Cyclop.dto.KlineData;
 import org.apache.kafka.common.serialization.Serializer;
 
 import java.util.Map;
 
-public class MarketDataSerializer implements Serializer<TokenPairData> {
+public class MarketDataSerializer implements Serializer<KlineData> {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -16,7 +16,7 @@ public class MarketDataSerializer implements Serializer<TokenPairData> {
     }
 
     @Override
-    public byte[] serialize(String topic, TokenPairData data) {
+    public byte[] serialize(String topic, KlineData data) {
         try {
             return objectMapper.writeValueAsBytes(data);
         } catch (Exception e) {

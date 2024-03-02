@@ -1,6 +1,6 @@
 package com.tbot.cyclop.Cyclop.service;
 
-import com.tbot.cyclop.Cyclop.dto.TokenPairData;
+import com.tbot.cyclop.Cyclop.dto.KlineData;
 import org.slf4j.Logger;
 import org.springframework.web.reactive.socket.WebSocketMessage;
 import org.springframework.web.reactive.socket.client.ReactorNettyWebSocketClient;
@@ -30,7 +30,7 @@ public abstract class PlatformSocketService {
     }
 
     Flux<String> runWebSocketListener() {
-        return Flux.<String>create(sink -> client.execute(URI.create(getSocketUrl()), session -> {
+        return Flux.create(sink -> client.execute(URI.create(getSocketUrl()), session -> {
             Mono<Void> outbound = session.send(getMessageFlux().map(s -> {
                 getLogger().info(String.format("Sending to    %s: %s", getSocketUrl(), s));
                 getLogger().info(session.getHandshakeInfo().toString());
@@ -53,11 +53,11 @@ public abstract class PlatformSocketService {
         }).retry().subscribe());
     }
 
-    public Flux<TokenPairData> startWebsocket() {
+    public Flux<KlineData> startWebsocket() {
         return runWebSocketListener().flatMap(this::fromStringSourceMessage).filter(filterCriteria());
     }
 
-    abstract Flux<TokenPairData> fromStringSourceMessage(String string);
+    abstract Flux<KlineData> fromStringSourceMessage(String string);
 
     abstract String normalizeJsonMessage(String rawMessage);
 

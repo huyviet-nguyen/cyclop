@@ -1,9 +1,8 @@
 package com.tbot.cyclop.Cyclop.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.tbot.cyclop.Cyclop.dto.TokenPairData;
-import com.tbot.cyclop.Cyclop.model.MexcMarketData;
-import com.tbot.cyclop.Cyclop.model.MexcTokenPairData;
+import com.tbot.cyclop.Cyclop.dto.KlineData;
+import com.tbot.cyclop.Cyclop.model.MexcKline;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -24,6 +23,9 @@ public class MexcSocketService extends PlatformSocketService {
     @Value("${wss.mexc.initMessage}")
     private String initialMessage;
 
+    @Value("${wss.mexc.pingInterval}")
+    private String pingInterval;
+
     @Value("${wss.mexc.pingMessage}")
     private String pingMessage;
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -40,9 +42,10 @@ public class MexcSocketService extends PlatformSocketService {
 
     @Override
     Flux<String> getMessageFlux() {
+        //TODO : To be converted to coin list of all coin support instead of just hard-coded coin
         return Flux.concat(
                 Mono.just(initialMessage),
-                Flux.interval(Duration.ofSeconds(15)).map(v -> pingMessage));
+                Flux.interval(Duration.ofSeconds(Integer.parseInt(pingInterval))).map(v -> pingMessage));
     }
 
     @Override
@@ -52,10 +55,10 @@ public class MexcSocketService extends PlatformSocketService {
     }
 
     @Override
-    Flux<TokenPairData> fromStringSourceMessage(String string) {
+    Flux<KlineData> fromStringSourceMessage(String string) {
         try {
-            MexcMarketData mexcMarketData = objectMapper.readValue(string, MexcMarketData.class);
-            return Flux.fromStream(mexcMarketData.getData().parallelStream().map(MexcTokenPairData::toDto));
+            MexcKline mexcMarketData = objectMapper.readValue(string, MexcKline.class);
+            return Flux.just(mexcMarketData.toDto());
         } catch (Exception e) {
             return Flux.empty();
         }

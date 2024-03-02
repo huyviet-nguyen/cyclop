@@ -9,23 +9,29 @@ import java.util.Map;
 @Component
 public class CustomPartitioner implements Partitioner {
 
-    private static final int DEFAULT_PARTITION = 20; // Default partition number
-
     @Override
     public int partition(String topic, Object key, byte[] keyBytes, Object value, byte[] valueBytes, Cluster cluster) {
-        // Logic to determine the partition number
+        // Ensure the key is a string
+        if (!(key instanceof String)) {
+            throw new IllegalArgumentException("Key must be a string");
+        }
+        String[] keyParts = ((String) key).split(",");
+        if (keyParts.length < 2) {
+            throw new IllegalArgumentException("Key format is incorrect. Expected format: sourcePlatform,symbol");
+        }
+        String sourcePlatform = keyParts[0];
+        String symbol = keyParts[1];
         int numPartitions = cluster.partitionCountForTopic(topic);
-        // Return the default partition number if the topic doesn't exist
-        return numPartitions > 0 ? Math.abs(key.hashCode() % numPartitions) : DEFAULT_PARTITION;
+        String combinedKey = sourcePlatform + symbol;
+        return Math.abs(combinedKey.hashCode() % numPartitions);
+
     }
 
     @Override
     public void close() {
-        // Clean-up resources if necessary
     }
 
     @Override
     public void configure(Map<String, ?> configs) {
-        // Configure the partitioner if necessary
     }
 }
