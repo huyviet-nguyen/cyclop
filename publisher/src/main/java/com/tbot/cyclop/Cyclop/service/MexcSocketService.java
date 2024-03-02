@@ -20,8 +20,8 @@ public class MexcSocketService extends PlatformSocketService {
     @Value("${wss.mexc.url}")
     private String mexcWebSocketUri;
 
-    @Value("${wss.mexc.initMessage}")
-    private String initialMessage;
+    @Value("${wss.mexc.initMessageTemplate}")
+    private String initMessageTemplate;
 
     @Value("${wss.mexc.pingInterval}")
     private String pingInterval;
@@ -29,6 +29,9 @@ public class MexcSocketService extends PlatformSocketService {
     @Value("${wss.mexc.pingMessage}")
     private String pingMessage;
     private final ObjectMapper objectMapper = new ObjectMapper();
+
+    private static final String hardCodedTopics = "\"spot@public.kline.v3.api@BTCUSDT@Min1\",\"spot@public.kline.v3.api@BTCUSDT@Min5\",\"spot@public.kline.v3.api@BTCUSDT@Min15\"";
+
 
     @Override
     Logger getLogger() {
@@ -42,6 +45,7 @@ public class MexcSocketService extends PlatformSocketService {
 
     @Override
     Flux<String> getMessageFlux() {
+        String initialMessage = initMessageTemplate.replace("%params", hardCodedTopics);
         //TODO : To be converted to coin list of all coin support instead of just hard-coded coin
         return Flux.concat(
                 Mono.just(initialMessage),

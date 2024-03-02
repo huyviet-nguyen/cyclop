@@ -6,54 +6,54 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.tbot.cyclop.Cyclop.dto.KlineData;
 import lombok.Data;
 
-import java.util.Objects;
 
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class MexcKline {
+    @JsonProperty("d")
+    private KlineDetail klineDetail;
 
-    @JsonProperty("symbol")
-    private String symbol;
-
-    @JsonProperty("data")
-    private MexcKlineDetail mexcKlineDetail;
-
-    @JsonProperty("ts")
+    @JsonProperty("t")
     private long timestamp;
 
-    @JsonIgnore
-    public String getNormalizedSymbol() {
-        return Objects.requireNonNull(symbol).replace("_", "");
+    @JsonProperty("s")
+    private String symbol;
+
+    @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class KlineDetail {
+
+        @JsonProperty("k")
+        private KlineDataItem klineDataItem;
     }
 
     @Data
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public static class MexcKlineDetail {
-        @JsonProperty("interval")
-        private String interval;
-
-        @JsonProperty("t")
-        private long t;
+    public static class KlineDataItem {
 
         @JsonProperty("o")
-        private double o;
+        private String open;
 
         @JsonProperty("c")
-        private double c;
+        private String close;
 
-        public String getNormalizedInterval() {
-            return this.interval.replace("MIN", "").replace("Min", "");
+        @JsonProperty("i")
+        private String interval;
+
+        @JsonIgnore
+        public String getNormalizedInterval(){
+            return interval.replace("Min","");
         }
     }
 
     public KlineData toDto() {
-        KlineData klineData = new KlineData();
-        klineData.setSourcePlatform("MEXC");
-        klineData.setOpenPrice(this.getMexcKlineDetail().getO());
-        klineData.setCurrentPrice(this.getMexcKlineDetail().getC());
-        klineData.setTimestamp(this.getTimestamp());
-        klineData.setInterval(this.getMexcKlineDetail().getNormalizedInterval());
-        klineData.setSymbol(getNormalizedSymbol());
-        return klineData;
+        KlineData pairData = new KlineData();
+        pairData.setTimestamp(timestamp);
+        pairData.setSymbol(getSymbol());
+        pairData.setOpenPrice(Double.parseDouble(getKlineDetail().getKlineDataItem().getOpen()));
+        pairData.setCurrentPrice(Double.parseDouble(getKlineDetail().getKlineDataItem().getClose()));
+        pairData.setInterval(getKlineDetail().getKlineDataItem().getNormalizedInterval());
+        pairData.setSourcePlatform("MEXC");
+        return pairData;
     }
 }

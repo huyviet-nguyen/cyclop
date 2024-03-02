@@ -26,14 +26,16 @@ public class BybitSocketService extends PlatformSocketService {
     private static final String symbol = initializeSetFromFile("output.txt");
     Logger logger = LoggerFactory.getLogger(BybitSocketService.class);
 
+    private static final String hardCodedTopics = "\"kline.1.BTCUSDT\",\"kline.5.BTCUSDT\",\"kline.15.BTCUSDT\"";
+
     @Value("${wss.bybit.url}")
     private String bybitWebSocketUri;
 
     @Value("${wss.bybit.pingInterval}")
     private String pingInterval;
 
-    @Value("${wss.bybit.initMessage}")
-    private String initialMessage;
+    @Value("${wss.bybit.initMessageTemplate}")
+    private String initMessageTemplate;
 
     @Value("${wss.bybit.pingMessage}")
     private String pingMessage;
@@ -50,6 +52,7 @@ public class BybitSocketService extends PlatformSocketService {
 
     @Override
     Flux<String> getMessageFlux() {
+        String initialMessage = initMessageTemplate.replace("%params", hardCodedTopics);
         //TODO : To be converted to coin list of all coin support instead of just hard-coded coin
         return Flux.concat(
                 Mono.just(String.format(initialMessage, symbol)),

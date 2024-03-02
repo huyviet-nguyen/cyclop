@@ -6,7 +6,7 @@ import org.apache.kafka.common.serialization.Serializer;
 
 import java.util.Map;
 
-public class MarketDataSerializer implements Serializer<KlineData> {
+public class KlineDataSerializer implements Serializer<KlineData> {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
