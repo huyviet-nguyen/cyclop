@@ -3,28 +3,37 @@ package com.tbot.cyclop.Cyclop.model;
 import lombok.Data;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.DocumentReference;
 
+import java.io.Serializable;
 import java.time.LocalDateTime;
 
 @Data
 @Document(collection = "strategy")
-public class Strategy {
+public class Strategy implements Serializable {
     @Id
     private String id;
-    private int orderChange;
-    private int extendOrderChangePercent;
-    private int takeProfit;
-    private int stopLoss;
-    private int reduceTakeProfit;
-    private int amount;
-    private int ignore;
+    private double orderChange;
+    private double extendOrderChangePercent;
+    private double takeProfit;
+    private double stopLoss;
+    private double reduceTakeProfit;
+    private double amount;
+    private double ignore;
     private String platform;
     private String status;
     private String candleStick;
     private String positionSide;
+    @DocumentReference(lazy = true)
     private Symbol symbol;
+    @DocumentReference(lazy = true)
     private User user;
+    @DocumentReference(lazy = true)
     private Bot bot;
+    @DocumentReference(lazy = true)
+    private StrategyMarker strategyMarker;
+    @DocumentReference(lazy = true)
+    private CandleWindow candleWindow;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

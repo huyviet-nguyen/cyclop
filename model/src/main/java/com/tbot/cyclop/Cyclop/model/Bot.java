@@ -22,7 +22,10 @@ public class Bot {
 
     private Balance futuresBalance;
     private Balance spotBalance;
-    private ApiInfo apiKey;
+    private String apiKey;
+    private String secretKey;
+    private String webToken;
+    private String telegramId;
     private FingerprintSysInfo fingerprintSysInfo;
 }
 
