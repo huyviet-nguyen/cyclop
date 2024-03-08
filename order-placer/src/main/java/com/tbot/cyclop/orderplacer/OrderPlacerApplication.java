@@ -37,6 +37,9 @@ public class OrderPlacerApplication {
     @Autowired
     public CandleWindowRepo candleWindowRepo;
 
+    @Autowired
+    public StrategyMarkerRepo strategyMarkerRepo;
+
     Logger logger = LoggerFactory.getLogger(OrderPlacerApplication.class);
 
     @Bean
@@ -52,13 +55,13 @@ public class OrderPlacerApplication {
             Flux<Strategy> strategyFlux = strategyRepo.findByCandleStickAndSymbol(candleStick, symbol).filter(strategy -> strategy.getPositionSide().equals(positionSide) || strategy.getPositionSide().equals("BOTH"));
             Flux<OrderAckHistory> orderAckFlux = strategyFlux.publishOn(Schedulers.boundedElastic()).mapNotNull(strategy -> {
                 boolean newCandle = renewCandleWindow(strategy, value);
-                double strategyEntryPnlPercentage = (strategy.getOrderChange() * strategy.getExtendOrderChangePercent()) / 100;
-                double currentPnlPercentage = (value.getCurrentPrice() - value.getOpenPrice()) / value.getOpenPrice() * 100;
-                boolean pumping = currentPnlPercentage > 0;
+                double entryPercent = (strategy.getOrderChange() * strategy.getExtendOrderChangePercent()) / 100;
+                double currentChangePercent = (value.getCurrentPrice() - value.getOpenPrice()) / value.getOpenPrice() * 100;
+                boolean pumping = currentChangePercent > 0;
                 if (strategy.getStrategyMarker() == null) {
                     StrategyMarker marker = new StrategyMarker();
                     marker.setActualTp(strategy.getTakeProfit());
-                    strategy.setStrategyMarker(marker);
+                    strategy.setStrategyMarker(strategyMarkerRepo.save(marker).block());
                 }
 
                 double actualTakeProfit = strategy.getStrategyMarker().getActualTp();
@@ -67,21 +70,21 @@ public class OrderPlacerApplication {
                 Bot bot = strategy.getBot();
 
                 if (orderAckHistory == null) {
-                    if (currentPnlPercentage > strategyEntryPnlPercentage) {
+                    if (Math.abs(currentChangePercent) > entryPercent) {
                         return new OrderAckHistory(value.getSourcePlatform()
                                 , bot.getApiKey()
                                 , value.getCurrentPrice(), strategy.getId(), Instant.now().toString(), strategy.getAmount(), OrderAction.ENTRY, value.getSymbol(), strategy.getUser().getId());
                     }
                 } else {
                     if (!orderAckHistory.getOrderAction().equals(OrderAction.ENTRY)) {
-                        if (currentPnlPercentage > strategyEntryPnlPercentage) {
+                        if (currentChangePercent > entryPercent) {
                             return new OrderAckHistory(value.getSourcePlatform()
                                     , bot.getApiKey()
                                     , value.getCurrentPrice(), strategy.getId(), Instant.now().toString(), strategy.getAmount(), OrderAction.ENTRY, value.getSymbol(), strategy.getUser().getId());
                         }
                     } else {
                         if (pumping) {
-                            if (currentPnlPercentage > actualTakeProfit && !newCandle) {
+                            if (currentChangePercent > actualTakeProfit && !newCandle) {
                                 return new OrderAckHistory(value.getSourcePlatform()
                                         , bot.getApiKey()
                                         , value.getCurrentPrice(), strategy.getId(), Instant.now().toString(), strategy.getAmount(), OrderAction.TAKE_PROFIT, value.getSymbol(), strategy.getUser().getId());
@@ -91,7 +94,7 @@ public class OrderPlacerApplication {
                             }
                         }
 
-                        if (!pumping && currentPnlPercentage > strategy.getStopLoss()) {
+                        if (!pumping && currentChangePercent > strategy.getStopLoss()) {
                             return new OrderAckHistory(value.getSourcePlatform()
                                     , bot.getApiKey()
                                     , value.getCurrentPrice(), strategy.getId(), Instant.now().toString(), strategy.getAmount(), OrderAction.STOP_LOSS, value.getSymbol(), strategy.getUser().getId());
@@ -118,7 +121,8 @@ public class OrderPlacerApplication {
             candleWindow.setPlatform(strategy.getPlatform());
             candleWindow.setOpenPrice(klineData.getOpenPrice());
             candleWindow.setSymbol(replaceUsdtSuffix(klineData.getSymbol()));
-            strategy.setCandleWindow(candleWindow);
+            candleWindow.setInterval(klineData.getInterval());
+            strategy.setCandleWindow(candleWindowRepo.save(candleWindow).block());
             return true;
         }
         return false;

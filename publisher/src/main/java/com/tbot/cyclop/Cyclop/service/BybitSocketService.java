@@ -26,7 +26,7 @@ public class BybitSocketService extends PlatformSocketService {
     private static final String symbol = initializeSetFromFile("output.txt");
     Logger logger = LoggerFactory.getLogger(BybitSocketService.class);
 
-    private static final String hardCodedTopics = "\"kline.1.BTCUSDT\",\"kline.5.BTCUSDT\",\"kline.15.BTCUSDT\"";
+    private static final String hardCodedTopics = "\"kline.1.BTCUSDT\",\"kline.5.BTCUSDT\",\"kline.15.BTCUSDT\",\"kline.1.ETHUSDT\",\"kline.15.ETHUSDT\",\"kline.5.ETHUSDT\"";
 
     @Value("${wss.bybit.url}")
     private String bybitWebSocketUri;

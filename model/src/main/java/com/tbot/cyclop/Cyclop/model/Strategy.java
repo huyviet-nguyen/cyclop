@@ -30,7 +30,7 @@ public class Strategy implements Serializable {
     private User user;
     @DocumentReference(lazy = true)
     private Bot bot;
-    @DocumentReference(lazy = true)
+    @DocumentReference
     private StrategyMarker strategyMarker;
     @DocumentReference(lazy = true)
     private CandleWindow candleWindow;

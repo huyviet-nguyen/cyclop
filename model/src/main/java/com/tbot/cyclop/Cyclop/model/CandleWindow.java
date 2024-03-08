@@ -11,4 +11,5 @@ public class CandleWindow {
     private String platform;
     private String symbol;
     private double openPrice;
+    private String interval;
 }

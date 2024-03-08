@@ -30,7 +30,7 @@ public class MexcSocketService extends PlatformSocketService {
     private String pingMessage;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    private static final String hardCodedTopics = "\"spot@public.kline.v3.api@BTCUSDT@Min1\",\"spot@public.kline.v3.api@BTCUSDT@Min5\",\"spot@public.kline.v3.api@BTCUSDT@Min15\"";
+    private static final String hardCodedTopics = "\"spot@public.kline.v3.api@BTCUSDT@Min1\",\"spot@public.kline.v3.api@ETHUSDT@Min5\",\"spot@public.kline.v3.api@ETHUSDT@Min1\",\"spot@public.kline.v3.api@BTCUSDT@Min5\",\"spot@public.kline.v3.api@BTCUSDT@Min15\"";
 
 
     @Override
