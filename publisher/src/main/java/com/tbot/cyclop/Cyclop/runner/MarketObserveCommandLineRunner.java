@@ -31,6 +31,11 @@ public class MarketObserveCommandLineRunner implements CommandLineRunner {
     private final KafkaSender<String, KlineData> producerTemplate;
     private final KafkaSender<String, String> errorSender;
 
+    @Value("${app.runMexc}")
+    public Boolean isRunMexc;
+
+    @Value("${app.runBybit}")
+    public Boolean isRunBybit;
     Logger logger = LoggerFactory.getLogger(MarketObserveCommandLineRunner.class);
 
 
@@ -43,9 +48,14 @@ public class MarketObserveCommandLineRunner implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
-        publishMexc();
-        publishBybit();
+        if (isRunMexc) {
+            publishMexc();
+        }
+        if (isRunBybit) {
+            publishBybit();
+        }
     }
+
 
     private void publishMexc() {
         logger.info("STARTED PUBLISHING : MEXC");

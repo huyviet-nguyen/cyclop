@@ -18,9 +18,13 @@ public abstract class PlatformSocketService {
 
     abstract String getSocketUrl();
 
+    abstract Flux<Flux<String>> getMessageNestedFlux();
+
     abstract Flux<String> getMessageFlux();
 
     abstract Predicate<Object> filterCriteria();
+
+    abstract boolean useMultipleConnection();
 
     protected final WebSocketClient client = createWebSocketClient();
 
@@ -29,9 +33,14 @@ public abstract class PlatformSocketService {
         return new ReactorNettyWebSocketClient(httpClient, () -> WebsocketClientSpec.builder().maxFramePayloadLength(100000));
     }
 
-    Flux<String> runWebSocketListener() {
+    public Flux<String> runMultiple(Flux<Flux<String>> nestedFlux) {
+        return nestedFlux.flatMap(this::runWebSocketListener);
+    }
+
+
+    private Flux<String> runWebSocketListener(Flux<String> messageFlux) {
         return Flux.create(sink -> client.execute(URI.create(getSocketUrl()), session -> {
-            Mono<Void> outbound = session.send(getMessageFlux().map(s -> {
+            Mono<Void> outbound = session.send(messageFlux.map(s -> {
                 getLogger().info(String.format("Sending to    %s: %s", getSocketUrl(), s));
                 getLogger().info(session.getHandshakeInfo().toString());
                 return session.textMessage(s);
@@ -41,7 +50,9 @@ public abstract class PlatformSocketService {
                     .map(this::normalizeJsonMessage)
                     .doOnNext(next -> {
                         String message = String.format("Response from %s: %s", getSocketUrl(), next.substring(0, Math.min(99, next.length())).concat("..."));
-                        getLogger().info(message);
+                        if (message.contains("invalid")) {
+                            getLogger().info(message);
+                        }
                         sink.next(next);
                     })
                     .doOnError(error -> {
@@ -54,7 +65,11 @@ public abstract class PlatformSocketService {
     }
 
     public Flux<KlineData> startWebsocket() {
-        return runWebSocketListener().flatMap(this::fromStringSourceMessage).filter(filterCriteria());
+        if (!useMultipleConnection()) {
+            return runWebSocketListener(getMessageFlux()).flatMap(this::fromStringSourceMessage).filter(filterCriteria());
+        } else {
+            return runMultiple(getMessageNestedFlux()).flatMap(this::fromStringSourceMessage).filter(filterCriteria());
+        }
     }
 
     abstract Flux<KlineData> fromStringSourceMessage(String string);

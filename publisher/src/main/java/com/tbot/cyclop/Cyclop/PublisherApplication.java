@@ -6,9 +6,9 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
 @EnableScheduling
-public class CyclopApplication {
+public class PublisherApplication {
     public static void main(String[] args) {
-        SpringApplication.run(CyclopApplication.class, args);
+        SpringApplication.run(PublisherApplication.class, args);
     }
 
 }

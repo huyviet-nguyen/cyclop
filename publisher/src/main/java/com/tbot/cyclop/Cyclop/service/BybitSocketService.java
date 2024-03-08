@@ -3,30 +3,23 @@ package com.tbot.cyclop.Cyclop.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tbot.cyclop.Cyclop.dto.KlineData;
 import com.tbot.cyclop.Cyclop.model.BybitKline;
+import com.tbot.cyclop.Cyclop.model.Symbol;
+import com.tbot.cyclop.Cyclop.repo.SymbolRepo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-
-import java.io.BufferedReader;
-import java.io.FileReader;
-import java.io.IOException;
 import java.time.Duration;
-import java.util.HashSet;
-import java.util.Set;
 import java.util.function.Predicate;
-import java.util.stream.Collectors;
 
 
 @Component
 public class BybitSocketService extends PlatformSocketService {
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private static final String symbol = initializeSetFromFile("output.txt");
     Logger logger = LoggerFactory.getLogger(BybitSocketService.class);
-
-    private static final String hardCodedTopics = "\"kline.1.BTCUSDT\",\"kline.5.BTCUSDT\",\"kline.15.BTCUSDT\",\"kline.1.ETHUSDT\",\"kline.15.ETHUSDT\",\"kline.5.ETHUSDT\"";
+    private static final String topicTemplate = "\"kline.1.symbol\",\"kline.5.symbol\",\"kline.15.symbol\",\"kline.30.symbol\",\"kline.60.symbol\"";
 
     @Value("${wss.bybit.url}")
     private String bybitWebSocketUri;
@@ -40,6 +33,12 @@ public class BybitSocketService extends PlatformSocketService {
     @Value("${wss.bybit.pingMessage}")
     private String pingMessage;
 
+    private final SymbolRepo symbolRepo;
+
+    public BybitSocketService(SymbolRepo symbolRepo) {
+        this.symbolRepo = symbolRepo;
+    }
+
     @Override
     Logger getLogger() {
         return logger;
@@ -51,13 +50,30 @@ public class BybitSocketService extends PlatformSocketService {
     }
 
     @Override
-    Flux<String> getMessageFlux() {
-        String initialMessage = initMessageTemplate.replace("%params", hardCodedTopics);
-        //TODO : To be converted to coin list of all coin support instead of just hard-coded coin
-        return Flux.concat(
-                Mono.just(String.format(initialMessage, symbol)),
-                Flux.interval(Duration.ofSeconds(Integer.parseInt(pingInterval))).map(v -> pingMessage));
+    Flux<Flux<String>> getMessageNestedFlux() {
+        return null;
     }
+
+    @Override
+    Flux<String> getMessageFlux() {
+        return symbolRepo.findAllByPlatform("BYBIT")
+                .map(Symbol::getSymbol)
+                .distinct()
+                .flatMap(symbol -> {
+                    String replacedString = topicTemplate.replaceAll("symbol", symbol);
+                    return Mono.just(replacedString);
+                })
+                .collectList()
+                .flatMapMany(symbolList -> {
+                    String joined = String.join(",", symbolList);
+                    String initialMessage = initMessageTemplate.replace("%params", joined);
+                    return Flux.concat(
+                            Mono.just(String.format(initialMessage)),
+                            Flux.interval(Duration.ofSeconds(Integer.parseInt(pingInterval))).map(v -> pingMessage)
+                    );
+                });
+    }
+
 
     @Override
     Predicate<Object> filterCriteria() {
@@ -65,6 +81,11 @@ public class BybitSocketService extends PlatformSocketService {
             KlineData klineData = (KlineData) data;
             return klineData.getCurrentPrice() != 0;
         };
+    }
+
+    @Override
+    boolean useMultipleConnection() {
+        return false;
     }
 
     @Override
@@ -80,22 +101,5 @@ public class BybitSocketService extends PlatformSocketService {
     @Override
     String normalizeJsonMessage(String rawMessage) {
         return rawMessage;
-    }
-
-    public static String initializeSetFromFile(String filePath) {
-        Set<String> dataSet = new HashSet<>();
-        try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
-            String line;
-            // Read each line from the file and add it to the Set
-            while ((line = reader.readLine()) != null) {
-                dataSet.add(line.trim()); // Trim whitespace from the line before adding to the Set
-            }
-        } catch (IOException e) {
-            System.err.println("Error initializing Set from file: " + e.getMessage());
-        }
-        return dataSet.stream().map(a -> {
-            a = a.replace("_", "");
-            return "\"tickers.".concat(a).concat("\"");
-        }).collect(Collectors.joining(","));
     }
 }
