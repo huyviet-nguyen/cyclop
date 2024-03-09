@@ -32,7 +32,7 @@ public class Strategy implements Serializable {
     private Bot bot;
     @DocumentReference
     private StrategyMarker strategyMarker;
-    @DocumentReference(lazy = true)
+    @DocumentReference
     private CandleWindow candleWindow;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

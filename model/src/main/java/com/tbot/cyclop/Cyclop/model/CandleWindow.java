@@ -12,4 +12,6 @@ public class CandleWindow {
     private String symbol;
     private double openPrice;
     private String interval;
+    private double lastPump;
+    private long timestamp;
 }

@@ -14,6 +14,7 @@ import reactor.core.scheduler.Schedulers;
 import reactor.kafka.sender.KafkaSender;
 import reactor.kafka.sender.SenderRecord;
 
+import java.time.Duration;
 import java.time.Instant;
 
 
@@ -69,6 +70,7 @@ public class MarketObserveCommandLineRunner implements CommandLineRunner {
 
     private void publish(Flux<KlineData> tokenPairDataFlux) {
         Flux<SenderRecord<String, KlineData, KlineData>> pub = tokenPairDataFlux
+                .sample(Flux.interval(Duration.ofMillis(80))) //reducing, its emiting too much
                 .map(i -> SenderRecord.create(outputTopic, null, i.getTimestamp(), i.getKafkaKey(), i, i));
         producerTemplate.send(pub).publishOn(Schedulers.boundedElastic()).doOnError(error -> {
             logger.error(error.getMessage());
