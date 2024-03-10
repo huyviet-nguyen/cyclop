@@ -1,0 +1,35 @@
+#!/bin/bash
+
+# ECR repository host
+REPO_HOST="055540832687.dkr.ecr.ap-southeast-2.amazonaws.com"
+
+# Authentication token
+AUTH_TOKEN="eyJwYXlsb2FkIjoiaTJ5ak5QSlZ3WDUzclVXWmhzeERmRG80amlsZlFhS2M4NEJ4VGFHeUhpNmQvT2FTVThpUEE4Mm5UTEdTbFlTK2NRRm80WE1OOWQ5QmJ5eXRpaTR6cUx4QUlYNTROV25EMUZXY2dVM09NK0c5b1YzUjVOMXcwdjJQSjlNRW5CbHpLMXhKVWs3bldlQkt4QitZM3NoODBkVGRjZkRXRGNmV3dPOXFvRGRmTEEyYzVhZk5xb2cxM3NVQmU3cm1PVHRVaU1jdmp6YTRuSjR2Q2VaN2J3K0MrWWhTTVZmNTcxTzRSMk94SkdRRnkxR2dOYmtQbmpkaGxKNGpQbk51VjMyMzFvRWdncGNVRWt1KzliZFkzclhGQlc3Z29iSHBvVmJkaGs4bFRReFNyTlA3VlFJQjZEOGpjYXZ1aFlJVUMweEVRS1dJYVNSVnk3dCt6eWRyMUtpVGRjUVR3V01ReWlrWStNR3pnUEx6REphbDNPeFR4NDJVb3duS2pyZ21zWGlvSTgxdFJScUlQeUx2ZWU3QjZ0T2VPWjF5VDQxanRqUkl4WEdYYXZ4djhCdmlnOHlQMVF0M25VS3NrYmNLUisrUFZNQm80RDJ4MFBoQndvdHRYdE9VUGFIeUZQOXZRUzdaRGhMRGZtcklVZjNQczVFVlRabkswUmROSHJZK2hmY3FCazBnWURhU00xcUdLZ1N5a2prdUtkeEtCbmNxcEJpMHN5QWVUaWZ1aFRJdFNaZjZhYlpVZlFRWi9nOHRVbzE4bFRBZi92Y3duUFBsSFc1blp0b29neTNMazBURERTaHpxSGNaajRwOUkxZzJNTmU0VmRBS2E1RHhyaGNrSThhRXBjOUpIcGMzVXRpOFZjajRxWDZ3WVNoWGxjMmdPWGh5eDZnNDdCcVJjVVM2eDkzYlgyODJhTmhieENmblMyeGxjMkhNaUU2UExDdWFJSGNXRkpKYnVGcGtoaVUzRUVBOCtsQi9CVTkxUHcrKzVTR1Z2OUNDWTdZdUpvZ29Bc0V6dXNaczZmY3oyRE1qWkFvcDE5aHZPaXNwaEFENVhNTjRmU25Tc3I4ZFhqc3drVyszNUtkbktIVXg1VDdyMk5maW9OMHgrdHpIQnUwN0h5OFM2dDVaWlA1ajVNNUJBdmlTd0NoRUNPUzY0U2kxWmxTaWtmNHRaMysrSzUxYUtBQm5qK1lWSnJUandlWnhpMDhOUEUwL2hOeU5qNXVpZHhrd1Irb2VVaFJUTjVlSFJ5NHFKRTNiKzBmYmVZeWdoTzVib1c0UmdzaExNeW1TV3V2SVc5TzRZOCtQMlFZVnU5aXFhbEZIV0dKdi9VcTNuc3orQnhqb1k0NVZOQ0c2ZTBjRG42MDk1UTdvbGhabitPM2hodDdnVFhwNUVIak5IamdWWVhYYk03WT0iLCJkYXRha2V5IjoiQVFFQkFIaEx5ano3UEpFUG1ZYnFINkE2Zi93V056eXo1QkthMzdCbkJQc0F5dUYxS1FBQUFINHdmQVlKS29aSWh2Y05BUWNHb0c4d2JRSUJBREJvQmdrcWhraUc5dzBCQndFd0hnWUpZSVpJQVdVREJBRXVNQkVFRE51S0p6ejllV0lweEVXcEp3SUJFSUE3REtmTnhONTFaNlNwMERQL05ibSt0ZEI3M1BzeUp0RXhGZDVuUzhMbHZrcDJsa1ZMY1hyUGNhQzJ2Q0x2TVBzRWVxeWNGZkIvd0Vvd1YwTT0iLCJ2ZXJzaW9uIjoiMiIsInR5cGUiOiJEQVRBX0tFWSIsImV4cGlyYXRpb24iOjE3MTAwODgzNDJ9"
+
+# Check if Docker image argument is provided
+if [ -z "$1" ]; then
+    echo "Usage: $0 <docker-image>"
+    exit 1
+fi
+
+# Docker image passed as argument
+DOCKER_IMAGE="$1"
+
+# Login to ECR using authentication token
+echo "Logging in to Amazon ECR..."
+echo "$AUTH_TOKEN" | docker login --username AWS --password-stdin $REPO_HOST/"$DOCKER_IMAGE"
+
+# Tag the local Docker image with the ECR repository URI
+TAG="latest"
+docker tag "$DOCKER_IMAGE" $REPO_HOST/"$DOCKER_IMAGE":"$TAG"
+
+# Push the tagged Docker image to the ECR repository
+echo "Pushing Docker image to Amazon ECR... : $DOCKER_IMAGE"
+docker push $REPO_HOST/"$DOCKER_IMAGE":"$TAG"
+
+# Verify the image has been pushed successfully
+if [ $? -eq 0 ]; then
+    echo "Docker image successfully pushed to Amazon ECR."
+else
+    echo "Failed to push Docker image to Amazon ECR."
+fi

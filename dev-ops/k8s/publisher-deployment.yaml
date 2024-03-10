@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: publisher1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: publisher1
+  template:
+    metadata:
+      labels:
+        app: publisher1
+    spec:
+      containers:
+        - name: publisher1
+          image: 055540832687.dkr.ecr.ap-southeast-2.amazonaws.com/2tbot-publisher:latest
+          env:
+            - name: spring.kafka.bootstrap-servers
+              value: "kafka:9092"
