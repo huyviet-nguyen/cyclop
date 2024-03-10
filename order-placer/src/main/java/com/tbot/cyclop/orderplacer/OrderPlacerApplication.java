@@ -147,7 +147,7 @@ public class OrderPlacerApplication {
         if (strategy.getStrategyMarker() == null) {
             StrategyMarker marker = new StrategyMarker();
             marker.setActualTp(strategy.getTakeProfit() * strategy.getReduceTakeProfit() / 100);
-            strategy.setStrategyMarker(marker);
+            strategy.setStrategyMarker(strategyMarkerRepo.save(marker).block());
         } else {
             strategy.getStrategyMarker().setActualTp(strategy.getStrategyMarker().getActualTp() * strategy.getReduceTakeProfit() / 100);
         }
