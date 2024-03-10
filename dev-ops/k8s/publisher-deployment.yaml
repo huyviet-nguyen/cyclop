@@ -1,20 +1,26 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: publisher1
+  name: publisher
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: publisher1
+      app: publisher
   template:
     metadata:
       labels:
-        app: publisher1
+        app: publisher
     spec:
       containers:
-        - name: publisher1
+        - name: publisher
           image: 055540832687.dkr.ecr.ap-southeast-2.amazonaws.com/2tbot-publisher:latest
           env:
             - name: spring.kafka.bootstrap-servers
               value: "kafka:9092"
+            - name: app.runMexc
+              value: "true"
+            - name: app.runBybit
+              value: "true"
+            - name: spring.cloud.stream.kafka.binder.configuration.topic.creation.default-partition-count
+              value: "9"

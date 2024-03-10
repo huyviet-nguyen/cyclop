@@ -72,7 +72,9 @@ public class MarketObserveCommandLineRunner implements CommandLineRunner {
         Flux<SenderRecord<String, KlineData, KlineData>> pub = tokenPairDataFlux
                 .sample(Flux.interval(Duration.ofMillis(80))) //reducing, its emiting too much
                 .map(i -> SenderRecord.create(outputTopic, null, i.getTimestamp(), i.getKafkaKey(), i, i));
-        producerTemplate.send(pub).publishOn(Schedulers.boundedElastic()).doOnError(error -> {
+        producerTemplate.send(pub).doOnEach(senderResultSignal -> {
+            logger.info(senderResultSignal.toString().substring(0,100));
+        }).publishOn(Schedulers.boundedElastic()).doOnError(error -> {
             logger.error(error.getMessage());
             SenderRecord<String, String, String> senderRecord = SenderRecord.create(errorTopic, null, Instant.now().toEpochMilli(), Instant.now().toString(), error.getMessage(), error.getMessage());
             errorSender.send(Mono.just(senderRecord)).subscribe();
