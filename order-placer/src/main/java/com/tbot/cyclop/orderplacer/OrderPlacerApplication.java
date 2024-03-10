@@ -56,7 +56,7 @@ public class OrderPlacerApplication {
                         return new ArrayList<>();
                     }
 
-                    Flux<Strategy> strategyFlux = strategyRepo.findByCandleStickAndSymbol(candleStick, symbol).filter(strategy -> (strategy.getPositionSide().equals(positionSide) || strategy.getPositionSide().equals("BOTH")) && "ACTIVE".equals(strategy.getStatus())).cache();
+                    Flux<Strategy> strategyFlux = strategyRepo.findByCandleStickAndSymbol(candleStick, symbol).filter(strategy -> (strategy.getPositionSide().equals(positionSide) || strategy.getPositionSide().equals("BOTH")) && "ACTIVE".equals(strategy.getStatus()));
                     Flux<OrderAckHistory> orderAckFlux = strategyFlux.publishOn(Schedulers.boundedElastic()).mapNotNull(
                             (Strategy strategy) ->
                             {
@@ -64,7 +64,7 @@ public class OrderPlacerApplication {
                                 if (canIgnore(value, strategy)) {
                                     return null;
                                 }
-                                OrderAckHistory orderAckHistory = orderAckHistoryRepo.findFirstByStrategyIdOrderByTimestampDesc(strategy.getId()).cache().block();
+                                OrderAckHistory orderAckHistory = orderAckHistoryRepo.findFirstByStrategyIdOrderByTimestampDesc(strategy.getId()).block();
                                 if (orderAckHistory == null) {
                                     return handleNewOrder(value, strategy);
                                 } else {
@@ -167,18 +167,20 @@ public class OrderPlacerApplication {
     }
 
     private boolean renewCandleWindow(Strategy strategy, KlineData klineData) {
-        CandleWindow candleWindow = new CandleWindow();
         if (strategy.getCandleWindow() == null || klineData.getOpenPrice() != strategy.getCandleWindow().getOpenPrice()) {
-            candleWindow.setPlatform(strategy.getPlatform());
-            candleWindow.setOpenPrice(klineData.getOpenPrice());
-            candleWindow.setSymbol(replaceUsdtSuffix(klineData.getSymbol()));
-            candleWindow.setInterval(klineData.getInterval());
-            if (strategy.getCandleWindow() != null) {
+            CandleWindow candleWindow;
+            if (strategy.getCandleWindow() != null){
+                candleWindow = strategy.getCandleWindow();
                 double lastPump = (klineData.getOpenPrice() - strategy.getCandleWindow().getOpenPrice()) / strategy.getCandleWindow().getOpenPrice() * 100;
                 candleWindow.setLastPump(lastPump);
             } else {
+                candleWindow = new CandleWindow();
                 candleWindow.setLastPump(0);
             }
+            candleWindow.setOpenPrice(klineData.getOpenPrice());
+            candleWindow.setPlatform(strategy.getPlatform());
+            candleWindow.setSymbol(replaceUsdtSuffix(klineData.getSymbol()));
+            candleWindow.setInterval(klineData.getInterval());
             candleWindow.setTimestamp(klineData.getTimestamp());
             strategy.setCandleWindow(candleWindowRepo.save(candleWindow).block());
             return true;

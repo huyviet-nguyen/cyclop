@@ -69,14 +69,6 @@ public class MexcSocketService extends PlatformSocketService {
                             Mono.just(initialMessage),
                             Flux.interval(Duration.ofSeconds(Integer.parseInt(pingInterval))).map(v -> pingMessage));
                 });
-//                .collectList()
-//                .flatMapMany(symbolList -> {
-//                    String symbolListString = String.join(",", symbolList);
-//                    String initialMessage = initMessageTemplate.replace("%params", symbolListString);
-//                    return Flux.concat(
-//                            Mono.just(initialMessage),
-//                            Flux.interval(Duration.ofSeconds(Integer.parseInt(pingInterval))).map(v -> pingMessage));
-//                }).retry();
     }
 
     @Override
