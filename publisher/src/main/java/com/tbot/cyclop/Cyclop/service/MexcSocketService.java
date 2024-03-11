@@ -73,7 +73,9 @@ public class MexcSocketService extends PlatformSocketService {
 
     @Override
     Flux<String> getMessageFlux() {
-        return null;
+        return Flux.concat(
+                Mono.just("{\"method\": \"SUBSCRIPTION\",\"params\": [\"spot@public.kline.v3.api@BTCUSDT@Min1\"]}"),
+                Flux.interval(Duration.ofSeconds(Integer.parseInt(pingInterval))).map(v -> pingMessage));
     }
 
     @Override
@@ -83,7 +85,7 @@ public class MexcSocketService extends PlatformSocketService {
 
     @Override
     boolean useMultipleConnection() {
-        return true;
+        return false;
     }
 
     @Override

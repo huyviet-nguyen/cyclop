@@ -10,7 +10,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
-import org.springframework.data.mongodb.repository.config.EnableReactiveMongoRepositories;
 import reactor.core.publisher.Flux;
 import reactor.core.scheduler.Schedulers;
 
@@ -19,7 +18,6 @@ import java.util.ArrayList;
 import java.util.function.Function;
 
 @SpringBootApplication
-@EnableReactiveMongoRepositories
 public class OrderPlacerApplication {
 
     @Autowired
@@ -79,7 +77,7 @@ public class OrderPlacerApplication {
                                             return handleTakeProfit(value, strategy);
                                         } else {
                                             if (newCanle) {
-                                                strategyRepo.save(handleReduceTakeProfit(strategy)).block();
+                                                handleReduceTakeProfit(strategy);
                                             }
                                             return null;
                                         }
@@ -89,7 +87,7 @@ public class OrderPlacerApplication {
                     );
                     String message = String.format("Processed message : %s %s from platform %s in %s miliseconds", value.getSymbol(), value.getInterval(), value.getSourcePlatform(), Instant.now().toEpochMilli() - benchmark);
                     logger.info(message);
-                    return orderAckHistoryRepo.saveAll(orderAckFlux).toIterable();
+                    return orderAckFlux.toIterable();
                 }
         );
     }
@@ -146,11 +144,12 @@ public class OrderPlacerApplication {
     private Strategy handleReduceTakeProfit(Strategy strategy) {
         if (strategy.getStrategyMarker() == null) {
             StrategyMarker marker = new StrategyMarker();
-            marker.setActualTp(strategy.getTakeProfit() * strategy.getReduceTakeProfit() / 100);
+            marker.setActualTp(strategy.getTakeProfit() - strategy.getTakeProfit() * strategy.getReduceTakeProfit() / 100);
             strategy.setStrategyMarker(strategyMarkerRepo.save(marker).block());
         } else {
-            strategy.getStrategyMarker().setActualTp(strategy.getStrategyMarker().getActualTp() * strategy.getReduceTakeProfit() / 100);
+            strategy.getStrategyMarker().setActualTp(strategy.getStrategyMarker().getActualTp() - strategy.getStrategyMarker().getActualTp() * strategy.getReduceTakeProfit() / 100);
         }
+        strategyRepo.save(strategy).block();
         return strategy;
     }
 
@@ -167,25 +166,27 @@ public class OrderPlacerApplication {
     }
 
     private boolean renewCandleWindow(Strategy strategy, KlineData klineData) {
-        if (strategy.getCandleWindow() == null || klineData.getOpenPrice() != strategy.getCandleWindow().getOpenPrice()) {
-            CandleWindow candleWindow;
-            if (strategy.getCandleWindow() != null){
-                candleWindow = strategy.getCandleWindow();
+        if (strategy.getCandleWindow() != null) {
+            boolean newCandle = klineData.getOpenPrice() != strategy.getCandleWindow().getOpenPrice();
+            if (newCandle) {
+                strategy.getCandleWindow().setOpenPrice(klineData.getOpenPrice());
                 double lastPump = (klineData.getOpenPrice() - strategy.getCandleWindow().getOpenPrice()) / strategy.getCandleWindow().getOpenPrice() * 100;
-                candleWindow.setLastPump(lastPump);
-            } else {
-                candleWindow = new CandleWindow();
-                candleWindow.setLastPump(0);
+                strategy.getCandleWindow().setLastPump(lastPump);
+                candleWindowRepo.save(strategy.getCandleWindow()).block();
             }
+            strategyRepo.save(strategy).block();
+            return newCandle;
+        } else {
+            CandleWindow candleWindow = new CandleWindow();
             candleWindow.setOpenPrice(klineData.getOpenPrice());
             candleWindow.setPlatform(strategy.getPlatform());
             candleWindow.setSymbol(replaceUsdtSuffix(klineData.getSymbol()));
             candleWindow.setInterval(klineData.getInterval());
             candleWindow.setTimestamp(klineData.getTimestamp());
             strategy.setCandleWindow(candleWindowRepo.save(candleWindow).block());
+            strategyRepo.save(strategy).block();
             return true;
         }
-        return false;
     }
 
     private static String replaceUsdtSuffix(String input) {
