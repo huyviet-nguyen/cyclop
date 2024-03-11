@@ -19,10 +19,16 @@ spec:
             - containerPort: 9092
             - containerPort: 29092
             - containerPort: 9999
-          command: ["bash", "-c", "unset KAFKA_PORT; /etc/confluent/docker/run"]
+          command:
+            - "/bin/bash"
+            - "-c"
+            - >
+              /etc/confluent/docker/run &&
+              sleep 10 &&
+              /usr/bin/kafka-topics --bootstrap-server localhost:9092 --create --topic kline --partitions 9 --replication-factor 1
           env:
             - name: KAFKA_ADVERTISED_LISTENERS
-              value: INTERNAL://kafka:19092,EXTERNAL://kafka:9092,DOCKER://host.docker.internal:29092
+              value: INTERNAL://127.0.0.1:19092,EXTERNAL://kafka:9092,DOCKER://host.docker.internal:29092
             - name: KAFKA_LISTENER_SECURITY_PROTOCOL_MAP
               value: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT,DOCKER:PLAINTEXT
             - name: KAFKA_INTER_BROKER_LISTENER_NAME
@@ -51,4 +57,6 @@ spec:
               value: "2000"
             - name: KAFKA_LOG_RETENTION_CHECK_INTERVAL_MS
               value: "1000"
+            - name: KAFKA_CREATE_TOPICS
+              value: "kline:9:1"
       restartPolicy: Always

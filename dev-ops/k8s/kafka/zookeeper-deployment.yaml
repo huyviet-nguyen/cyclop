@@ -25,4 +25,12 @@ spec:
             - name: ZOOKEEPER_SERVER_ID
               value: "1"
             - name: ZOOKEEPER_SERVERS
-              value: zookeeper:2888:3888
+              value: 127.0.0.1:2888:3888
+            - name: ZOOKEEPER_DATA_DIR
+              value: "/data"
+          volumeMounts:
+            - name: zookeeper-data
+              mountPath: /tmp
+      volumes:
+        - name: zookeeper-data
+          emptyDir: {}
