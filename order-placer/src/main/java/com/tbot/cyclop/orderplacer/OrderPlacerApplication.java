@@ -15,6 +15,7 @@ import reactor.core.scheduler.Schedulers;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Map;
 import java.util.function.Function;
 
 @SpringBootApplication
@@ -87,14 +88,14 @@ public class OrderPlacerApplication {
                     );
                     String message = String.format("Processed message : %s %s from platform %s in %s miliseconds", value.getSymbol(), value.getInterval(), value.getSourcePlatform(), Instant.now().toEpochMilli() - benchmark);
                     logger.info(message);
-                    return orderAckFlux.toIterable();
+                    return orderAckHistoryRepo.saveAll(orderAckFlux).toIterable();
                 }
         );
     }
 
     private boolean canIgnore(KlineData klineData, Strategy strategy) {
         double currentChangePercent = (klineData.getCurrentPrice() - strategy.getCandleWindow().getOpenPrice()) / strategy.getCandleWindow().getOpenPrice() * 100;
-        return currentChangePercent < strategy.getIgnore() * strategy.getCandleWindow().getLastPump() / 100;
+        return currentChangePercent < (Math.abs(strategy.getIgnore() * strategy.getCandleWindow().getLastPump() / 100));
     }
 
     private boolean canTakeProfit(KlineData klineData, Strategy strategy) {
@@ -123,6 +124,11 @@ public class OrderPlacerApplication {
 
     private OrderAckHistory handleTakeProfit(KlineData klineData, Strategy strategy) {
         OrderAckHistory ack = createOrderAck(klineData, strategy);
+        if (strategy.getStrategyMarker() == null){
+            strategy.setStrategyMarker(new StrategyMarker());
+        }
+        strategy.getStrategyMarker().setActualTp(strategy.getTakeProfit());
+        strategyMarkerRepo.save(strategy.getStrategyMarker()).block();
         ack.setOrderAction(OrderAction.TAKE_PROFIT);
         return ack;
     }
@@ -156,7 +162,9 @@ public class OrderPlacerApplication {
     private OrderAckHistory handleNewOrder(KlineData klineData, Strategy strategy) {
         double currentChangePercent = (klineData.getCurrentPrice() - strategy.getCandleWindow().getOpenPrice()) / strategy.getCandleWindow().getOpenPrice() * 100;
         double entryPercent = strategy.getOrderChange() * strategy.getExtendOrderChangePercent() / 100;
-
+        if ((strategy.getPositionSide().equals("LONG") && currentChangePercent < 0) || (strategy.getPositionSide().equals("SHORT") && currentChangePercent > 0)){
+            return null;
+        }
         if (Math.abs(currentChangePercent) > entryPercent) {
             OrderAckHistory ack = createOrderAck(klineData, strategy);
             ack.setOrderAction(OrderAction.ENTRY);
@@ -169,9 +177,9 @@ public class OrderPlacerApplication {
         if (strategy.getCandleWindow() != null) {
             boolean newCandle = klineData.getOpenPrice() != strategy.getCandleWindow().getOpenPrice();
             if (newCandle) {
-                strategy.getCandleWindow().setOpenPrice(klineData.getOpenPrice());
                 double lastPump = (klineData.getOpenPrice() - strategy.getCandleWindow().getOpenPrice()) / strategy.getCandleWindow().getOpenPrice() * 100;
                 strategy.getCandleWindow().setLastPump(lastPump);
+                strategy.getCandleWindow().setOpenPrice(klineData.getOpenPrice());
                 candleWindowRepo.save(strategy.getCandleWindow()).block();
             }
             strategyRepo.save(strategy).block();

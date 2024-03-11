@@ -85,7 +85,7 @@ public class MexcSocketService extends PlatformSocketService {
 
     @Override
     boolean useMultipleConnection() {
-        return false;
+        return true;
     }
 
     @Override
