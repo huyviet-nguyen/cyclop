@@ -15,6 +15,7 @@ public class KafkaConfig {
     public ConsumerFactory<Object, Object> consumerFactory() {
         Map<String, Object> props = new HashMap<>();
         props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest");
+        props.put(ConsumerConfig.GROUP_ID_CONFIG, "processing" + System.currentTimeMillis());
         return new DefaultKafkaConsumerFactory<>(props);
     }
 }
