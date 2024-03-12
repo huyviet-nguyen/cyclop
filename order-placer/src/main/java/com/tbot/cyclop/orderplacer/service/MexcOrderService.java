@@ -27,12 +27,12 @@ public class MexcOrderService extends OrderPlacerService {
     }
 
     @Override
-    String getUri() {
+    public String getUri() {
         return "https://futures.mexc.com/api/v1/private/order/create";
     }
 
     @Override
-    Map<String, String> getHeaders() {
+    public Map<String, String> getHeaders() {
         Map<String, String> headers = new HashMap<>();
         headers.put("authority", "futures.mexc.com");
         headers.put("accept", "*/*");

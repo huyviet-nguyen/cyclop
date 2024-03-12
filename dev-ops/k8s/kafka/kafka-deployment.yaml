@@ -20,12 +20,13 @@ spec:
             - containerPort: 29092
             - containerPort: 9999
           command:
-            - "/bin/bash"
+            - "bash"
             - "-c"
             - >
-              /etc/confluent/docker/run &&
+              unset KAFKA_PORT && /etc/confluent/docker/run &&
               sleep 10 &&
-              /usr/bin/kafka-topics --bootstrap-server localhost:9092 --create --topic kline --partitions 9 --replication-factor 1
+              /usr/bin/kafka-topics --create --if-not-exist --boostrap-server kafka:9092 --replication-factor 1 --topic kline &&
+              /usr/bin/kafka-topics --alter --boostrap-server kafka:9092 --partitions 9 --topic kline
           env:
             - name: KAFKA_ADVERTISED_LISTENERS
               value: INTERNAL://127.0.0.1:19092,EXTERNAL://kafka:9092,DOCKER://host.docker.internal:29092

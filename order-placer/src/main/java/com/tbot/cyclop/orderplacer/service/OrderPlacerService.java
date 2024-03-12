@@ -34,13 +34,16 @@ public abstract class OrderPlacerService {
         return new ReactorClientHttpConnector(httpClient);
     }
 
-    public Mono<String> createOrder(String stringPayload) {
-        WebClient client = WebClient.builder()
+    private WebClient getWebClient() {
+        return WebClient.builder()
                 .baseUrl(getUri())
                 .defaultHeaders(headers -> getHeaders().forEach(headers::add))
                 .clientConnector(getConnector())
                 .build();
+    }
 
+    public Mono<String> createOrder(String stringPayload) {
+        WebClient client = getWebClient();
         return client.post()
                 .uri(UriBuilder::build)
                 .body(BodyInserters.fromValue(stringPayload))
@@ -49,9 +52,9 @@ public abstract class OrderPlacerService {
                 .doOnError(e -> getNotificationService().sendNotification());
     }
 
-    abstract String getUri();
+    public abstract String getUri();
 
-    abstract Map<String, String> getHeaders();
+    public abstract Map<String, String> getHeaders();
 
 
 }

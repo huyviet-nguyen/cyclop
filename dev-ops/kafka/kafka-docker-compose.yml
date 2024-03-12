@@ -36,5 +36,12 @@ services:
       KAFKA_ALLOW_EVERYONE_IF_NO_ACL_FOUND: "true"
       KAFKA_LOG_RETENTION_MS: 2000
       KAFKA_LOG_RETENTION_CHECK_INTERVAL_MS: 1000
+    command:
+      - "/bin/bash"
+      - "-c"
+      - >
+        /etc/confluent/docker/run &&
+        sleep 10 &&
+        /bin/kafka-topics --bootstrap-server localhost:9092 --create --topic kline --partitions 9 --replication-factor 1
     depends_on:
       - zoo1
