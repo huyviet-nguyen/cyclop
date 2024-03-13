@@ -18,10 +18,9 @@ import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.function.Function;
-
-import static com.tbot.cyclop.orderplacer.service.GenericHttpUtil.decryptSecretKey;
 
 @SpringBootApplication
 public class OrderPlacerApplication {
@@ -59,7 +58,7 @@ public class OrderPlacerApplication {
                     String candleStick = addCandleStickPrefix(value.getInterval());
                     String symbolString = replaceUsdtSuffix(value.getSymbol());
                     String positionSide = value.getCurrentPrice() > value.getOpenPrice() ? "LONG" : "SHORT";
-                    Symbol symbol = symbolRepo.findBySymbolAndPlatform(symbolString, value.getSourcePlatform()).cache().block();
+                    Symbol symbol = symbolRepo.findBySymbolAndPlatform(symbolString, value.getSourcePlatform()).block();
                     if (symbol == null) {
                         return new ArrayList<>();
                     }
@@ -68,7 +67,7 @@ public class OrderPlacerApplication {
                     Flux<OrderAckHistory> orderAckFlux = strategyFlux.publishOn(Schedulers.boundedElastic()).mapNotNull(
                             (Strategy strategy) ->
                             {
-                                boolean newCanle = renewCandleWindow(strategy, value);
+                                boolean newCandle = renewCandleWindow(strategy, value);
                                 if (canIgnore(value, strategy)) {
                                     return null;
                                 }
@@ -86,7 +85,7 @@ public class OrderPlacerApplication {
                                         if (canTakeProfit(value, strategy)) {
                                             return handleTakeProfit(value, strategy);
                                         } else {
-                                            if (newCanle) {
+                                            if (newCandle) {
                                                 handleReduceTakeProfit(strategy);
                                             }
                                             return null;
@@ -102,21 +101,28 @@ public class OrderPlacerApplication {
     }
 
     private void notify(Flux<OrderAckHistory> orderAckHistoryFlux) {
-        orderAckHistoryFlux.publishOn(Schedulers.boundedElastic()).doOnEach(ack -> {
-            OrderAckHistory orderAckHistory = ack.get();
-            if (orderAckHistory != null && orderAckHistory.getStrategy() != null) {
-                NotificationPayload notificationPayload = NotificationPayload.fromOrderAck(orderAckHistory);
-                Mono<User> telegramIdMoni = userRepo.findById(orderAckHistory.getUserId());
-                telegramIdMoni.doOnSuccess(user -> {
-                    try {
-                        telegramService.sendNotification(user, notificationPayload);
-                    } catch (JsonProcessingException e) {
-                        throw new RuntimeException(e);
+        orderAckHistoryFlux
+                .flatMap(orderAckHistory -> {
+                    if (orderAckHistory != null && orderAckHistory.getStrategy() != null) {
+                        NotificationPayload notificationPayload = NotificationPayload.fromOrderAck(orderAckHistory);
+                        return userRepo.findById(orderAckHistory.getUserId())
+                                .flatMap(user -> Mono.fromRunnable(() -> {
+                                            try {
+                                                telegramService.sendNotification(user, notificationPayload);
+                                            } catch (JsonProcessingException e) {
+                                                throw new RuntimeException(e);
+                                            }
+                                        })
+                                        .subscribeOn(Schedulers.boundedElastic())
+                                        .then(Mono.just(orderAckHistory)));
+                    } else {
+                        return Mono.empty(); // Skip processing for null or invalid OrderAckHistory
                     }
-                }).block();
-            }
-        }).subscribe();
+                })
+                .subscribe();
     }
+
+
 
     private boolean canIgnore(KlineData klineData, Strategy strategy) {
         double currentChangePercent = (klineData.getCurrentPrice() - strategy.getCandleWindow().getOpenPrice()) / strategy.getCandleWindow().getOpenPrice() * 100;
@@ -131,7 +137,7 @@ public class OrderPlacerApplication {
     private boolean canTakeProfit(KlineData klineData, Strategy strategy) {
         if (strategy.getStrategyMarker() != null) {
             double currentChangePercent = (klineData.getCurrentPrice() - strategy.getCandleWindow().getOpenPrice()) / strategy.getCandleWindow().getOpenPrice() * 100;
-            double actualTakeProfitPercent = strategy.getStrategyMarker().getActualTp() * strategy.getOrderChange() / 100 ;
+            double actualTakeProfitPercent = strategy.getStrategyMarker().getActualTp() * strategy.getOrderChange() / 100;
             return currentChangePercent > actualTakeProfitPercent;
         } else {
             double currentChangePercent = (klineData.getCurrentPrice() - strategy.getCandleWindow().getOpenPrice()) / strategy.getCandleWindow().getOpenPrice() * 100;
@@ -180,12 +186,16 @@ public class OrderPlacerApplication {
         ack.setOpenPrice(strategy.getCandleWindow().getOpenPrice());
         ack.setStrategy(strategy);
         ack.setApiSecret(strategy.getBot().getSecretKey());
+        ack.setCreatedAt(LocalDateTime.now());
+        ack.setUpdatedAt(LocalDateTime.now());
         return ack;
     }
 
     private void handleReduceTakeProfit(Strategy strategy) {
         if (strategy.getStrategyMarker() == null) {
             StrategyMarker marker = new StrategyMarker();
+            marker.setCreatedAt(LocalDateTime.now());
+            marker.setUpdatedAt(LocalDateTime.now());
             marker.setActualTp(strategy.getTakeProfit() - strategy.getTakeProfit() * strategy.getReduceTakeProfit() / 100);
             strategy.setStrategyMarker(strategyMarkerRepo.save(marker).block());
         } else {
@@ -221,6 +231,7 @@ public class OrderPlacerApplication {
                 double lastPump = (klineData.getOpenPrice() - strategy.getCandleWindow().getOpenPrice()) / strategy.getCandleWindow().getOpenPrice() * 100;
                 strategy.getCandleWindow().setLastPump(lastPump);
                 strategy.getCandleWindow().setOpenPrice(klineData.getOpenPrice());
+                strategy.getCandleWindow().setUpdatedAt(LocalDateTime.now());
                 candleWindowRepo.save(strategy.getCandleWindow()).block();
                 String logMessage = String.format("CANDLE UPDATED | %s | LAST PRICE: %s | CURR: %s | PUMP : %s| INTERVAL : %s", klineData.getSymbol(), lastPrice, klineData.getOpenPrice(), lastPump, klineData.getInterval());
                 logger.info(logMessage);
@@ -234,6 +245,8 @@ public class OrderPlacerApplication {
             candleWindow.setSymbol(replaceUsdtSuffix(klineData.getSymbol()));
             candleWindow.setInterval(klineData.getInterval());
             candleWindow.setTimestamp(klineData.getTimestamp());
+            candleWindow.setCreatedAt(LocalDateTime.now());
+            candleWindow.setUpdatedAt(LocalDateTime.now());
             strategy.setCandleWindow(candleWindowRepo.save(candleWindow).block());
             strategyRepo.save(strategy).block();
             return true;

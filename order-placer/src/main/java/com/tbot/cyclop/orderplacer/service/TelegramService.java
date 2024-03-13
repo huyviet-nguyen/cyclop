@@ -85,11 +85,10 @@ public class TelegramService {
         telegramNotiPayload.setText(getTextNotiPayload(payload));
         telegramNotiPayload.setChatId(Optional.ofNullable(user.getTelegramId()).orElse(DEFAULT_CHANNEL_ID));
         telegramNotiPayload.setDisableNotification(false);
-
+        logger.info("SENT NOTIFICATION TO " + user.getName() + " at " + user.getTelegramId());
         WebClient client = WebClient.builder()
                 .baseUrl(getUrl(botInfo.getApiToken()))
                 .build();
-
         client.post()
                 .uri(UriBuilder::build)
                 .header("Content-Type", "application/json")
@@ -97,7 +96,6 @@ public class TelegramService {
                 .retrieve()
                 .bodyToMono(String.class)
                 .doOnError(e -> logger.error(e.getLocalizedMessage())).block();
-        logger.info("SENT NOTIFICATION TO " + user.getName() + " at " + user.getTelegramId());
     }
 
     public double getFutureBalance(String apiKey, String apiSecret, String platform) throws JsonProcessingException, NoSuchAlgorithmException, InvalidKeyException {

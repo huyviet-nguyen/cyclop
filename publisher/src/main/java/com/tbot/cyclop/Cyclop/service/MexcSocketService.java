@@ -2,7 +2,7 @@ package com.tbot.cyclop.Cyclop.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tbot.cyclop.Cyclop.dto.KlineData;
-import com.tbot.cyclop.Cyclop.model.MexcKline;
+import com.tbot.cyclop.Cyclop.dto.MexcKline;
 import com.tbot.cyclop.Cyclop.model.Symbol;
 import com.tbot.cyclop.Cyclop.repo.SymbolRepo;
 import org.slf4j.Logger;

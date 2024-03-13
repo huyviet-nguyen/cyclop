@@ -1,4 +1,4 @@
-package com.tbot.cyclop.Cyclop.model;
+package com.tbot.cyclop.Cyclop.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;

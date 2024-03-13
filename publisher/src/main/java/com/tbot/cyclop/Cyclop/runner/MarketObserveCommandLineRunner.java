@@ -80,7 +80,7 @@ public class MarketObserveCommandLineRunner implements CommandLineRunner {
                 String message = String.format("PUBLISHED %s | M%s | %s | OPEN PRICE : %s | CURRENT PRICE : %s", i.getSymbol(), i.getInterval(), i.getSourcePlatform(), i.getOpenPrice(), i.getCurrentPrice());
                 logger.info(message);
             }
-        }).publishOn(Schedulers.boundedElastic()).doOnError(error -> {
+        }).doOnError(error -> {
             logger.error(error.getMessage());
             SenderRecord<String, String, String> senderRecord = SenderRecord.create(errorTopic, null, Instant.now().toEpochMilli(), Instant.now().toString(), error.getMessage(), error.getMessage());
             errorSender.send(Mono.just(senderRecord)).subscribe();
