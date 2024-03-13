@@ -35,7 +35,7 @@ public class TelegramService {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    private static final String DEFAULT_CHANNEL_ID = "-1002112543276";
+    private static final String DEFAULT_CHANNEL_ID = "-1002026702728";
 
     private static final HashMap<String, String> BASE_URL_MAP = new HashMap<>();
 
@@ -95,24 +95,29 @@ public class TelegramService {
                 .header("Content-Type", "application/json")
                 .body(BodyInserters.fromValue(objectMapper.writeValueAsString(telegramNotiPayload)))
                 .retrieve()
-                .bodyToMono(String.class).block();
+                .bodyToMono(String.class)
+                .doOnError(e -> logger.error(e.getLocalizedMessage())).block();
         logger.info("SENT NOTIFICATION TO " + user.getName() + " at " + user.getTelegramId());
     }
 
     public double getFutureBalance(String apiKey, String apiSecret, String platform) throws JsonProcessingException, NoSuchAlgorithmException, InvalidKeyException {
-        String path = BASE_URL_MAP.get(platform).concat("private/account/asset/USDT");
-        long timestamp = System.currentTimeMillis();
-        String objectString = String.join("", apiKey, String.valueOf(timestamp));
-        String signature = calculateHmacSHA256(apiSecret, objectString);
-        WebClient client = WebClient.create();
-        return client.method(HttpMethod.GET)
-                .uri(path)
-                .header("Content-Type", "application/json")
-                .header("ApiKey", apiKey)
-                .header("Signature", signature)
-                .header("Request-Time", String.valueOf(timestamp))
-                .retrieve()
-                .bodyToMono(String.class).doOnSuccess(res -> logger.error(res)).map(TelegramService::extractAvailableBalance).block();
+        if (platform.equals("MEXC")){
+            String path = BASE_URL_MAP.get(platform).concat("private/account/asset/USDT");
+            long timestamp = System.currentTimeMillis();
+            String objectString = String.join("", apiKey, String.valueOf(timestamp));
+            String signature = calculateHmacSHA256(apiSecret, objectString);
+            WebClient client = WebClient.create();
+            return client.method(HttpMethod.GET)
+                    .uri(path)
+                    .header("Content-Type", "application/json")
+                    .header("ApiKey", apiKey)
+                    .header("Signature", signature)
+                    .header("Request-Time", String.valueOf(timestamp))
+                    .retrieve()
+                    .bodyToMono(String.class).doOnSuccess(res -> logger.error(res)).map(TelegramService::extractAvailableBalance).block();
+        }
+        return 0;
+
     }
 
 

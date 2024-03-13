@@ -76,7 +76,8 @@ public class OrderPlacerApplication {
                                 if (orderAckHistory == null) {
                                     return handleNewOrder(value, strategy);
                                 } else {
-                                    if (!OrderAction.ENTRY.equals(orderAckHistory.getOrderAction())) {return handleNewOrder(value, strategy);
+                                    if (!OrderAction.ENTRY.equals(orderAckHistory.getOrderAction())) {
+                                        return handleNewOrder(value, strategy);
                                     } else {
                                         if (canStopLoss(value, strategy)) {
                                             return handleStopLoss(value, strategy);
@@ -101,7 +102,7 @@ public class OrderPlacerApplication {
     }
 
     private void notify(Flux<OrderAckHistory> orderAckHistoryFlux) {
-        orderAckHistoryFlux.doOnEach(ack -> {
+        orderAckHistoryFlux.publishOn(Schedulers.boundedElastic()).doOnEach(ack -> {
             OrderAckHistory orderAckHistory = ack.get();
             if (orderAckHistory != null && orderAckHistory.getStrategy() != null) {
                 NotificationPayload notificationPayload = NotificationPayload.fromOrderAck(orderAckHistory);
@@ -190,7 +191,7 @@ public class OrderPlacerApplication {
         } else {
             double lastTp = strategy.getStrategyMarker().getActualTp();
             strategy.getStrategyMarker().setActualTp(strategy.getStrategyMarker().getActualTp() - strategy.getStrategyMarker().getActualTp() * strategy.getReduceTakeProfit() / 100);
-            String message = String.format("REDUCED TAKE PROFIT | STRATEGY: %s | LAST TP: %s | CURRENT TP: %s", String.join("#", strategy.getUser().getName(),strategy.getId()),lastTp, strategy.getStrategyMarker().getActualTp());
+            String message = String.format("REDUCED TAKE PROFIT | STRATEGY: %s | LAST TP: %s | CURRENT TP: %s", String.join("#", strategy.getUser().getName(), strategy.getId()), lastTp, strategy.getStrategyMarker().getActualTp());
             logger.info(message);
         }
         strategyRepo.save(strategy).block();
@@ -221,7 +222,7 @@ public class OrderPlacerApplication {
                 strategy.getCandleWindow().setLastPump(lastPump);
                 strategy.getCandleWindow().setOpenPrice(klineData.getOpenPrice());
                 candleWindowRepo.save(strategy.getCandleWindow()).block();
-                String logMessage = String.format("CANDLE UPDATED | %s | LAST PRICE: %s | CURR: %s | PUMP : %s| INTERVAL : %s", klineData.getSymbol(), lastPrice, klineData.getOpenPrice() , lastPump, klineData.getInterval());
+                String logMessage = String.format("CANDLE UPDATED | %s | LAST PRICE: %s | CURR: %s | PUMP : %s| INTERVAL : %s", klineData.getSymbol(), lastPrice, klineData.getOpenPrice(), lastPump, klineData.getInterval());
                 logger.info(logMessage);
             }
             strategyRepo.save(strategy).block();
