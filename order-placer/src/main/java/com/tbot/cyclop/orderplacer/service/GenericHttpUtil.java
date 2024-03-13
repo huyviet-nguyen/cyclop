@@ -4,10 +4,12 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.Cipher;
+import javax.crypto.Mac;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
+import java.security.InvalidKeyException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
@@ -17,18 +19,12 @@ public class GenericHttpUtil {
 
     public static final String ENCRYPT_SECRET_KEY = "sec1r2e3t-vv";
     private static final String ENCRYPTION_ALGORITHM = "AES/CBC/PKCS5Padding";
-    public static String calculateHmacSHA256(String data, String key) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hmacKeyBytes = key.getBytes(StandardCharsets.UTF_8);
-            digest.update(hmacKeyBytes);
-            byte[] messageBytes = data.getBytes(StandardCharsets.UTF_8);
-            byte[] hmacBytes = digest.digest(messageBytes);
-            return bytesToHex(hmacBytes);
-        } catch (NoSuchAlgorithmException e) {
-            e.printStackTrace();
-            return null;
-        }
+    public static String calculateHmacSHA256(String secret, String message)
+            throws NoSuchAlgorithmException, InvalidKeyException {
+        Mac hmacSha256 = Mac.getInstance("HmacSHA256");
+        SecretKeySpec secretKey = new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
+        hmacSha256.init(secretKey);
+        return new String(hmacSha256.doFinal(message.getBytes(StandardCharsets.UTF_8)));
     }
 
     public static String bytesToHex(byte[] bytes) {

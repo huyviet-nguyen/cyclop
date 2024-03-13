@@ -25,10 +25,17 @@ public class NotificationPayload {
     private double orderAmount;
     private String apiKey;
     private String apiSecret;
+    private double balance;
 
     public String getDecoratedAmount() {
         DecimalFormat decimalFormat = new DecimalFormat("#,##0.00");
         String formattedValue = decimalFormat.format(amount);
+        formattedValue = "$" + formattedValue;
+        return formattedValue;
+    }
+    public String getDecoratedBalance() {
+        DecimalFormat decimalFormat = new DecimalFormat("#,##0.00");
+        String formattedValue = decimalFormat.format(balance);
         formattedValue = "$" + formattedValue;
         return formattedValue;
     }

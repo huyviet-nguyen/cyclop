@@ -18,6 +18,8 @@ import org.springframework.web.util.UriBuilder;
 
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.util.*;
 
 import static com.tbot.cyclop.orderplacer.service.GenericHttpUtil.calculateHmacSHA256;
@@ -55,7 +57,7 @@ public class TelegramService {
         String notiTemplate = "%s | %s \n" +
                 "Bot     : %s\n" +
                 "Strategy: %s\n" +
-                "Price   : %s, amount: [Not Available Yet]]\n" +
+                "Price   : %s, amount: %s\n" +
                 "Balance : %s";
         return String.format(notiTemplate,
                 notificationPayload.getSymbol(),
@@ -63,7 +65,8 @@ public class TelegramService {
                 notificationPayload.getBotName(),
                 notificationPayload.getStrategyShort(),
                 notificationPayload.getPrice(),
-                notificationPayload.getDecoratedAmount());
+                notificationPayload.getDecoratedAmount(),
+                notificationPayload.getDecoratedBalance());
     }
 
 
@@ -98,7 +101,7 @@ public class TelegramService {
         logger.info("SENT NOTIFICATION TO " + user.getName() + " at " + user.getTelegramId());
     }
 
-    public double getFutureBalance(String apiKey, String apiSecret, String platform) throws JsonProcessingException {
+    public double getFutureBalance(String apiKey, String apiSecret, String platform) throws JsonProcessingException, NoSuchAlgorithmException, InvalidKeyException {
         String path = BASE_URL_MAP.get(platform).concat("private/account/asset/USDT");
         long timestamp = System.currentTimeMillis();
         Map<String, Object> requestBody = new HashMap<>();

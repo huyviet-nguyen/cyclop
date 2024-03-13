@@ -13,9 +13,11 @@ import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 import reactor.kafka.sender.KafkaSender;
 import reactor.kafka.sender.SenderRecord;
+import reactor.kafka.sender.SenderResult;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Optional;
 
 
 @Component
@@ -71,12 +73,14 @@ public class MarketObserveCommandLineRunner implements CommandLineRunner {
     private void publish(Flux<KlineData> tokenPairDataFlux) {
         Flux<SenderRecord<String, KlineData, KlineData>> pub = tokenPairDataFlux
                 .sample(Duration.ofMillis(10))
-                .map(i -> {
-                    String message = String.format("PUBLISHED %s | M%s | %s | OPEN PRICE : %s | CURRENT PRICE : %s", i.getSymbol(), i.getInterval(), i.getSourcePlatform(), i.getOpenPrice(), i.getCurrentPrice());
-                    logger.info(message);
-                    return SenderRecord.create(outputTopic, null, i.getTimestamp(), i.getKafkaKey(), i, i);
-                });
-        producerTemplate.send(pub).publishOn(Schedulers.boundedElastic()).doOnError(error -> {
+                .map(i -> SenderRecord.create(outputTopic, null, i.getTimestamp(), i.getKafkaKey(), i, i));
+        producerTemplate.send(pub).doOnEach(signal -> {
+            KlineData i = Optional.ofNullable(signal.get()).map(SenderResult::correlationMetadata).orElse(null);
+            if (i != null){
+                String message = String.format("PUBLISHED %s | M%s | %s | OPEN PRICE : %s | CURRENT PRICE : %s", i.getSymbol(), i.getInterval(), i.getSourcePlatform(), i.getOpenPrice(), i.getCurrentPrice());
+                logger.info(message);
+            }
+        }).publishOn(Schedulers.boundedElastic()).doOnError(error -> {
             logger.error(error.getMessage());
             SenderRecord<String, String, String> senderRecord = SenderRecord.create(errorTopic, null, Instant.now().toEpochMilli(), Instant.now().toString(), error.getMessage(), error.getMessage());
             errorSender.send(Mono.just(senderRecord)).subscribe();

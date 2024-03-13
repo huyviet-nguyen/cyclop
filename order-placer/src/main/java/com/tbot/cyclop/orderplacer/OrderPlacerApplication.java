@@ -56,7 +56,6 @@ public class OrderPlacerApplication {
         return stringKlineDataKStream -> stringKlineDataKStream.flatMapValues(
                 (key, value) ->
                 {
-                    long benchmark = Instant.now().toEpochMilli();
                     String candleStick = addCandleStickPrefix(value.getInterval());
                     String symbolString = replaceUsdtSuffix(value.getSymbol());
                     String positionSide = value.getCurrentPrice() > value.getOpenPrice() ? "LONG" : "SHORT";
@@ -77,8 +76,7 @@ public class OrderPlacerApplication {
                                 if (orderAckHistory == null) {
                                     return handleNewOrder(value, strategy);
                                 } else {
-                                    if (!OrderAction.ENTRY.equals(orderAckHistory.getOrderAction())) {
-                                        return handleNewOrder(value, strategy);
+                                    if (!OrderAction.ENTRY.equals(orderAckHistory.getOrderAction())) {return handleNewOrder(value, strategy);
                                     } else {
                                         if (canStopLoss(value, strategy)) {
                                             return handleStopLoss(value, strategy);
@@ -121,7 +119,7 @@ public class OrderPlacerApplication {
 
     private boolean canIgnore(KlineData klineData, Strategy strategy) {
         double currentChangePercent = (klineData.getCurrentPrice() - strategy.getCandleWindow().getOpenPrice()) / strategy.getCandleWindow().getOpenPrice() * 100;
-        boolean canIgnore = currentChangePercent < (Math.abs(strategy.getIgnore() * strategy.getCandleWindow().getLastPump() / 100));
+        boolean canIgnore = Math.abs(currentChangePercent) < Math.abs(strategy.getIgnore() * strategy.getCandleWindow().getLastPump() / 100);
         if (canIgnore) {
             String message = String.format("IGNORE CHANGE ON %s | EXPECTED : %s | CURR : %s", klineData.getSymbol(), (Math.abs(strategy.getIgnore() * strategy.getCandleWindow().getLastPump() / 100)), currentChangePercent);
             logger.info(message);
@@ -132,11 +130,11 @@ public class OrderPlacerApplication {
     private boolean canTakeProfit(KlineData klineData, Strategy strategy) {
         if (strategy.getStrategyMarker() != null) {
             double currentChangePercent = (klineData.getCurrentPrice() - strategy.getCandleWindow().getOpenPrice()) / strategy.getCandleWindow().getOpenPrice() * 100;
-            double actualTakeProfitPercent = strategy.getStrategyMarker().getActualTp();
+            double actualTakeProfitPercent = strategy.getStrategyMarker().getActualTp() * strategy.getOrderChange() / 100 ;
             return currentChangePercent > actualTakeProfitPercent;
         } else {
             double currentChangePercent = (klineData.getCurrentPrice() - strategy.getCandleWindow().getOpenPrice()) / strategy.getCandleWindow().getOpenPrice() * 100;
-            double actualTakeProfitPercent = strategy.getTakeProfit();
+            double actualTakeProfitPercent = strategy.getTakeProfit() * strategy.getOrderChange() / 100;
             return currentChangePercent > actualTakeProfitPercent;
         }
 
@@ -144,7 +142,7 @@ public class OrderPlacerApplication {
 
     private boolean canStopLoss(KlineData klineData, Strategy strategy) {
         double currentChangePercent = (klineData.getCurrentPrice() - strategy.getCandleWindow().getOpenPrice()) / strategy.getCandleWindow().getOpenPrice() * 100;
-        return currentChangePercent > strategy.getStopLoss();
+        return currentChangePercent > strategy.getStopLoss() * strategy.getOrderChange() / 100;
     }
 
     private OrderAckHistory handleStopLoss(KlineData klineData, Strategy strategy) {
@@ -190,7 +188,10 @@ public class OrderPlacerApplication {
             marker.setActualTp(strategy.getTakeProfit() - strategy.getTakeProfit() * strategy.getReduceTakeProfit() / 100);
             strategy.setStrategyMarker(strategyMarkerRepo.save(marker).block());
         } else {
+            double lastTp = strategy.getStrategyMarker().getActualTp();
             strategy.getStrategyMarker().setActualTp(strategy.getStrategyMarker().getActualTp() - strategy.getStrategyMarker().getActualTp() * strategy.getReduceTakeProfit() / 100);
+            String message = String.format("REDUCED TAKE PROFIT | STRATEGY: %s | LAST TP: %s | CURRENT TP: %s", String.join("#", strategy.getUser().getName(),strategy.getId()),lastTp, strategy.getStrategyMarker().getActualTp());
+            logger.info(message);
         }
         strategyRepo.save(strategy).block();
     }
@@ -220,10 +221,10 @@ public class OrderPlacerApplication {
                 strategy.getCandleWindow().setLastPump(lastPump);
                 strategy.getCandleWindow().setOpenPrice(klineData.getOpenPrice());
                 candleWindowRepo.save(strategy.getCandleWindow()).block();
+                String logMessage = String.format("CANDLE UPDATED | %s | LAST PRICE: %s | CURR: %s | PUMP : %s| INTERVAL : %s", klineData.getSymbol(), lastPrice, klineData.getOpenPrice() , lastPump, klineData.getInterval());
+                logger.info(logMessage);
             }
             strategyRepo.save(strategy).block();
-            String logMessage = String.format("CANDLE UPDATED | %s | LAST PRICE: %s | CURR: %s | INTERVAL : %s", klineData.getSymbol(), lastPrice, klineData.getOpenPrice(), klineData.getInterval());
-            logger.info(logMessage);
             return newCandle;
         } else {
             CandleWindow candleWindow = new CandleWindow();
