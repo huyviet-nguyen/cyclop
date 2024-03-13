@@ -97,15 +97,12 @@ public class OrderPlacerApplication {
                             }
                     );
                     notify(orderAckFlux);
-                    String message = String.format("Processed message : %s %s from platform %s in %s miliseconds", value.getSymbol(), value.getInterval(), value.getSourcePlatform(), Instant.now().toEpochMilli() - benchmark);
-                    logger.info(message);
-
                     return orderAckHistoryRepo.saveAll(orderAckFlux).toIterable();
                 }
         );
     }
 
-    private void notify(Flux<OrderAckHistory> orderAckHistoryFlux){
+    private void notify(Flux<OrderAckHistory> orderAckHistoryFlux) {
         orderAckHistoryFlux.doOnEach(ack -> {
             OrderAckHistory orderAckHistory = ack.get();
             if (orderAckHistory != null && orderAckHistory.getStrategy() != null) {
@@ -124,7 +121,12 @@ public class OrderPlacerApplication {
 
     private boolean canIgnore(KlineData klineData, Strategy strategy) {
         double currentChangePercent = (klineData.getCurrentPrice() - strategy.getCandleWindow().getOpenPrice()) / strategy.getCandleWindow().getOpenPrice() * 100;
-        return currentChangePercent < (Math.abs(strategy.getIgnore() * strategy.getCandleWindow().getLastPump() / 100));
+        boolean canIgnore = currentChangePercent < (Math.abs(strategy.getIgnore() * strategy.getCandleWindow().getLastPump() / 100));
+        if (canIgnore) {
+            String message = String.format("IGNORE CHANGE ON %s | EXPECTED : %s | CURR : %s", klineData.getSymbol(), (Math.abs(strategy.getIgnore() * strategy.getCandleWindow().getLastPump() / 100)), currentChangePercent);
+            logger.info(message);
+        }
+        return canIgnore;
     }
 
     private boolean canTakeProfit(KlineData klineData, Strategy strategy) {
@@ -148,6 +150,8 @@ public class OrderPlacerApplication {
     private OrderAckHistory handleStopLoss(KlineData klineData, Strategy strategy) {
         OrderAckHistory ack = createOrderAck(klineData, strategy);
         ack.setOrderAction(OrderAction.STOP_LOSS);
+        String logMessage = String.format("STOPPED LOSS | %s | OPEN: %s | CURR: %s | USR : %s", klineData.getSymbol(), klineData.getOpenPrice(), klineData.getCurrentPrice(), strategy.getUser().getName());
+        logger.info(logMessage);
         return ack;
     }
 
@@ -159,6 +163,8 @@ public class OrderPlacerApplication {
         strategy.getStrategyMarker().setActualTp(strategy.getTakeProfit());
         strategyMarkerRepo.save(strategy.getStrategyMarker()).block();
         ack.setOrderAction(OrderAction.TAKE_PROFIT);
+        String logMessage = String.format("TOOK PROFIT | %s | OPEN: %s | CURR: %s | USR : %s", klineData.getSymbol(), klineData.getOpenPrice(), klineData.getCurrentPrice(), strategy.getUser().getName());
+        logger.info(logMessage);
         return ack;
     }
 
@@ -178,7 +184,7 @@ public class OrderPlacerApplication {
         return ack;
     }
 
-    private Strategy handleReduceTakeProfit(Strategy strategy) {
+    private void handleReduceTakeProfit(Strategy strategy) {
         if (strategy.getStrategyMarker() == null) {
             StrategyMarker marker = new StrategyMarker();
             marker.setActualTp(strategy.getTakeProfit() - strategy.getTakeProfit() * strategy.getReduceTakeProfit() / 100);
@@ -187,7 +193,6 @@ public class OrderPlacerApplication {
             strategy.getStrategyMarker().setActualTp(strategy.getStrategyMarker().getActualTp() - strategy.getStrategyMarker().getActualTp() * strategy.getReduceTakeProfit() / 100);
         }
         strategyRepo.save(strategy).block();
-        return strategy;
     }
 
     private OrderAckHistory handleNewOrder(KlineData klineData, Strategy strategy) {
@@ -199,6 +204,8 @@ public class OrderPlacerApplication {
         if (Math.abs(currentChangePercent) > entryPercent) {
             OrderAckHistory ack = createOrderAck(klineData, strategy);
             ack.setOrderAction(OrderAction.ENTRY);
+            String logMessage = String.format("ENTRY PLACED | %s | OPEN: %s | CURR: %s | USR : %s", klineData.getSymbol(), klineData.getOpenPrice(), klineData.getCurrentPrice(), strategy.getUser().getName());
+            logger.info(logMessage);
             return ack;
         }
         return null;
@@ -206,6 +213,7 @@ public class OrderPlacerApplication {
 
     private boolean renewCandleWindow(Strategy strategy, KlineData klineData) {
         if (strategy.getCandleWindow() != null) {
+            double lastPrice = strategy.getCandleWindow().getOpenPrice();
             boolean newCandle = klineData.getOpenPrice() != strategy.getCandleWindow().getOpenPrice();
             if (newCandle) {
                 double lastPump = (klineData.getOpenPrice() - strategy.getCandleWindow().getOpenPrice()) / strategy.getCandleWindow().getOpenPrice() * 100;
@@ -214,6 +222,8 @@ public class OrderPlacerApplication {
                 candleWindowRepo.save(strategy.getCandleWindow()).block();
             }
             strategyRepo.save(strategy).block();
+            String logMessage = String.format("CANDLE UPDATED | %s | LAST PRICE: %s | CURR: %s | INTERVAL : %s", klineData.getSymbol(), lastPrice, klineData.getOpenPrice(), klineData.getInterval());
+            logger.info(logMessage);
             return newCandle;
         } else {
             CandleWindow candleWindow = new CandleWindow();

@@ -40,18 +40,15 @@ public abstract class PlatformSocketService {
 
     private Flux<String> runWebSocketListener(Flux<String> messageFlux) {
         return Flux.create(sink -> client.execute(URI.create(getSocketUrl()), session -> {
-            Mono<Void> outbound = session.send(messageFlux.map(s -> {
-                getLogger().info(String.format("Sending to    %s: %s", getSocketUrl(), s));
-                getLogger().info(session.getHandshakeInfo().toString());
-                return session.textMessage(s);
-            }));
+            Mono<Void> outbound = session.send(messageFlux.map(session::textMessage));
             Mono<Void> inbound = session.receive()
                     .map(WebSocketMessage::getPayloadAsText)
                     .map(this::normalizeJsonMessage)
                     .doOnNext(next -> {
-                        String message = String.format("Response from %s: %s", getSocketUrl(), next.substring(0, Math.min(99, next.length())).concat("..."));
+                        String message = String.format("Response from %s: %s", getSocketUrl(), next.substring(0, Math.min(199, next.length())).concat("..."));
                         if (message.contains("invalid") || message.contains("fail")) {
                             getLogger().info(message);
+                            sink.error(new RuntimeException(message));
                         }
                         sink.next(next);
                     })
