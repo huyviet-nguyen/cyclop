@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+
 import java.time.Duration;
 import java.util.function.Predicate;
 
@@ -71,7 +72,7 @@ public class BybitSocketService extends PlatformSocketService {
                             Mono.just(String.format(initialMessage)),
                             Flux.interval(Duration.ofSeconds(Integer.parseInt(pingInterval))).map(v -> pingMessage)
                     );
-                });
+                }).sample(Duration.ofMillis(50));
     }
 
 
