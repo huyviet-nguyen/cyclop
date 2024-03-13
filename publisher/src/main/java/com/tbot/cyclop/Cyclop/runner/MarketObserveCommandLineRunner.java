@@ -70,7 +70,7 @@ public class MarketObserveCommandLineRunner implements CommandLineRunner {
 
     private void publish(Flux<KlineData> tokenPairDataFlux) {
         Flux<SenderRecord<String, KlineData, KlineData>> pub = tokenPairDataFlux
-                .sample(Flux.interval(Duration.ofMillis(160))) //reducing, its emiting too much
+                .sample(Flux.interval(Duration.ofMillis(100))) //reducing, its emiting too much
                 .map(i -> SenderRecord.create(outputTopic, null, i.getTimestamp(), i.getKafkaKey(), i, i));
         producerTemplate.send(pub).doOnEach(senderResultSignal -> {
             logger.info(senderResultSignal.toString().substring(0,100));

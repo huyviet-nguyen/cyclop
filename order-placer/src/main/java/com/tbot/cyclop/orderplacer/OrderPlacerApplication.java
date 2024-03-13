@@ -106,7 +106,7 @@ public class OrderPlacerApplication {
     }
 
     private void notify(Flux<OrderAckHistory> orderAckHistoryFlux){
-        orderAckHistoryFlux.publishOn(Schedulers.boundedElastic()).doOnEach(ack -> {
+        orderAckHistoryFlux.doOnEach(ack -> {
             OrderAckHistory orderAckHistory = ack.get();
             if (orderAckHistory != null && orderAckHistory.getStrategy() != null) {
                 NotificationPayload notificationPayload = NotificationPayload.fromOrderAck(orderAckHistory);

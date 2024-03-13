@@ -42,8 +42,6 @@ public class TelegramService {
         BASE_URL_MAP.put("BYBIT", "");
     }
 
-    WebClient webClient = WebClient.builder().build();
-
 
     public TelegramService(TelegramBotInfoRepo infoRepo) {
         this.infoRepo = infoRepo;
