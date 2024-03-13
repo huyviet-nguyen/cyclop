@@ -72,7 +72,6 @@ public class MarketObserveCommandLineRunner implements CommandLineRunner {
 
     private void publish(Flux<KlineData> tokenPairDataFlux) {
         Flux<SenderRecord<String, KlineData, KlineData>> pub = tokenPairDataFlux
-                .sample(Duration.ofMillis(10))
                 .map(i -> SenderRecord.create(outputTopic, null, i.getTimestamp(), i.getKafkaKey(), i, i));
         producerTemplate.send(pub).doOnEach(signal -> {
             KlineData i = Optional.ofNullable(signal.get()).map(SenderResult::correlationMetadata).orElse(null);

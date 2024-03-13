@@ -11,16 +11,11 @@ kubectl apply -f zookeeper-service.yaml;
 sleep 10;
 kubectl apply -f kafka-deployment.yaml;
 kubectl apply -f kafka-service.yaml;
+sleep 50
+# update partition
+kafka_pod=$(kubectl get pods -l app=kafka -o jsonpath='{.items[0].metadata.name}')
+kubectl exec -it "$kafka_pod" -- sh -c '/usr/bin/kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --replication-factor 1 --partitions 6 --topic kline && /usr/bin/kafka-topics --describe --bootstrap-server kafka:9092 --topic kline'
 sleep 10;
 cd .. ;
 cd apps;
 kubectl apply -f .;
-
-sleep 50
-# update partition
-kafka_pod=$(kubectl get pods -l app=kafka -o jsonpath='{.items[0].metadata.name}')
-kubectl exec -it "$kafka_pod" -- /usr/bin/kafka-topics --delete --bootstrap-server kafka:9092 --topic kline
-kubectl exec -it "$kafka_pod" -- /usr/bin/kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --replication-factor 1 --partitions 1  --topic kline
-kubectl exec -it "$kafka_pod" -- /usr/bin/kafka-topics --alter --bootstrap-server kafka:9092 --partitions 6 --topic kline
-kubectl exec -it "$kafka_pod" -- /usr/bin/kafka-topics --describe --bootstrap-server kafka:9092 --topic kline
-
