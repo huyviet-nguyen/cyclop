@@ -5,6 +5,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.DocumentReference;
 
 @Data
 @Document(collection = "order_ack")
@@ -16,6 +17,7 @@ public class OrderAckHistory {
     private String id;
     private String platform;
     private String apiKey;
+    private String apiSecret;
     private double price;
     private String strategyId;
     private long timestamp;
@@ -24,5 +26,6 @@ public class OrderAckHistory {
     private String symbol;
     private String userId;
     private double openPrice;
-
+    @DocumentReference
+    private Strategy strategy;
 }

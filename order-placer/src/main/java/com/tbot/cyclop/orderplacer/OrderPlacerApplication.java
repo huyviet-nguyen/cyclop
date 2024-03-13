@@ -1,8 +1,11 @@
 package com.tbot.cyclop.orderplacer;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.tbot.cyclop.Cyclop.dto.KlineData;
+import com.tbot.cyclop.Cyclop.dto.NotificationPayload;
 import com.tbot.cyclop.Cyclop.model.*;
 import com.tbot.cyclop.orderplacer.repo.*;
+import com.tbot.cyclop.orderplacer.service.TelegramService;
 import org.apache.kafka.streams.kstream.KStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,12 +14,14 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Map;
 import java.util.function.Function;
+
+import static com.tbot.cyclop.orderplacer.service.GenericHttpUtil.decryptSecretKey;
 
 @SpringBootApplication
 public class OrderPlacerApplication {
@@ -39,7 +44,12 @@ public class OrderPlacerApplication {
     @Autowired
     public StrategyMarkerRepo strategyMarkerRepo;
 
-    Logger logger = LoggerFactory.getLogger(OrderPlacerApplication.class);
+    @Autowired
+    public TelegramService telegramService;
+
+    @Autowired
+    public UserRepo userRepo;
+    private final Logger logger = LoggerFactory.getLogger(OrderPlacerApplication.class);
 
     @Bean
     public Function<KStream<String, KlineData>, KStream<String, OrderAckHistory>> process() {
@@ -86,11 +96,30 @@ public class OrderPlacerApplication {
                                 }
                             }
                     );
+                    notify(orderAckFlux);
                     String message = String.format("Processed message : %s %s from platform %s in %s miliseconds", value.getSymbol(), value.getInterval(), value.getSourcePlatform(), Instant.now().toEpochMilli() - benchmark);
                     logger.info(message);
+
                     return orderAckHistoryRepo.saveAll(orderAckFlux).toIterable();
                 }
         );
+    }
+
+    private void notify(Flux<OrderAckHistory> orderAckHistoryFlux){
+        orderAckHistoryFlux.publishOn(Schedulers.boundedElastic()).doOnEach(ack -> {
+            OrderAckHistory orderAckHistory = ack.get();
+            if (orderAckHistory != null && orderAckHistory.getStrategy() != null) {
+                NotificationPayload notificationPayload = NotificationPayload.fromOrderAck(orderAckHistory);
+                Mono<User> telegramIdMoni = userRepo.findById(orderAckHistory.getUserId());
+                telegramIdMoni.doOnSuccess(user -> {
+                    try {
+                        telegramService.sendNotification(user, notificationPayload);
+                    } catch (JsonProcessingException e) {
+                        throw new RuntimeException(e);
+                    }
+                }).block();
+            }
+        }).subscribe();
     }
 
     private boolean canIgnore(KlineData klineData, Strategy strategy) {
@@ -124,7 +153,7 @@ public class OrderPlacerApplication {
 
     private OrderAckHistory handleTakeProfit(KlineData klineData, Strategy strategy) {
         OrderAckHistory ack = createOrderAck(klineData, strategy);
-        if (strategy.getStrategyMarker() == null){
+        if (strategy.getStrategyMarker() == null) {
             strategy.setStrategyMarker(new StrategyMarker());
         }
         strategy.getStrategyMarker().setActualTp(strategy.getTakeProfit());
@@ -144,6 +173,8 @@ public class OrderPlacerApplication {
         ack.setUserId(strategy.getUser().getId());
         ack.setStrategyId(strategy.getId());
         ack.setOpenPrice(strategy.getCandleWindow().getOpenPrice());
+        ack.setStrategy(strategy);
+        ack.setApiSecret(strategy.getBot().getSecretKey());
         return ack;
     }
 
@@ -162,7 +193,7 @@ public class OrderPlacerApplication {
     private OrderAckHistory handleNewOrder(KlineData klineData, Strategy strategy) {
         double currentChangePercent = (klineData.getCurrentPrice() - strategy.getCandleWindow().getOpenPrice()) / strategy.getCandleWindow().getOpenPrice() * 100;
         double entryPercent = strategy.getOrderChange() * strategy.getExtendOrderChangePercent() / 100;
-        if ((strategy.getPositionSide().equals("LONG") && currentChangePercent < 0) || (strategy.getPositionSide().equals("SHORT") && currentChangePercent > 0)){
+        if ((strategy.getPositionSide().equals("LONG") && currentChangePercent < 0) || (strategy.getPositionSide().equals("SHORT") && currentChangePercent > 0)) {
             return null;
         }
         if (Math.abs(currentChangePercent) > entryPercent) {

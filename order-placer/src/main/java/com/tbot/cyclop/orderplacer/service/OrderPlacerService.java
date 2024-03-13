@@ -17,7 +17,7 @@ public abstract class OrderPlacerService {
 
     abstract HttpProxyService getProxyService();
 
-    abstract NotificationService getNotificationService();
+//    abstract NotificationService getNotificationService();
 
     private ClientHttpConnector getConnector() {
         HttpProxy proxy = getProxyService().getProxyRoundRobin();
@@ -42,15 +42,15 @@ public abstract class OrderPlacerService {
                 .build();
     }
 
-    public Mono<String> createOrder(String stringPayload) {
-        WebClient client = getWebClient();
-        return client.post()
-                .uri(UriBuilder::build)
-                .body(BodyInserters.fromValue(stringPayload))
-                .retrieve()
-                .bodyToMono(String.class)
-                .doOnError(e -> getNotificationService().sendNotification());
-    }
+//    public Mono<String> createOrder(String stringPayload) {
+//        WebClient client = getWebClient();
+//        return client.post()
+//                .uri(UriBuilder::build)
+//                .body(BodyInserters.fromValue(stringPayload))
+//                .retrieve()
+//                .bodyToMono(String.class)
+//                .doOnError(e -> getNotificationService().sendNotification());
+//    }
 
     public abstract String getUri();
 

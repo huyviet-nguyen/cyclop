@@ -36,5 +36,10 @@ public class Strategy implements Serializable {
     private CandleWindow candleWindow;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    public String toNotiString() {
+        String template = "Futures | %s | OC: %s | TP: %s";
+        return String.format(template, candleStick, orderChange, takeProfit);
+    }
 }
 

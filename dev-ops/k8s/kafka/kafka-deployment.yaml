@@ -15,6 +15,11 @@ spec:
       containers:
         - name: kafka
           image: confluentinc/cp-kafka:7.3.2
+#          resources:
+#            requests:
+#              memory: "300Mi"
+#            limits:
+#              memory: "500Mi"
           ports:
             - containerPort: 9092
             - containerPort: 29092
@@ -23,10 +28,7 @@ spec:
             - "bash"
             - "-c"
             - >
-              unset KAFKA_PORT && /etc/confluent/docker/run &&
-              sleep 10 &&
-              /usr/bin/kafka-topics --create --if-not-exist --boostrap-server kafka:9092 --replication-factor 1 --topic kline &&
-              /usr/bin/kafka-topics --alter --boostrap-server kafka:9092 --partitions 9 --topic kline
+              unset KAFKA_PORT && /etc/confluent/docker/run
           env:
             - name: KAFKA_ADVERTISED_LISTENERS
               value: INTERNAL://127.0.0.1:19092,EXTERNAL://kafka:9092,DOCKER://host.docker.internal:29092
@@ -58,6 +60,4 @@ spec:
               value: "2000"
             - name: KAFKA_LOG_RETENTION_CHECK_INTERVAL_MS
               value: "1000"
-            - name: KAFKA_CREATE_TOPICS
-              value: "kline:9:1"
       restartPolicy: Always
