@@ -57,16 +57,14 @@ public class TelegramService {
         String notiTemplate = "%s | %s \n" +
                 "Bot     : %s\n" +
                 "Strategy: %s\n" +
-                "Price   : %s, amount: %s\n" +
-                "Balance : %s";
+                "Price   : %s | Amount: %s\n";
         return String.format(notiTemplate,
                 notificationPayload.getSymbol(),
                 notificationPayload.getOrderAction().toString(),
                 notificationPayload.getBotName(),
                 notificationPayload.getStrategyShort(),
                 notificationPayload.getPrice(),
-                notificationPayload.getDecoratedAmount(),
-                notificationPayload.getDecoratedBalance());
+                notificationPayload.getDecoratedAmount());
     }
 
 
@@ -104,10 +102,8 @@ public class TelegramService {
     public double getFutureBalance(String apiKey, String apiSecret, String platform) throws JsonProcessingException, NoSuchAlgorithmException, InvalidKeyException {
         String path = BASE_URL_MAP.get(platform).concat("private/account/asset/USDT");
         long timestamp = System.currentTimeMillis();
-        Map<String, Object> requestBody = new HashMap<>();
-        requestBody.put("currency", "USDT");
-        String objectString = String.join("", apiKey, String.valueOf(timestamp), buildQueryString(requestBody));
-        String signature = calculateHmacSHA256(objectString, apiSecret);
+        String objectString = String.join("", apiKey, String.valueOf(timestamp));
+        String signature = calculateHmacSHA256(apiSecret, objectString);
         WebClient client = WebClient.create();
         return client.method(HttpMethod.GET)
                 .uri(path)
@@ -116,8 +112,32 @@ public class TelegramService {
                 .header("Signature", signature)
                 .header("Request-Time", String.valueOf(timestamp))
                 .retrieve()
-                .bodyToMono(String.class).map(TelegramService::extractAvailableBalance).block();
+                .bodyToMono(String.class).doOnSuccess(res -> logger.error(res)).map(TelegramService::extractAvailableBalance).block();
     }
+
+
+//    @PostConstruct
+//    public void test() {
+//        String platform = "MEXC";
+//        String apiKey = "mx0vglSAxxrDj8kz65";
+//        String apiSecret = "c2e7d515431a49e38655e40ce9481103";
+//        String path = BASE_URL_MAP.get(platform).concat("private/account/asset/USDT");
+//        long timestamp = System.currentTimeMillis();
+//        Map<String, Object> requestBody = new HashMap<>();
+//        requestBody.put("currency", "USDT");
+//        String objectString = String.join("", apiKey, String.valueOf(timestamp));
+//        String signature = calculateHmacSHA256(apiSecret, objectString);
+//        WebClient client = WebClient.create();
+//        String a = client.method(HttpMethod.GET)
+//                .uri(path)
+//                .header("Content-Type", "application/json")
+//                .header("ApiKey", apiKey)
+//                .header("Signature", signature)
+//                .header("Request-Time", String.valueOf(timestamp))
+//                .retrieve()
+//                .bodyToMono(String.class).doOnSuccess(logger::error).block();
+//        System.out.println(a);
+//    }
 
     public static double extractAvailableBalance(String jsonResponse) {
         try {
@@ -127,7 +147,7 @@ public class TelegramService {
             JsonNode availableBalanceNode = dataNode.get("availableBalance");
             return availableBalanceNode.asDouble();
         } catch (Exception e) {
-            throw new RuntimeException("Error extracting available balance: " + e.getMessage(), e);
+            return 0;
         }
     }
 

@@ -1,6 +1,6 @@
 package com.tbot.cyclop.orderplacer.service;
 
-import org.springframework.beans.factory.annotation.Value;
+import org.apache.commons.codec.binary.Hex;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.Cipher;
@@ -19,20 +19,21 @@ public class GenericHttpUtil {
 
     public static final String ENCRYPT_SECRET_KEY = "sec1r2e3t-vv";
     private static final String ENCRYPTION_ALGORITHM = "AES/CBC/PKCS5Padding";
-    public static String calculateHmacSHA256(String secret, String message)
-            throws NoSuchAlgorithmException, InvalidKeyException {
-        Mac hmacSha256 = Mac.getInstance("HmacSHA256");
-        SecretKeySpec secretKey = new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
-        hmacSha256.init(secretKey);
-        return new String(hmacSha256.doFinal(message.getBytes(StandardCharsets.UTF_8)));
-    }
 
-    public static String bytesToHex(byte[] bytes) {
-        StringBuilder result = new StringBuilder();
-        for (byte b : bytes) {
-            result.append(String.format("%02x", b));
+    public static String calculateHmacSHA256(String secret, String message) {
+        Mac hmacSha256;
+        try {
+            hmacSha256 = Mac.getInstance("HmacSHA256");
+            SecretKeySpec secKey =
+                    new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
+            hmacSha256.init(secKey);
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException("No such algorithm: " + e.getMessage());
+        } catch (InvalidKeyException e) {
+            throw new RuntimeException("Invalid key: " + e.getMessage());
         }
-        return result.toString();
+        byte[] hash = hmacSha256.doFinal(message.getBytes(StandardCharsets.UTF_8));
+        return Hex.encodeHexString(hash);
     }
 
     public static String encryptSecretKey(String secretKey) {
