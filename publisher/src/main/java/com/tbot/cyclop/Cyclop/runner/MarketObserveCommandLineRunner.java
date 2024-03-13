@@ -70,7 +70,7 @@ public class MarketObserveCommandLineRunner implements CommandLineRunner {
 
     private void publish(Flux<KlineData> tokenPairDataFlux) {
         Flux<SenderRecord<String, KlineData, KlineData>> pub = tokenPairDataFlux
-//                .sample(Flux.interval(Duration.ofMillis(10))) //reducing, its emiting too much
+                .sample(Duration.ofMillis(10))
                 .map(i -> {
                     String message = String.format("PUBLISHED %s | M%s | %s | OPEN PRICE : %s | CURRENT PRICE : %s", i.getSymbol(), i.getInterval(), i.getSourcePlatform(), i.getOpenPrice(), i.getCurrentPrice());
                     logger.info(message);
