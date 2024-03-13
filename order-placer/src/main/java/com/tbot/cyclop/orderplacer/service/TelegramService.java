@@ -37,11 +37,11 @@ public class TelegramService {
 
     private static final String DEFAULT_CHANNEL_ID = "-1002026702728";
 
-    private static final HashMap<String, String> BASE_URL_MAP = new HashMap<>();
+    private static final HashMap<String, String> URL_MAP = new HashMap<>();
 
     static {
-        BASE_URL_MAP.put("MEXC", "https://contract.mexc.com/api/v1/");
-        BASE_URL_MAP.put("BYBIT", "");
+        URL_MAP.put("MEXC", "https://contract.mexc.com/api/v1/private/account/asset/USDT");
+        URL_MAP.put("BYBIT", "https://api.bybit.com/contract/v3/private/account/wallet/balance");
     }
 
 
@@ -76,8 +76,8 @@ public class TelegramService {
         }
         double amount = 0;
         try {
-            amount = getFutureBalance(decryptSecretKey(payload.getApiKey()), decryptSecretKey(payload.getApiSecret()), payload.getPlatform()) * payload.getOrderAmount() / 100;
-        } catch (Exception e){
+            amount = getBalance(decryptSecretKey(payload.getApiKey()), decryptSecretKey(payload.getApiSecret()), payload.getPlatform()) * payload.getOrderAmount() / 100;
+        } catch (Exception e) {
             logger.error(e.getMessage());
         }
         payload.setAmount(amount);
@@ -98,26 +98,22 @@ public class TelegramService {
                 .doOnError(e -> logger.error(e.getLocalizedMessage())).block();
     }
 
-    public double getFutureBalance(String apiKey, String apiSecret, String platform) throws JsonProcessingException, NoSuchAlgorithmException, InvalidKeyException {
-        if (platform.equals("MEXC")){
-            String path = BASE_URL_MAP.get(platform).concat("private/account/asset/USDT");
-            long timestamp = System.currentTimeMillis();
-            String objectString = String.join("", apiKey, String.valueOf(timestamp));
-            String signature = calculateHmacSHA256(apiSecret, objectString);
-            WebClient client = WebClient.create();
-            return client.method(HttpMethod.GET)
-                    .uri(path)
-                    .header("Content-Type", "application/json")
-                    .header("ApiKey", apiKey)
-                    .header("Signature", signature)
-                    .header("Request-Time", String.valueOf(timestamp))
-                    .retrieve()
-                    .bodyToMono(String.class).doOnSuccess(res -> logger.error(res)).map(TelegramService::extractAvailableBalance).block();
-        }
-        return 0;
+    public double getBalance(String apiKey, String apiSecret, String platform) throws JsonProcessingException, NoSuchAlgorithmException, InvalidKeyException {
+        String path = URL_MAP.get(platform);
+        long timestamp = System.currentTimeMillis();
+        String objectString = String.join("", apiKey, String.valueOf(timestamp));
+        String signature = calculateHmacSHA256(apiSecret, objectString);
+        WebClient client = WebClient.create();
+        return client.method(HttpMethod.GET)
+                .uri(path)
+                .header("Content-Type", "application/json")
+                .header("ApiKey", apiKey)
+                .header("Signature", signature)
+                .header("Request-Time", String.valueOf(timestamp))
+                .retrieve()
+                .bodyToMono(String.class).doOnSuccess(res -> logger.error(res)).map(TelegramService::extractAvailableBalance).block();
 
     }
-
 
 //    @PostConstruct
 //    public void test() {
