@@ -1,4 +1,4 @@
-package com.tbot.cyclop.orderplacer.service;
+package com.tbot.cyclop.orderplacer.util;
 
 import org.apache.commons.codec.binary.Hex;
 import org.springframework.stereotype.Component;
@@ -8,13 +8,16 @@ import javax.crypto.Mac;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.List;
+import java.util.Map;
 
-@Component
 public class GenericHttpUtil {
 
     public static final String ENCRYPT_SECRET_KEY = "sec1r2e3t-vv";
@@ -92,5 +95,30 @@ public class GenericHttpUtil {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public static String buildQueryString(Map<String, Object> params) {
+        if (params == null || params.isEmpty()) return "";
+
+        List<String> keyValuePairs = new ArrayList<>();
+        for (Map.Entry<String, Object> entry : params.entrySet()) {
+            String key = entry.getKey();
+            Object value = entry.getValue();
+            keyValuePairs.add(stringifyKeyValuePair(key, value));
+        }
+
+        return String.join("&", keyValuePairs);
+    }
+
+    private static String stringifyKeyValuePair(String key, Object value) {
+        String valueString;
+        if (value instanceof List<?>) {
+            @SuppressWarnings("unchecked")
+            List<String> valueList = (List<String>) value;
+            valueString = "[" + String.join(",", valueList) + "]";
+        } else {
+            valueString = value.toString();
+        }
+        return key + "=" + URLEncoder.encode(valueString, StandardCharsets.UTF_8);
     }
 }

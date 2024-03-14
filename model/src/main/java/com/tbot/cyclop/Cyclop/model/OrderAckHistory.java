@@ -24,7 +24,7 @@ public class OrderAckHistory {
     private String strategyId;
     private long timestamp;
     private double amount;
-    private OrderAction orderAction;
+    private OrderStatus orderStatus;
     private String symbol;
     private String userId;
     private double openPrice;
@@ -32,4 +32,5 @@ public class OrderAckHistory {
     private Strategy strategy;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private String platformOrderId;
 }

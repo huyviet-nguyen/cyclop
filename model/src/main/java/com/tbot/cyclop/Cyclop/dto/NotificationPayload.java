@@ -1,7 +1,7 @@
 package com.tbot.cyclop.Cyclop.dto;
 
 import com.tbot.cyclop.Cyclop.model.OrderAckHistory;
-import com.tbot.cyclop.Cyclop.model.OrderAction;
+import com.tbot.cyclop.Cyclop.model.OrderStatus;
 import com.tbot.cyclop.Cyclop.model.Strategy;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -16,7 +16,7 @@ public class NotificationPayload {
     private String symbol;
     private String botName;
     private String platform;
-    private OrderAction orderAction;
+    private OrderStatus orderStatus;
     private Strategy strategy;
     private String strategyShort;
     private String status;
@@ -47,7 +47,7 @@ public class NotificationPayload {
         notificationPayload.setPrice(orderAckHistory.getPrice());
         notificationPayload.setOrderAmount(orderAckHistory.getAmount());
         notificationPayload.setStrategyShort(orderAckHistory.getStrategy().toNotiString());
-        notificationPayload.setOrderAction(orderAckHistory.getOrderAction());
+        notificationPayload.setOrderStatus(orderAckHistory.getOrderStatus());
         notificationPayload.setPlatform(orderAckHistory.getPlatform());
         notificationPayload.setApiKey(orderAckHistory.getApiKey());
         notificationPayload.setApiSecret(orderAckHistory.getApiSecret());

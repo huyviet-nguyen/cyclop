@@ -39,7 +39,7 @@ public class MarketObserveCommandLineRunner implements CommandLineRunner {
 
     @Value("${app.runBybit}")
     public Boolean isRunBybit;
-    Logger logger = LoggerFactory.getLogger(MarketObserveCommandLineRunner.class);
+    private final Logger logger = LoggerFactory.getLogger(MarketObserveCommandLineRunner.class);
 
 
     public MarketObserveCommandLineRunner(MexcSocketService mexcService, BybitSocketService bybitService, KafkaSender<String, KlineData> producerTemplate, KafkaSender<String, String> errorSender) {

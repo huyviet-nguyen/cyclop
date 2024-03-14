@@ -19,7 +19,8 @@ import java.util.function.Predicate;
 
 @Component
 public class MexcSocketService extends PlatformSocketService {
-    Logger logger = LoggerFactory.getLogger(MexcSocketService.class);
+
+    private final Logger logger = LoggerFactory.getLogger(MexcSocketService.class);
 
     @Value("${wss.mexc.url}")
     private String mexcWebSocketUri;

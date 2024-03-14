@@ -71,11 +71,11 @@ public class OrderPlacerApplication {
                                 if (canIgnore(value, strategy)) {
                                     return null;
                                 }
-                                OrderAckHistory orderAckHistory = orderAckHistoryRepo.findFirstByStrategyIdOrderByTimestampDesc(strategy.getId()).block();
+                                OrderAckHistory orderAckHistory = orderAckHistoryRepo.findFirstByStrategyIdOrderByCreatedAtDesc(strategy.getId()).block();
                                 if (orderAckHistory == null) {
                                     return handleNewOrder(value, strategy);
                                 } else {
-                                    if (!OrderAction.ENTRY.equals(orderAckHistory.getOrderAction())) {
+                                    if (!OrderStatus.OPEN.equals(orderAckHistory.getOrderStatus())) {
                                         return handleNewOrder(value, strategy);
                                     } else {
                                         if (canStopLoss(value, strategy)) {
@@ -154,7 +154,7 @@ public class OrderPlacerApplication {
 
     private OrderAckHistory handleStopLoss(KlineData klineData, Strategy strategy) {
         OrderAckHistory ack = createOrderAck(klineData, strategy);
-        ack.setOrderAction(OrderAction.STOP_LOSS);
+        ack.setOrderStatus(OrderStatus.STOPPED_LOSS);
         String logMessage = String.format("STOPPED LOSS | %s | OPEN: %s | CURR: %s | USR : %s", klineData.getSymbol(), klineData.getOpenPrice(), klineData.getCurrentPrice(), strategy.getUser().getName());
         logger.info(logMessage);
         return ack;
@@ -167,7 +167,7 @@ public class OrderPlacerApplication {
         }
         strategy.getStrategyMarker().setActualTp(strategy.getTakeProfit());
         strategyMarkerRepo.save(strategy.getStrategyMarker()).block();
-        ack.setOrderAction(OrderAction.TAKE_PROFIT);
+        ack.setOrderStatus(OrderStatus.TOOK_PROFIT);
         String logMessage = String.format("TOOK PROFIT | %s | OPEN: %s | CURR: %s | USR : %s", klineData.getSymbol(), klineData.getOpenPrice(), klineData.getCurrentPrice(), strategy.getUser().getName());
         logger.info(logMessage);
         return ack;
@@ -215,7 +215,7 @@ public class OrderPlacerApplication {
         }
         if (Math.abs(currentChangePercent) > entryPercent) {
             OrderAckHistory ack = createOrderAck(klineData, strategy);
-            ack.setOrderAction(OrderAction.ENTRY);
+            ack.setOrderStatus(OrderStatus.OPEN);
             String logMessage = String.format("ENTRY PLACED | %s | OPEN: %s | CURR: %s | USR : %s", klineData.getSymbol(), klineData.getOpenPrice(), klineData.getCurrentPrice(), strategy.getUser().getName());
             logger.info(logMessage);
             return ack;

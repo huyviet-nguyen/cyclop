@@ -18,8 +18,11 @@ import java.util.function.Predicate;
 
 @Component
 public class BybitSocketService extends PlatformSocketService {
+
     private final ObjectMapper objectMapper = new ObjectMapper();
-    Logger logger = LoggerFactory.getLogger(BybitSocketService.class);
+
+    private final Logger logger = LoggerFactory.getLogger(BybitSocketService.class);
+
     private static final String topicTemplate = "\"kline.1.symbol\",\"kline.5.symbol\",\"kline.15.symbol\",\"kline.30.symbol\",\"kline.60.symbol\"";
 
     @Value("${wss.bybit.url}")

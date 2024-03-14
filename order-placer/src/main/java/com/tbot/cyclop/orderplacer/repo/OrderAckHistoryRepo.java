@@ -7,5 +7,5 @@ import reactor.core.publisher.Mono;
 
 @Repository
 public interface OrderAckHistoryRepo extends ReactiveMongoRepository<OrderAckHistory, String> {
-    Mono<OrderAckHistory> findFirstByStrategyIdOrderByTimestampDesc(String strategyId);
+    Mono<OrderAckHistory> findFirstByStrategyIdOrderByCreatedAtDesc(String strategyId);
 }
