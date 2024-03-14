@@ -11,8 +11,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.function.Predicate;
 
 @Component
@@ -73,9 +75,17 @@ public class MexcSocketService extends PlatformSocketService {
 
     @Override
     Flux<String> getMessageFlux() {
-        return Flux.concat(
-                Mono.just("{\"method\": \"SUBSCRIPTION\",\"params\": [\"spot@public.kline.v3.api@BTCUSDT@Min1\"]}"),
-                Flux.interval(Duration.ofSeconds(Integer.parseInt(pingInterval))).map(v -> pingMessage));
+        List<String> intervalList = List.of("1", "5", "15", "30", "60");
+        Flux<String> messageFlux = symbolRepo.findAllByPlatform("MEXC")
+                .map(Symbol::getSymbol)
+                .distinct()
+                .flatMap(
+                        symbol -> Flux.fromIterable(intervalList).map(
+                                interval -> initMessageTemplate.replace("%symbol", symbol).replace("%interval", interval)
+                        )
+                ).delayElements(Duration.ofMillis(200));
+        Flux<String> pingFlux = Flux.interval(Duration.ofSeconds(Integer.parseInt(pingInterval))).map(v -> pingMessage);
+        return Flux.merge(messageFlux.subscribeOn(Schedulers.parallel()), pingFlux.subscribeOn(Schedulers.parallel()));
     }
 
     @Override
@@ -85,7 +95,7 @@ public class MexcSocketService extends PlatformSocketService {
 
     @Override
     boolean useMultipleConnection() {
-        return true;
+        return false;
     }
 
     @Override

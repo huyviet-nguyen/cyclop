@@ -47,7 +47,7 @@ public abstract class PlatformSocketService {
                     .map(this::normalizeJsonMessage)
                     .doOnNext(next -> {
                         String message = String.format("Response from %s: %s", getSocketUrl(), next.substring(0, Math.min(199, next.length())).concat("..."));
-                        if (message.contains("invalid") || message.contains("fail")) {
+                        if (message.contains("rs.error") || message.contains("fail")) {
                             getLogger().info(message);
                             sink.error(new RuntimeException(message));
                         }
