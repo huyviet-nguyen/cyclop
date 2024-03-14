@@ -16,10 +16,8 @@ import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.util.UriBuilder;
 
-import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 import static com.tbot.cyclop.orderplacer.service.GenericHttpUtil.calculateHmacSHA256;
@@ -41,7 +39,7 @@ public class TelegramService {
 
     static {
         URL_MAP.put("MEXC", "https://contract.mexc.com/api/v1/private/account/asset/USDT");
-        URL_MAP.put("BYBIT", "https://api.bybit.com/contract/v3/private/account/wallet/balance");
+        URL_MAP.put("BYBIT", "https://api.bybit.com/contract/v3/private/account/wallet/balance?coin=USDT");
     }
 
 
@@ -98,10 +96,21 @@ public class TelegramService {
                 .doOnError(e -> logger.error(e.getLocalizedMessage())).block();
     }
 
-    public double getBalance(String apiKey, String apiSecret, String platform) throws JsonProcessingException, NoSuchAlgorithmException, InvalidKeyException {
-        String path = URL_MAP.get(platform);
+    private double getBalance(String apiKey, String apiSecret, String platform) {
+        switch (platform) {
+            case "BYBIT":
+                return getBalanceBybit(apiKey, apiSecret);
+            case "MEXC":
+                return getBalanceMexc(apiKey, apiSecret);
+            default:
+                return 0;
+        }
+    }
+
+    public double getBalanceMexc(String apiKey, String apiSecret) {
+        String path = URL_MAP.get("MEXC");
         long timestamp = System.currentTimeMillis();
-        String objectString = String.join("", apiKey, String.valueOf(timestamp));
+        String objectString = String.join("", apiKey, String.valueOf(timestamp), "coin=USDT");
         String signature = calculateHmacSHA256(apiSecret, objectString);
         WebClient client = WebClient.create();
         return client.method(HttpMethod.GET)
@@ -111,34 +120,38 @@ public class TelegramService {
                 .header("Signature", signature)
                 .header("Request-Time", String.valueOf(timestamp))
                 .retrieve()
-                .bodyToMono(String.class).doOnSuccess(res -> logger.error(res)).map(TelegramService::extractAvailableBalance).block();
+                .bodyToMono(String.class).doOnError(res -> logger.error(res.getMessage())).map(TelegramService::extractAvailableBalanceMexc).block();
 
+    }
+
+    public double getBalanceBybit(String apiKey, String apiSecret) {
+        String path = URL_MAP.get("BYBIT");
+        long timestamp = System.currentTimeMillis();
+        String objectString = String.join("", String.valueOf(timestamp), apiKey, "5000", "coin=USDT");
+        String signature = calculateHmacSHA256(apiSecret, objectString);
+        WebClient client = WebClient.create();
+        return client.method(HttpMethod.GET)
+                .uri(path)
+                .header("X-BAPI-SIGN-TYPE", "2")
+                .header("Content-Type", "application/json")
+                .header("X-BAPI-API-KEY", apiKey)
+                .header("X-BAPI-SIGN", signature)
+                .header("X-BAPI-TIMESTAMP", String.valueOf(timestamp))
+                .header("X-BAPI-RECV-WINDOW", "5000")
+                .retrieve()
+                .bodyToMono(String.class).doOnError(res -> logger.error(res.getMessage())).map(TelegramService::extractAvailableBalanceBybit).block();
     }
 
 //    @PostConstruct
 //    public void test() {
-//        String platform = "MEXC";
-//        String apiKey = "mx0vglSAxxrDj8kz65";
-//        String apiSecret = "c2e7d515431a49e38655e40ce9481103";
-//        String path = BASE_URL_MAP.get(platform).concat("private/account/asset/USDT");
-//        long timestamp = System.currentTimeMillis();
-//        Map<String, Object> requestBody = new HashMap<>();
-//        requestBody.put("currency", "USDT");
-//        String objectString = String.join("", apiKey, String.valueOf(timestamp));
-//        String signature = calculateHmacSHA256(apiSecret, objectString);
-//        WebClient client = WebClient.create();
-//        String a = client.method(HttpMethod.GET)
-//                .uri(path)
-//                .header("Content-Type", "application/json")
-//                .header("ApiKey", apiKey)
-//                .header("Signature", signature)
-//                .header("Request-Time", String.valueOf(timestamp))
-//                .retrieve()
-//                .bodyToMono(String.class).doOnSuccess(logger::error).block();
+//        String platform = "BYBIT";
+//        String apiKey = "x2ynIaEIPXIWkylrla";
+//        String apiSecret = "duMKCtJQPplpB2zBUumZudiZoZcsJPIhiMHA";
+//        ;
 //        System.out.println(a);
 //    }
 
-    public static double extractAvailableBalance(String jsonResponse) {
+    public static double extractAvailableBalanceMexc(String jsonResponse) {
         try {
             ObjectMapper mapper = new ObjectMapper();
             JsonNode rootNode = mapper.readTree(jsonResponse);
@@ -147,6 +160,16 @@ public class TelegramService {
             return availableBalanceNode.asDouble();
         } catch (Exception e) {
             return 0;
+        }
+    }
+
+    private static double extractAvailableBalanceBybit(String jsonResponse) {
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            JsonNode jsonObject = mapper.readTree(jsonResponse);
+            return jsonObject.get("result").get("list").get(0).get("walletBalance").asDouble();
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
         }
     }
 
@@ -172,13 +195,7 @@ public class TelegramService {
         } else {
             valueString = value.toString();
         }
-
-        try {
-            return key + "=" + URLEncoder.encode(valueString, "UTF-8");
-        } catch (UnsupportedEncodingException e) {
-            e.printStackTrace();
-            return "";
-        }
+        return key + "=" + URLEncoder.encode(valueString, StandardCharsets.UTF_8);
     }
 
 
