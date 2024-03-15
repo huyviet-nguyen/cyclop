@@ -23,8 +23,6 @@ public class NotificationPayload {
     private double price;
     private double amount;
     private double orderAmount;
-    private String apiKey;
-    private String apiSecret;
     private double balance;
 
     public String getDecoratedAmount() {
@@ -44,13 +42,11 @@ public class NotificationPayload {
         NotificationPayload notificationPayload = new NotificationPayload();
         notificationPayload.setBotName(orderAckHistory.getStrategy().getBot().getName());
         notificationPayload.setSymbol(orderAckHistory.getSymbol());
-        notificationPayload.setPrice(orderAckHistory.getPrice());
-        notificationPayload.setOrderAmount(orderAckHistory.getAmount());
+        notificationPayload.setPrice(orderAckHistory.getEntryPrice());
+        notificationPayload.setOrderAmount(orderAckHistory.getUsdtAmount());
         notificationPayload.setStrategyShort(orderAckHistory.getStrategy().toNotiString());
         notificationPayload.setOrderStatus(orderAckHistory.getOrderStatus());
         notificationPayload.setPlatform(orderAckHistory.getPlatform());
-        notificationPayload.setApiKey(orderAckHistory.getApiKey());
-        notificationPayload.setApiSecret(orderAckHistory.getApiSecret());
         return notificationPayload;
     }
 }

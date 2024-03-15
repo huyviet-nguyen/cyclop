@@ -18,19 +18,21 @@ public class OrderAckHistory {
     @Id
     private String id;
     private String platform;
-    private String apiKey;
-    private String apiSecret;
-    private double price;
-    private String strategyId;
+    private double entryPrice;
+    private double takeProfitPrice;
+    private double stopLossPrice;
     private long timestamp;
-    private double amount;
+    private double usdtAmount;
+    private double quantity;
     private OrderStatus orderStatus;
+    private PlatformOrderStatus platformOrderStatus;
     private String symbol;
     private String userId;
     private double openPrice;
     @DocumentReference
     private Strategy strategy;
     private LocalDateTime createdAt;
+    private LocalDateTime createdOnPlatformAt;
     private LocalDateTime updatedAt;
     private String platformOrderId;
 }

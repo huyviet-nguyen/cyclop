@@ -5,6 +5,7 @@ import com.tbot.cyclop.Cyclop.dto.KlineData;
 import com.tbot.cyclop.Cyclop.dto.NotificationPayload;
 import com.tbot.cyclop.Cyclop.model.*;
 import com.tbot.cyclop.orderplacer.repo.*;
+import com.tbot.cyclop.orderplacer.service.OrderPlacerService;
 import com.tbot.cyclop.orderplacer.service.TelegramService;
 import org.apache.kafka.streams.kstream.KStream;
 import org.slf4j.Logger;
@@ -21,6 +22,9 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.function.Function;
+
+import static com.tbot.cyclop.orderplacer.util.TradingUtil.*;
+
 
 @SpringBootApplication
 public class OrderPlacerApplication {
@@ -48,6 +52,9 @@ public class OrderPlacerApplication {
 
     @Autowired
     public UserRepo userRepo;
+
+    @Autowired
+    public OrderPlacerService orderPlacerService;
     private final Logger logger = LoggerFactory.getLogger(OrderPlacerApplication.class);
 
     @Bean
@@ -67,190 +74,70 @@ public class OrderPlacerApplication {
                     Flux<OrderAckHistory> orderAckFlux = strategyFlux.publishOn(Schedulers.boundedElastic()).mapNotNull(
                             (Strategy strategy) ->
                             {
-                                boolean newCandle = renewCandleWindow(strategy, value);
-                                if (canIgnore(value, strategy)) {
+                                if (newCandle(strategy, value)) {
+                                    orderPlacerService.handleCandleWindow(strategy, value);
+                                }
+                                if (canIgnore(strategy, value)) {
                                     return null;
                                 }
-                                OrderAckHistory orderAckHistory = orderAckHistoryRepo.findFirstByStrategyIdOrderByCreatedAtDesc(strategy.getId()).block();
-                                if (orderAckHistory == null) {
-                                    return handleNewOrder(value, strategy);
-                                } else {
-                                    if (!OrderStatus.OPEN.equals(orderAckHistory.getOrderStatus())) {
-                                        return handleNewOrder(value, strategy);
-                                    } else {
-                                        if (canStopLoss(value, strategy)) {
-                                            return handleStopLoss(value, strategy);
-                                        }
-
-                                        if (canTakeProfit(value, strategy)) {
-                                            return handleTakeProfit(value, strategy);
-                                        } else {
-                                            if (newCandle) {
-                                                handleReduceTakeProfit(strategy);
-                                            }
-                                            return null;
-                                        }
-                                    }
+                                if (canEntry(strategy, value)) {
+                                    return orderPlacerService.handleOpenOrder(strategy, value);
                                 }
+                                if (canTakeProfit(strategy, value)) {
+                                    return orderPlacerService.handleTakeProfit(strategy, value);
+                                }
+                                if (mustReduceTakeProfit(strategy, value)) {
+                                    return orderPlacerService.handleReduceTakeProfit(strategy, value);
+                                }
+                                if (canStopLoss(strategy, value)) {
+                                    return orderPlacerService.handleStopLoss(strategy, value);
+                                }
+                                return null;
                             }
                     );
-                    notify(orderAckFlux);
+//                    notify(orderAckFlux);
                     return orderAckHistoryRepo.saveAll(orderAckFlux).toIterable();
                 }
         );
     }
 
-    private void notify(Flux<OrderAckHistory> orderAckHistoryFlux) {
-        orderAckHistoryFlux
-                .flatMap(orderAckHistory -> {
-                    if (orderAckHistory != null && orderAckHistory.getStrategy() != null) {
-                        NotificationPayload notificationPayload = NotificationPayload.fromOrderAck(orderAckHistory);
-                        return userRepo.findById(orderAckHistory.getUserId())
-                                .flatMap(user -> Mono.fromRunnable(() -> {
-                                            try {
-                                                telegramService.sendNotification(user, notificationPayload);
-                                            } catch (JsonProcessingException e) {
-                                                throw new RuntimeException(e);
-                                            }
-                                        })
-                                        .subscribeOn(Schedulers.boundedElastic())
-                                        .then(Mono.just(orderAckHistory)));
-                    } else {
-                        return Mono.empty(); // Skip processing for null or invalid OrderAckHistory
-                    }
-                })
-                .subscribe();
-    }
+//    private void notify(Flux<OrderAckHistory> orderAckHistoryFlux) {
+//        orderAckHistoryFlux
+//                .flatMap(orderAckHistory -> {
+//                    if (orderAckHistory != null && orderAckHistory.getStrategy() != null) {
+//                        NotificationPayload notificationPayload = NotificationPayload.fromOrderAck(orderAckHistory);
+//                        return userRepo.findById(orderAckHistory.getUserId())
+//                                .flatMap(user -> Mono.fromRunnable(() -> {
+//                                            try {
+//                                                telegramService.sendNotification(user, notificationPayload);
+//                                            } catch (JsonProcessingException e) {
+//                                                throw new RuntimeException(e);
+//                                            }
+//                                        })
+//                                        .subscribeOn(Schedulers.boundedElastic())
+//                                        .then(Mono.just(orderAckHistory)));
+//                    } else {
+//                        return Mono.empty(); // Skip processing for null or invalid OrderAckHistory
+//                    }
+//                })
+//                .subscribe();
+//    }
 
-
-
-    private boolean canIgnore(KlineData klineData, Strategy strategy) {
-        double currentChangePercent = (klineData.getCurrentPrice() - strategy.getCandleWindow().getOpenPrice()) / strategy.getCandleWindow().getOpenPrice() * 100;
-        boolean canIgnore = Math.abs(currentChangePercent) < Math.abs(strategy.getIgnore() * strategy.getCandleWindow().getLastPump() / 100);
-        if (canIgnore) {
-            String message = String.format("IGNORE CHANGE ON %s | EXPECTED : %s | CURR : %s", klineData.getSymbol(), (Math.abs(strategy.getIgnore() * strategy.getCandleWindow().getLastPump() / 100)), currentChangePercent);
-            logger.info(message);
-        }
-        return canIgnore;
-    }
-
-    private boolean canTakeProfit(KlineData klineData, Strategy strategy) {
-        if (strategy.getStrategyMarker() != null) {
-            double currentChangePercent = (klineData.getCurrentPrice() - strategy.getCandleWindow().getOpenPrice()) / strategy.getCandleWindow().getOpenPrice() * 100;
-            double actualTakeProfitPercent = strategy.getStrategyMarker().getActualTp() * strategy.getOrderChange() / 100;
-            return currentChangePercent > actualTakeProfitPercent;
-        } else {
-            double currentChangePercent = (klineData.getCurrentPrice() - strategy.getCandleWindow().getOpenPrice()) / strategy.getCandleWindow().getOpenPrice() * 100;
-            double actualTakeProfitPercent = strategy.getTakeProfit() * strategy.getOrderChange() / 100;
-            return currentChangePercent > actualTakeProfitPercent;
-        }
-
-    }
-
-    private boolean canStopLoss(KlineData klineData, Strategy strategy) {
-        double currentChangePercent = (klineData.getCurrentPrice() - strategy.getCandleWindow().getOpenPrice()) / strategy.getCandleWindow().getOpenPrice() * 100;
-        return currentChangePercent > strategy.getStopLoss() * strategy.getOrderChange() / 100;
-    }
-
-    private OrderAckHistory handleStopLoss(KlineData klineData, Strategy strategy) {
-        OrderAckHistory ack = createOrderAck(klineData, strategy);
-        ack.setOrderStatus(OrderStatus.STOPPED_LOSS);
-        String logMessage = String.format("STOPPED LOSS | %s | OPEN: %s | CURR: %s | USR : %s", klineData.getSymbol(), klineData.getOpenPrice(), klineData.getCurrentPrice(), strategy.getUser().getName());
-        logger.info(logMessage);
-        return ack;
-    }
-
-    private OrderAckHistory handleTakeProfit(KlineData klineData, Strategy strategy) {
-        OrderAckHistory ack = createOrderAck(klineData, strategy);
-        if (strategy.getStrategyMarker() == null) {
-            strategy.setStrategyMarker(new StrategyMarker());
-        }
-        strategy.getStrategyMarker().setActualTp(strategy.getTakeProfit());
-        strategyMarkerRepo.save(strategy.getStrategyMarker()).block();
-        ack.setOrderStatus(OrderStatus.TOOK_PROFIT);
-        String logMessage = String.format("TOOK PROFIT | %s | OPEN: %s | CURR: %s | USR : %s", klineData.getSymbol(), klineData.getOpenPrice(), klineData.getCurrentPrice(), strategy.getUser().getName());
-        logger.info(logMessage);
-        return ack;
-    }
 
     private OrderAckHistory createOrderAck(KlineData klineData, Strategy strategy) {
         OrderAckHistory ack = new OrderAckHistory();
         ack.setPlatform(strategy.getPlatform());
         ack.setSymbol(strategy.getSymbol().getSymbol());
-        ack.setPrice(klineData.getCurrentPrice());
-        ack.setApiKey(strategy.getBot().getApiKey());
-        ack.setAmount(strategy.getAmount());
+        ack.setEntryPrice(klineData.getCurrentPrice());
+        ack.setUsdtAmount(strategy.getAmount());
         ack.setTimestamp(Instant.now().toEpochMilli());
         ack.setUserId(strategy.getUser().getId());
-        ack.setStrategyId(strategy.getId());
         ack.setOpenPrice(strategy.getCandleWindow().getOpenPrice());
         ack.setStrategy(strategy);
-        ack.setApiSecret(strategy.getBot().getSecretKey());
         ack.setCreatedAt(LocalDateTime.now());
         ack.setUpdatedAt(LocalDateTime.now());
+        ack.setOrderStatus(OrderStatus.OPEN);
         return ack;
-    }
-
-    private void handleReduceTakeProfit(Strategy strategy) {
-        if (strategy.getStrategyMarker() == null) {
-            StrategyMarker marker = new StrategyMarker();
-            marker.setCreatedAt(LocalDateTime.now());
-            marker.setUpdatedAt(LocalDateTime.now());
-            marker.setActualTp(strategy.getTakeProfit() - strategy.getTakeProfit() * strategy.getReduceTakeProfit() / 100);
-            strategy.setStrategyMarker(strategyMarkerRepo.save(marker).block());
-        } else {
-            double lastTp = strategy.getStrategyMarker().getActualTp();
-            strategy.getStrategyMarker().setActualTp(strategy.getStrategyMarker().getActualTp() - strategy.getStrategyMarker().getActualTp() * strategy.getReduceTakeProfit() / 100);
-            String message = String.format("REDUCED TAKE PROFIT | STRATEGY: %s | LAST TP: %s | CURRENT TP: %s", String.join("#", strategy.getUser().getName(), strategy.getId()), lastTp, strategy.getStrategyMarker().getActualTp());
-            logger.info(message);
-        }
-        strategyRepo.save(strategy).block();
-    }
-
-    private OrderAckHistory handleNewOrder(KlineData klineData, Strategy strategy) {
-        double currentChangePercent = (klineData.getCurrentPrice() - strategy.getCandleWindow().getOpenPrice()) / strategy.getCandleWindow().getOpenPrice() * 100;
-        double entryPercent = strategy.getOrderChange() * strategy.getExtendOrderChangePercent() / 100;
-        if ((strategy.getPositionSide().equals("LONG") && currentChangePercent < 0) || (strategy.getPositionSide().equals("SHORT") && currentChangePercent > 0)) {
-            return null;
-        }
-        if (Math.abs(currentChangePercent) > entryPercent) {
-            OrderAckHistory ack = createOrderAck(klineData, strategy);
-            ack.setOrderStatus(OrderStatus.OPEN);
-            String logMessage = String.format("ENTRY PLACED | %s | OPEN: %s | CURR: %s | USR : %s", klineData.getSymbol(), klineData.getOpenPrice(), klineData.getCurrentPrice(), strategy.getUser().getName());
-            logger.info(logMessage);
-            return ack;
-        }
-        return null;
-    }
-
-    private boolean renewCandleWindow(Strategy strategy, KlineData klineData) {
-        if (strategy.getCandleWindow() != null) {
-            double lastPrice = strategy.getCandleWindow().getOpenPrice();
-            boolean newCandle = klineData.getOpenPrice() != strategy.getCandleWindow().getOpenPrice();
-            if (newCandle) {
-                double lastPump = (klineData.getOpenPrice() - strategy.getCandleWindow().getOpenPrice()) / strategy.getCandleWindow().getOpenPrice() * 100;
-                strategy.getCandleWindow().setLastPump(lastPump);
-                strategy.getCandleWindow().setOpenPrice(klineData.getOpenPrice());
-                strategy.getCandleWindow().setUpdatedAt(LocalDateTime.now());
-                candleWindowRepo.save(strategy.getCandleWindow()).block();
-                String logMessage = String.format("CANDLE UPDATED | %s | LAST PRICE: %s | CURR: %s | PUMP : %s| INTERVAL : %s", klineData.getSymbol(), lastPrice, klineData.getOpenPrice(), lastPump, klineData.getInterval());
-                logger.info(logMessage);
-            }
-            strategyRepo.save(strategy).block();
-            return newCandle;
-        } else {
-            CandleWindow candleWindow = new CandleWindow();
-            candleWindow.setOpenPrice(klineData.getOpenPrice());
-            candleWindow.setPlatform(strategy.getPlatform());
-            candleWindow.setSymbol(replaceUsdtSuffix(klineData.getSymbol()));
-            candleWindow.setInterval(klineData.getInterval());
-            candleWindow.setTimestamp(klineData.getTimestamp());
-            candleWindow.setCreatedAt(LocalDateTime.now());
-            candleWindow.setUpdatedAt(LocalDateTime.now());
-            strategy.setCandleWindow(candleWindowRepo.save(candleWindow).block());
-            strategyRepo.save(strategy).block();
-            return true;
-        }
     }
 
     private static String replaceUsdtSuffix(String input) {

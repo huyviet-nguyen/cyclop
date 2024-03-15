@@ -4,6 +4,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tbot.cyclop.Cyclop.dto.NotificationPayload;
 import com.tbot.cyclop.Cyclop.dto.TelegramNotiPayload;
+import com.tbot.cyclop.Cyclop.model.Bot;
+import com.tbot.cyclop.Cyclop.model.Strategy;
 import com.tbot.cyclop.Cyclop.model.TelegramBotInfo;
 import com.tbot.cyclop.Cyclop.model.User;
 import com.tbot.cyclop.orderplacer.repo.TelegramBotInfoRepo;
@@ -64,15 +66,19 @@ public class TelegramService {
     }
 
 
-    public void sendNotification(User user, NotificationPayload payload) throws JsonProcessingException {
+    public void sendNotification(Strategy strategy, NotificationPayload payload) throws JsonProcessingException {
         TelegramBotInfo botInfo = infoRepo.findAll().blockFirst();
-        if (botInfo == null || botInfo.getApiToken() == null) {
+        Bot bot = strategy.getBot();
+        User user = strategy.getUser();
+        if (botInfo == null || botInfo.getApiToken() == null || bot == null || bot.getApiKey() == null || bot.getSecretKey() == null || user == null) {
             logger.error("Cannot send noti for" + getTextNotificationPayload(payload));
             return;
         }
+        String apiKey = bot.getApiKey();
+        String apiSecret = bot.getSecretKey();
         double amount = 0;
         try {
-            amount = getBalance(decryptSecretKey(payload.getApiKey()), decryptSecretKey(payload.getApiSecret()), payload.getPlatform()) * payload.getOrderAmount() / 100;
+            amount = getBalance(decryptSecretKey(apiKey), decryptSecretKey(apiSecret), payload.getPlatform()) * payload.getOrderAmount() / 100;
         } catch (Exception e) {
             logger.error(e.getMessage());
         }

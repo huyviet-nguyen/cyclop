@@ -10,14 +10,14 @@ public class TradingUtil {
 
     private static final double ONE_HUNDRED_PERCENT = 100;
 
-    public static boolean canIgnore(KlineData klineData, Strategy strategy) {
+    public static boolean canIgnore(Strategy strategy, KlineData klineData) {
         double lastPump = strategy.getCandleWindow().getLastPump();
         double ignorePercent = calculateNewValue(lastPump, strategy.getIgnore());
         double changePercent = calculateChangePercent(klineData.getOpenPrice(), klineData.getCurrentPrice());
         return Math.abs(changePercent) < Math.abs(ignorePercent);
     }
 
-    public static boolean canEntry(KlineData klineData, Strategy strategy) {
+    public static boolean canEntry(Strategy strategy, KlineData klineData) {
         double changePercent = calculateChangePercent(klineData.getOpenPrice(), klineData.getCurrentPrice());
         double expectedSide = switch (strategy.getPositionSide()) {
             case "LONG" -> 1;

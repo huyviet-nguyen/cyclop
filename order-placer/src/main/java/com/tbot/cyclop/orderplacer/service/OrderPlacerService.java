@@ -2,10 +2,15 @@ package com.tbot.cyclop.orderplacer.service;
 
 import com.tbot.cyclop.Cyclop.dto.KlineData;
 import com.tbot.cyclop.Cyclop.model.*;
+import com.tbot.cyclop.orderplacer.repo.CandleWindowRepo;
 import com.tbot.cyclop.orderplacer.repo.OrderAckHistoryRepo;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
+
 import static com.tbot.cyclop.orderplacer.util.GenericHttpUtil.decryptSecretKey;
+import static com.tbot.cyclop.orderplacer.util.TradingUtil.*;
+import static com.tbot.cyclop.orderplacer.util.PercentageUtil.*;
 
 @Service
 public class OrderPlacerService {
@@ -16,34 +21,61 @@ public class OrderPlacerService {
 
     private final BybitService bybitService;
 
-    public OrderPlacerService(OrderAckHistoryRepo historyRepo, MexcService mexcService, BybitService bybitService) {
+    private final CandleWindowRepo candleWindowRepo;
+
+    private final TelegramService telegramService;
+
+    public OrderPlacerService(OrderAckHistoryRepo historyRepo, MexcService mexcService, BybitService bybitService, CandleWindowRepo candleWindowRepo, TelegramService telegramService) {
         this.historyRepo = historyRepo;
         this.mexcService = mexcService;
         this.bybitService = bybitService;
+        this.candleWindowRepo = candleWindowRepo;
+        this.telegramService = telegramService;
     }
 
-    private OrderAckHistory handleIgnore(Strategy strategy, KlineData klineData) {
+    public void handleCandleWindow(Strategy strategy, KlineData klineData) {
+        if (newCandle(strategy, klineData)) {
+            double lastPump = 0;
+            if (strategy.getCandleWindow() == null) {
+                CandleWindow newCandle = new CandleWindow();
+                newCandle.setPlatform(strategy.getPlatform());
+                newCandle.setSymbol(klineData.getSymbol());
+                newCandle.setInterval(klineData.getInterval());
+                newCandle.setCreatedAt(LocalDateTime.now());
+                strategy.setCandleWindow(newCandle);
+            } else {
+                lastPump = calculateChangePercent(strategy.getCandleWindow().getOpenPrice(), klineData.getOpenPrice());
+            }
+            strategy.getCandleWindow().setOpenPrice(klineData.getOpenPrice());
+            strategy.getCandleWindow().setTimestamp(klineData.getTimestamp());
+            strategy.getCandleWindow().setLastPump(lastPump);
+            CandleWindow persisted = candleWindowRepo.save(strategy.getCandleWindow()).block();
+            strategy.setCandleWindow(persisted);
+        }
+    }
+
+    public OrderAckHistory handleIgnore(Strategy strategy, KlineData klineData) {
         return null;
     }
 
-    private OrderAckHistory handleOpenOrder(Strategy strategy, KlineData klineData) {
+    public OrderAckHistory handleOpenOrder(Strategy strategy, KlineData klineData) {
         return null;
     }
 
-    private OrderAckHistory handleTakeProfit(Strategy strategy, KlineData klineData) {
+    public OrderAckHistory handleTakeProfit(Strategy strategy, KlineData klineData) {
         return null;
     }
 
-    private OrderAckHistory handleStopLoss(Strategy strategy, KlineData klineData) {
+    public OrderAckHistory handleStopLoss(Strategy strategy, KlineData klineData) {
         return null;
     }
 
-    private OrderAckHistory handleReduceTakeProfit(Strategy strategy, KlineData klineData) {
+    public OrderAckHistory handleReduceTakeProfit(Strategy strategy, KlineData klineData) {
         return null;
     }
 
 
-    private double getBalance(Strategy strategy) {
+    public double getBalance(Strategy strategy) {
         Bot bot = strategy.getBot();
         if (bot == null) {
             throw new RuntimeException(String.format("NO BOT FOUND FOR STRATEGY %s", strategy.getId()));
