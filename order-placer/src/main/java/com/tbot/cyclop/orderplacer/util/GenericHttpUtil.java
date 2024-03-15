@@ -10,9 +10,8 @@ import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.security.InvalidKeyException;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
+import java.security.*;
+import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
@@ -22,6 +21,9 @@ public class GenericHttpUtil {
 
     public static final String ENCRYPT_SECRET_KEY = "sec1r2e3t-vv";
     private static final String ENCRYPTION_ALGORITHM = "AES/CBC/PKCS5Padding";
+
+    public static final String PUBLIC_KEY =
+            "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqqpMCeNv7qfsKe09xwE5o05ZCq/qJvTok6WbqYZOXA16UQqR+sHH0XXfnWxLSEvCviP9qjZjruHWdpMmC4i/yQJe7MJ66YoNloeNtmMgtqEIjOvSxRktmAxywul/eJolrhDnRPXYll4fA5+24t1g6L5fgo/p66yLtZRg4fC1s3rAF1WPe6dSJQx7jQ/xhy8Z0WojmzIeaoBa0m8qswx0DMIdzXfswH+gwMYCQGR3F/NAlxyvlWPMBlpFEuHZWkp9TXlTtbLf+YL8vYjV5HNqIdNjVzrIvg/Bis49ktfsWuQxT/RIyCsTEuHmZyZR6NJAMPZUE5DBnVWdLShb6KuyqwIDAQAB";
 
     public static String calculateHmacSHA256(String secret, String message) {
         Mac hmacSha256;
@@ -37,19 +39,6 @@ public class GenericHttpUtil {
         }
         byte[] hash = hmacSha256.doFinal(message.getBytes(StandardCharsets.UTF_8));
         return Hex.encodeHexString(hash);
-    }
-
-    public static String encryptSecretKey(String secretKey) {
-        try {
-            SecretKey key = new SecretKeySpec(ENCRYPT_SECRET_KEY.getBytes(StandardCharsets.UTF_8), ENCRYPTION_ALGORITHM);
-            Cipher cipher = Cipher.getInstance(ENCRYPTION_ALGORITHM);
-            cipher.init(Cipher.ENCRYPT_MODE, key);
-            byte[] encryptedBytes = cipher.doFinal(secretKey.getBytes(StandardCharsets.UTF_8));
-            return Base64.getEncoder().encodeToString(encryptedBytes);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return null;
-        }
     }
 
     public static String decryptSecretKey(String encryptedText) {

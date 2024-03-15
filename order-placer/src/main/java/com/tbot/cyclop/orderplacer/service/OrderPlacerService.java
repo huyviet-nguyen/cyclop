@@ -6,6 +6,7 @@ import com.tbot.cyclop.orderplacer.repo.CandleWindowRepo;
 import com.tbot.cyclop.orderplacer.repo.OrderAckHistoryRepo;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 
 import static com.tbot.cyclop.orderplacer.util.GenericHttpUtil.decryptSecretKey;
@@ -59,6 +60,8 @@ public class OrderPlacerService {
     }
 
     public OrderAckHistory handleOpenOrder(Strategy strategy, KlineData klineData) {
+        OrderAckHistory orderAckHistory = createOrderAck(klineData, strategy);
+
         return null;
     }
 
@@ -87,6 +90,22 @@ public class OrderPlacerService {
             case "MEXC" -> mexcService.getUsdtBalance(apiKey, apiSecret);
             default -> 0;
         };
+    }
+
+    private OrderAckHistory createOrderAck(KlineData klineData, Strategy strategy) {
+        OrderAckHistory ack = new OrderAckHistory();
+        ack.setPlatform(strategy.getPlatform());
+        ack.setSymbol(strategy.getSymbol().getSymbol());
+        ack.setEntryPrice(klineData.getCurrentPrice());
+        ack.setUsdtAmount(strategy.getAmount());
+        ack.setTimestamp(Instant.now().toEpochMilli());
+        ack.setUserId(strategy.getUser().getId());
+        ack.setCandleOpenPrice(strategy.getCandleWindow().getOpenPrice());
+        ack.setStrategy(strategy);
+        ack.setCreatedAt(LocalDateTime.now());
+        ack.setUpdatedAt(LocalDateTime.now());
+        ack.setOrderStatus(OrderStatus.OPEN);
+        return ack;
     }
 
 

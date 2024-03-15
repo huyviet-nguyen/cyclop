@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 @Data
-public class MexcOrderReq {
+public class MexcOpenOrderRequest {
     @JsonProperty("symbol")
     private String symbol;
 
@@ -42,14 +42,15 @@ public class MexcOrderReq {
     private String mToken;
 
     @JsonProperty("ts")
-    private String timestamp;
+    private long timestamp;
 
     @JsonProperty("mhash")
     private String mHash;
 
     @JsonProperty("takeProfitPrice")
-    private String takeProfitPrice;
+    private double takeProfitPrice;
 
     @JsonProperty("stopLossPrice")
-    private String stopLossPrice;
+    private double stopLossPrice;
+
 }

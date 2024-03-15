@@ -3,6 +3,7 @@ package com.tbot.cyclop.orderplacer.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tbot.cyclop.Cyclop.model.OrderAckHistory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -15,7 +16,7 @@ import static com.tbot.cyclop.orderplacer.util.GenericHttpUtil.calculateHmacSHA2
 @Service
 public class BybitService implements PlatformService {
 
-    @Value("${bybit.api.baseUrl}")
+    @Value("${bybit.contract.api.baseUrl}")
     public String bybitBaseUrl;
 
     private final Logger logger = LoggerFactory.getLogger(BybitService.class);
@@ -37,6 +38,16 @@ public class BybitService implements PlatformService {
                 .header("X-BAPI-RECV-WINDOW", "5000")
                 .retrieve()
                 .bodyToMono(String.class).doOnError(res -> logger.error(res.getMessage())).map(BybitService::extractAvailableBalanceBybit).block();
+    }
+
+    @Override
+    public void entry(OrderAckHistory orderAckHistory) {
+
+    }
+
+    @Override
+    public void reduceProfit(OrderAckHistory orderAckHistory) {
+
     }
 
     private static double extractAvailableBalanceBybit(String jsonResponse) {

@@ -124,22 +124,6 @@ public class OrderPlacerApplication {
 //    }
 
 
-    private OrderAckHistory createOrderAck(KlineData klineData, Strategy strategy) {
-        OrderAckHistory ack = new OrderAckHistory();
-        ack.setPlatform(strategy.getPlatform());
-        ack.setSymbol(strategy.getSymbol().getSymbol());
-        ack.setEntryPrice(klineData.getCurrentPrice());
-        ack.setUsdtAmount(strategy.getAmount());
-        ack.setTimestamp(Instant.now().toEpochMilli());
-        ack.setUserId(strategy.getUser().getId());
-        ack.setOpenPrice(strategy.getCandleWindow().getOpenPrice());
-        ack.setStrategy(strategy);
-        ack.setCreatedAt(LocalDateTime.now());
-        ack.setUpdatedAt(LocalDateTime.now());
-        ack.setOrderStatus(OrderStatus.OPEN);
-        return ack;
-    }
-
     private static String replaceUsdtSuffix(String input) {
         return input.substring(0, input.length() - 4).concat("_USDT");
     }
