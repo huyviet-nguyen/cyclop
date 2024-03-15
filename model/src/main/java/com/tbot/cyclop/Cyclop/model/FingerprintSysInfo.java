@@ -4,6 +4,7 @@ import lombok.Data;
 
 @Data
 public class FingerprintSysInfo {
+    private String id;
     private String mtoken;
     private String mhash;
     private String sys;

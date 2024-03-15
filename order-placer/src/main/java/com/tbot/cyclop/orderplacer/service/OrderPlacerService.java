@@ -4,10 +4,13 @@ import com.tbot.cyclop.Cyclop.dto.KlineData;
 import com.tbot.cyclop.Cyclop.model.*;
 import com.tbot.cyclop.orderplacer.repo.CandleWindowRepo;
 import com.tbot.cyclop.orderplacer.repo.OrderAckHistoryRepo;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.Objects;
 
 import static com.tbot.cyclop.orderplacer.util.GenericHttpUtil.decryptSecretKey;
 import static com.tbot.cyclop.orderplacer.util.TradingUtil.*;
@@ -25,6 +28,8 @@ public class OrderPlacerService {
     private final CandleWindowRepo candleWindowRepo;
 
     private final TelegramService telegramService;
+
+    private final Logger logger = LoggerFactory.getLogger(OrderPlacerService.class);
 
     public OrderPlacerService(OrderAckHistoryRepo historyRepo, MexcService mexcService, BybitService bybitService, CandleWindowRepo candleWindowRepo, TelegramService telegramService) {
         this.historyRepo = historyRepo;
@@ -52,17 +57,24 @@ public class OrderPlacerService {
             strategy.getCandleWindow().setLastPump(lastPump);
             CandleWindow persisted = candleWindowRepo.save(strategy.getCandleWindow()).block();
             strategy.setCandleWindow(persisted);
+
+            String message = String.format("CANDLE UPDATE | %s | %s |LAST PUMP %s", klineData.getSymbol(), "M".concat(klineData.getInterval()), lastPump);
+            logger.info(message);
         }
     }
 
-    public OrderAckHistory handleIgnore(Strategy strategy, KlineData klineData) {
-        return null;
-    }
-
-    public OrderAckHistory handleOpenOrder(Strategy strategy, KlineData klineData) {
+    public OrderAckHistory handleOpenOrder(Strategy strategy, KlineData klineData) throws Exception {
         OrderAckHistory orderAckHistory = createOrderAck(klineData, strategy);
+        double takeProfitPrice = calculateTakeProfitPrice(strategy, klineData);
+        orderAckHistory.setTakeProfitPrice(takeProfitPrice);
+        double stopLossPrice = calculateStopLossPrice(strategy, klineData);
+        orderAckHistory.setStopLossPrice(stopLossPrice);
 
-        return null;
+        PlatformService service = getService(klineData.getSourcePlatform());
+
+        service.entry(orderAckHistory);
+
+        return orderAckHistory;
     }
 
     public OrderAckHistory handleTakeProfit(Strategy strategy, KlineData klineData) {
@@ -97,15 +109,17 @@ public class OrderPlacerService {
         ack.setPlatform(strategy.getPlatform());
         ack.setSymbol(strategy.getSymbol().getSymbol());
         ack.setEntryPrice(klineData.getCurrentPrice());
-        ack.setUsdtAmount(strategy.getAmount());
         ack.setTimestamp(Instant.now().toEpochMilli());
-        ack.setUserId(strategy.getUser().getId());
-        ack.setCandleOpenPrice(strategy.getCandleWindow().getOpenPrice());
+        ack.setCandleOpenPrice(klineData.getOpenPrice());
         ack.setStrategy(strategy);
         ack.setCreatedAt(LocalDateTime.now());
         ack.setUpdatedAt(LocalDateTime.now());
         ack.setOrderStatus(OrderStatus.OPEN);
         return ack;
+    }
+
+    private PlatformService getService(String platform) {
+        return "MEXC".equals(platform) ? mexcService : bybitService;
     }
 
 

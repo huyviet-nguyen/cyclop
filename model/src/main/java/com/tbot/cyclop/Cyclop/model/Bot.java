@@ -3,6 +3,7 @@ package com.tbot.cyclop.Cyclop.model;
 import lombok.Data;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.DocumentReference;
 
 import java.time.LocalDateTime;
 
@@ -19,7 +20,6 @@ public class Bot {
     private String user;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
-
     private Balance futuresBalance;
     private Balance spotBalance;
     private String apiKey;

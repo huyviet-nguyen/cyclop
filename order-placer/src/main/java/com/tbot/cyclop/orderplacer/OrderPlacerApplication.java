@@ -76,12 +76,17 @@ public class OrderPlacerApplication {
                             {
                                 if (newCandle(strategy, value)) {
                                     orderPlacerService.handleCandleWindow(strategy, value);
+
                                 }
                                 if (canIgnore(strategy, value)) {
                                     return null;
                                 }
                                 if (canEntry(strategy, value)) {
-                                    return orderPlacerService.handleOpenOrder(strategy, value);
+                                    try {
+                                        return orderPlacerService.handleOpenOrder(strategy, value);
+                                    } catch (Exception e) {
+                                        logger.error(e.getMessage());
+                                    }
                                 }
                                 if (canTakeProfit(strategy, value)) {
                                     return orderPlacerService.handleTakeProfit(strategy, value);
@@ -95,34 +100,10 @@ public class OrderPlacerApplication {
                                 return null;
                             }
                     );
-//                    notify(orderAckFlux);
                     return orderAckHistoryRepo.saveAll(orderAckFlux).toIterable();
                 }
         );
     }
-
-//    private void notify(Flux<OrderAckHistory> orderAckHistoryFlux) {
-//        orderAckHistoryFlux
-//                .flatMap(orderAckHistory -> {
-//                    if (orderAckHistory != null && orderAckHistory.getStrategy() != null) {
-//                        NotificationPayload notificationPayload = NotificationPayload.fromOrderAck(orderAckHistory);
-//                        return userRepo.findById(orderAckHistory.getUserId())
-//                                .flatMap(user -> Mono.fromRunnable(() -> {
-//                                            try {
-//                                                telegramService.sendNotification(user, notificationPayload);
-//                                            } catch (JsonProcessingException e) {
-//                                                throw new RuntimeException(e);
-//                                            }
-//                                        })
-//                                        .subscribeOn(Schedulers.boundedElastic())
-//                                        .then(Mono.just(orderAckHistory)));
-//                    } else {
-//                        return Mono.empty(); // Skip processing for null or invalid OrderAckHistory
-//                    }
-//                })
-//                .subscribe();
-//    }
-
 
     private static String replaceUsdtSuffix(String input) {
         return input.substring(0, input.length() - 4).concat("_USDT");

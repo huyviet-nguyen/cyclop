@@ -15,6 +15,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Service;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
@@ -44,11 +46,11 @@ public class MexcService implements PlatformService {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
 
-    @Override
+    @Override // TESTED
     public double getUsdtBalance(String decryptedApiKey, String decryptedApiSecret) {
         String path = mexcContractBaseUrl.concat("account/asset/USDT");
         long timestamp = System.currentTimeMillis();
-        String objectString = String.join("", decryptedApiKey, String.valueOf(timestamp), "coin=USDT");
+        String objectString = String.join("", decryptedApiKey, String.valueOf(timestamp));
         String signature = calculateHmacSHA256(decryptedApiSecret, objectString);
         try {
             return webClient.method(HttpMethod.GET)
@@ -72,41 +74,42 @@ public class MexcService implements PlatformService {
     public void entry(OrderAckHistory orderAckHistory) throws Exception {
         MexcOpenOrderRequest openOrderRequest = orderAckToMexcOpenOrderRequest(orderAckHistory);
         String mHash = openOrderRequest.getMHash();
-        String apiKey = orderAckHistory.getStrategy().getBot().getApiKey();
+        String webToken = decryptSecretKey(orderAckHistory.getStrategy().getBot().getWebToken());
         long timestamp = openOrderRequest.getTimestamp();
 
 
-        Map<String, String> headers = new HashMap<>();
+        MultiValueMap<String, String> headers = new LinkedMultiValueMap<>();
 
-        headers.put("Content-Type", "application/json");
+        headers.add("Content-Type", "application/json");
         long contentLength = objectMapper.writeValueAsBytes(openOrderRequest).length;
-        headers.put("Content-Length", String.valueOf(contentLength));
-        headers.put("X-Mxc-Nonce", String.valueOf(timestamp));
-        String headerHash = getSign(openOrderRequest, timestamp, apiKey);
-        headers.put("X-Mxc-Sign", headerHash);
-        headers.put("Authorization", apiKey);
+        headers.add("Content-Length", String.valueOf(contentLength));
+        headers.add("X-Mxc-Nonce", String.valueOf(timestamp));
+        String headerHash = getSign(openOrderRequest, timestamp, webToken);
+        headers.add("X-Mxc-Sign", headerHash);
+        headers.add("Authorization", webToken);
 
 
-        String path = mexcOrderBaseUrl.concat("/api/v1/private/order/create?mhash=").concat(mHash);
+        String path = mexcOrderBaseUrl.concat("api/v1/private/order/create?mhash=").concat(mHash);
         MexcOrderResponse response;
         try {
             response = webClient.post()
                     .uri(path)
                     .body(BodyInserters.fromValue(openOrderRequest))
-                    .headers(headersHandler -> addHeaders(headersHandler, headers))
+                    .header("Content-Type", "application/json")
+                    .header("Content-Length", String.valueOf(contentLength))
+                    .header("X-Mxc-Nonce", String.valueOf(timestamp))
+                    .header("X-Mxc-Sign", headerHash)
+                    .header("Authorization", webToken)
                     .retrieve()
                     .bodyToMono(MexcOrderResponse.class).block();
         } catch (Exception e) {
             throw new OpenOrderFailException(orderAckHistory, e);
         }
 
-        if (response == null || response.getResult() == null) {
+        if (response == null || response.getData() == null || !response.isSuccess()) {
             throw new OpenOrderFailException(orderAckHistory);
         }
-
-        orderAckHistory.setPlatformOrderStatus(response.getResult().getOrderStatus());
-        orderAckHistory.setPlatformOrderId(response.getResult().getOrderId());
-        orderAckHistory.setCreatedOnPlatformAt(LocalDateTime.parse(response.getTimeNow()));
+        orderAckHistory.setCreatedOnPlatformAt(response.getData().getTs());
     }
 
     @Override
@@ -114,7 +117,8 @@ public class MexcService implements PlatformService {
 
     }
 
-    public static double extractAvailableBalanceMexc(String jsonResponse) {
+    //TESTED
+    private static double extractAvailableBalanceMexc(String jsonResponse) {
         try {
             ObjectMapper mapper = new ObjectMapper();
             JsonNode rootNode = mapper.readTree(jsonResponse);
@@ -126,8 +130,9 @@ public class MexcService implements PlatformService {
         }
     }
 
+    //TESTED
     public double getContractSize(String symbol, Double price) {
-        String apiUrl = mexcContractBaseUrl + "&symbol=" + symbol;
+        String apiUrl = mexcOrderBaseUrl.concat("api/v1/contract/detailV2?client=web&symbol=").concat("&symbol=").concat(symbol);
         Mono<String> responseMono = webClient.get()
                 .uri(apiUrl)
                 .retrieve()
@@ -166,6 +171,7 @@ public class MexcService implements PlatformService {
         mexcOrder.setSymbol(ackHistory.getSymbolWithUnderScore());
         mexcOrder.setLeverage(10);
         mexcOrder.setStopLossPrice(ackHistory.getStopLossPrice());
+        mexcOrder.setTakeProfitPrice(ackHistory.getTakeProfitPrice());
         mexcOrder.setK0(getMexcK0(bytesToHex(key)));
         FingerprintSysInfo sysInfo = ackHistory.getStrategy().getBot().getFingerprintSysInfo();
         mexcOrder.setP0(getMexcP0(sysInfo, key));
@@ -181,11 +187,5 @@ public class MexcService implements PlatformService {
         int volume = getVolume(balance, ackHistory.getStrategy().getAmount(), cont);
         mexcOrder.setVol(volume);
         return mexcOrder;
-    }
-
-    private static void addHeaders(HttpHeaders httpHeaders, Map<String, String> headersMap) {
-        for (Map.Entry<String, String> entry : headersMap.entrySet()) {
-            httpHeaders.add(entry.getKey(), entry.getValue());
-        }
     }
 }

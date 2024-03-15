@@ -16,24 +16,21 @@ import java.time.LocalDateTime;
 public class OrderAckHistory {
 
     @Id
-    private String id;
-    private String platform;
-    private double entryPrice;
+    private String id; //
+    private String platform; //
+    private double entryPrice; //
     private double takeProfitPrice;
     private double stopLossPrice;
-    private long timestamp;
-    private double usdtAmount;
-    private double quantity;
-    private OrderStatus orderStatus;
+    private long timestamp; //
+    private OrderStatus orderStatus; //
     private String platformOrderStatus;
-    private String symbol;
-    private String userId;
-    private double candleOpenPrice;
+    private String symbol; //
+    private double candleOpenPrice; //
     @DocumentReference
-    private Strategy strategy;
-    private LocalDateTime createdAt;
-    private LocalDateTime createdOnPlatformAt;
-    private LocalDateTime updatedAt;
+    private Strategy strategy; //
+    private LocalDateTime createdAt; //
+    private long createdOnPlatformAt;
+    private LocalDateTime updatedAt; //
     private String platformOrderId;
     public String getSymbolWithUnderScore() {
         return strategy.getSymbol().getSymbol();

@@ -24,11 +24,11 @@ public class Strategy implements Serializable {
     private String status;
     private String candleStick;
     private String positionSide;
-    @DocumentReference(lazy = true)
+    @DocumentReference
     private Symbol symbol;
-    @DocumentReference(lazy = true)
+    @DocumentReference
     private User user;
-    @DocumentReference(lazy = true)
+    @DocumentReference
     private Bot bot;
     @DocumentReference
     private StrategyMarker strategyMarker;
