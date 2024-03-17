@@ -7,25 +7,18 @@ import com.tbot.cyclop.Cyclop.dto.res.MexcOrderResponse;
 import com.tbot.cyclop.Cyclop.model.Bot;
 import com.tbot.cyclop.Cyclop.model.FingerprintSysInfo;
 import com.tbot.cyclop.Cyclop.model.OrderAckHistory;
+import com.tbot.cyclop.Cyclop.model.OrderStatus;
 import com.tbot.cyclop.orderplacer.exception.OpenOrderFailException;
 import com.tbot.cyclop.orderplacer.util.TradingUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Service;
-import org.springframework.util.LinkedMultiValueMap;
-import org.springframework.util.MultiValueMap;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
-
-
 import java.time.Instant;
-import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.Map;
 
 import static com.tbot.cyclop.orderplacer.util.GenericHttpUtil.calculateHmacSHA256;
 import static com.tbot.cyclop.orderplacer.util.GenericHttpUtil.decryptSecretKey;
@@ -77,43 +70,41 @@ public class MexcService implements PlatformService {
         String webToken = decryptSecretKey(orderAckHistory.getStrategy().getBot().getWebToken());
         long timestamp = openOrderRequest.getTimestamp();
 
-
-        MultiValueMap<String, String> headers = new LinkedMultiValueMap<>();
-
-        headers.add("Content-Type", "application/json");
-        long contentLength = objectMapper.writeValueAsBytes(openOrderRequest).length;
-        headers.add("Content-Length", String.valueOf(contentLength));
-        headers.add("X-Mxc-Nonce", String.valueOf(timestamp));
+        String contentLength = String.valueOf(objectMapper.writeValueAsBytes(openOrderRequest).length);
         String headerHash = getSign(openOrderRequest, timestamp, webToken);
-        headers.add("X-Mxc-Sign", headerHash);
-        headers.add("Authorization", webToken);
-
-
         String path = mexcOrderBaseUrl.concat("api/v1/private/order/create?mhash=").concat(mHash);
+
         MexcOrderResponse response;
+
         try {
             response = webClient.post()
                     .uri(path)
                     .body(BodyInserters.fromValue(openOrderRequest))
                     .header("Content-Type", "application/json")
-                    .header("Content-Length", String.valueOf(contentLength))
+                    .header("Content-Length", contentLength)
                     .header("X-Mxc-Nonce", String.valueOf(timestamp))
                     .header("X-Mxc-Sign", headerHash)
                     .header("Authorization", webToken)
                     .retrieve()
                     .bodyToMono(MexcOrderResponse.class).block();
+            if (response == null || response.getData() == null || !response.isSuccess()) {
+                throw new OpenOrderFailException(orderAckHistory);
+            }
         } catch (Exception e) {
             throw new OpenOrderFailException(orderAckHistory, e);
         }
-
-        if (response == null || response.getData() == null || !response.isSuccess()) {
-            throw new OpenOrderFailException(orderAckHistory);
-        }
         orderAckHistory.setCreatedOnPlatformAt(response.getData().getTs());
+        orderAckHistory.setPlatformOrderId(response.getData().getOrderId());
+        orderAckHistory.setOrderStatus(OrderStatus.OPEN);
     }
 
     @Override
     public void reduceProfit(OrderAckHistory orderAckHistory) {
+
+    }
+
+    @Override
+    public void syncPlatformStatus(OrderAckHistory orderAckHistory) {
 
     }
 

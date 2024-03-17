@@ -8,4 +8,6 @@ public interface PlatformService {
     void entry(OrderAckHistory orderAckHistory) throws Exception;
 
     void reduceProfit(OrderAckHistory orderAckHistory);
+
+    void syncPlatformStatus(OrderAckHistory orderAckHistory);
 }

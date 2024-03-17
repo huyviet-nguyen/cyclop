@@ -14,6 +14,7 @@ public class MexcOrderResponse {
 
     @JsonProperty("data")
     private Order data;
+
     @Data
     public static class Order {
         @JsonProperty("orderId")

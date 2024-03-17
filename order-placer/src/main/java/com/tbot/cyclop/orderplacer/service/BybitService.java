@@ -50,6 +50,11 @@ public class BybitService implements PlatformService {
 
     }
 
+    @Override
+    public void syncPlatformStatus(OrderAckHistory orderAckHistory) {
+
+    }
+
     private static double extractAvailableBalanceBybit(String jsonResponse) {
         try {
             ObjectMapper mapper = new ObjectMapper();
