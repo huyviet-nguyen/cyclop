@@ -61,7 +61,7 @@ public class TradingUtil {
     }
 
     public static double calculateStopLossProportion(Strategy strategy) {
-        if (strategy.getPositionSide().equals("LONG")) {
+        if (strategy.getPositionSide().equals("SHORT")) {
             return calculateNewValue(strategy.getOrderChange(), strategy.getStopLoss()) + ONE_HUNDRED_PERCENT;
         } else {
             return ONE_HUNDRED_PERCENT - calculateNewValue(strategy.getOrderChange(), strategy.getStopLoss());
