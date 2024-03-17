@@ -50,7 +50,7 @@ public class TelegramService {
     }
 
     private String getTextNotificationPayload(NotificationPayload notificationPayload) {
-        if (notificationPayload.getAction().equals("TOOK_PROFIT")) {
+        if (notificationPayload.getAction().equals("TOOK PROFIT")) {
             return String.format(NOTIFICATION_TEMPLATE.concat(TAKE_PROFIT),
                     notificationPayload.getSymbol(),
                     notificationPayload.getAction(),
@@ -60,7 +60,7 @@ public class TelegramService {
                     notificationPayload.getDecoratedAmount(),
                     notificationPayload.getDecoratedProfit());
         }
-        if (notificationPayload.getAction().equals("STOPPED_LOSS")) {
+        if (notificationPayload.getAction().equals("STOPPED LOSS")) {
             return String.format(NOTIFICATION_TEMPLATE.concat(LOSS),
                     notificationPayload.getSymbol(),
                     notificationPayload.getAction(),
