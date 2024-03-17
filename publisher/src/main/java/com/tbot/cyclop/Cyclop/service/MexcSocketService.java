@@ -33,7 +33,6 @@ public class MexcSocketService extends PlatformSocketService {
 
     @Value("${wss.mexc.pingMessage}")
     private String pingMessage;
-
     private final SymbolRepo symbolRepo;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -84,7 +83,7 @@ public class MexcSocketService extends PlatformSocketService {
                         symbol -> Flux.fromIterable(intervalList).map(
                                 interval -> initMessageTemplate.replace("%symbol", symbol).replace("%interval", interval)
                         )
-                ).delayElements(Duration.ofMillis(200));
+                ).delayElements(Duration.ofMillis(50));
         Flux<String> pingFlux = Flux.interval(Duration.ofSeconds(Integer.parseInt(pingInterval))).map(v -> pingMessage);
         return Flux.merge(messageFlux.subscribeOn(Schedulers.parallel()), pingFlux.subscribeOn(Schedulers.parallel()));
     }

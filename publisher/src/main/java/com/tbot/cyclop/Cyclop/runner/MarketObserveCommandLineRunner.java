@@ -10,14 +10,14 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import reactor.core.scheduler.Schedulers;
 import reactor.kafka.sender.KafkaSender;
 import reactor.kafka.sender.SenderRecord;
 import reactor.kafka.sender.SenderResult;
 
-import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 
 @Component
@@ -40,6 +40,8 @@ public class MarketObserveCommandLineRunner implements CommandLineRunner {
     @Value("${app.runBybit}")
     public Boolean isRunBybit;
     private final Logger logger = LoggerFactory.getLogger(MarketObserveCommandLineRunner.class);
+
+    private final ConcurrentMap<String, Integer> concurrentHashMap = new ConcurrentHashMap<>();
 
 
     public MarketObserveCommandLineRunner(MexcSocketService mexcService, BybitSocketService bybitService, KafkaSender<String, KlineData> producerTemplate, KafkaSender<String, String> errorSender) {
@@ -70,12 +72,30 @@ public class MarketObserveCommandLineRunner implements CommandLineRunner {
         publish(bybitService.startWebsocket());
     }
 
+    private Flux<KlineData> getFilteredFlux(Flux<KlineData> unfilteredFlux) {
+        return unfilteredFlux.mapNotNull(klineData -> {
+            if (!concurrentHashMap.containsKey(klineData.getKafkaKey())) {
+                concurrentHashMap.put(klineData.getKafkaKey(), 0);
+                return null;
+            }
+            if (concurrentHashMap.get(klineData.getKafkaKey()) == 40) {
+                concurrentHashMap.put(klineData.getKafkaKey(), 0);
+                return klineData;
+            } else {
+                concurrentHashMap.put(klineData.getKafkaKey(), concurrentHashMap.get(klineData.getKafkaKey()) + 1);
+                return null;
+            }
+
+        });
+    }
+
     private void publish(Flux<KlineData> tokenPairDataFlux) {
-        Flux<SenderRecord<String, KlineData, KlineData>> pub = tokenPairDataFlux
+        Flux<KlineData> filteredFlux = getFilteredFlux(tokenPairDataFlux);
+        Flux<SenderRecord<String, KlineData, KlineData>> pub = filteredFlux
                 .map(i -> SenderRecord.create(outputTopic, null, i.getTimestamp(), i.getKafkaKey(), i, i));
         producerTemplate.send(pub).doOnEach(signal -> {
             KlineData i = Optional.ofNullable(signal.get()).map(SenderResult::correlationMetadata).orElse(null);
-            if (i != null){
+            if (i != null) {
                 String message = String.format("PUBLISHED %s | M%s | %s | OPEN PRICE : %s | CURRENT PRICE : %s", i.getSymbol(), i.getInterval(), i.getSourcePlatform(), i.getOpenPrice(), i.getCurrentPrice());
                 logger.info(message);
             }

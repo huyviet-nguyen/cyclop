@@ -75,7 +75,7 @@ public class BybitSocketService extends PlatformSocketService {
                             Mono.just(String.format(initialMessage)),
                             Flux.interval(Duration.ofSeconds(Integer.parseInt(pingInterval))).map(v -> pingMessage)
                     );
-                }).sample(Duration.ofMillis(50));
+                });
     }
 
 

@@ -11,7 +11,6 @@ import reactor.netty.http.client.HttpClient;
 import reactor.netty.http.client.WebsocketClientSpec;
 
 import java.net.URI;
-import java.time.Duration;
 import java.util.function.Predicate;
 
 public abstract class PlatformSocketService {
@@ -64,7 +63,7 @@ public abstract class PlatformSocketService {
 
     public Flux<KlineData> startWebsocket() {
         Flux<KlineData> reduceFlux = !useMultipleConnection() ? runWebSocketListener(getMessageFlux()).flatMap(this::fromStringSourceMessage).filter(filterCriteria()) : runMultiple(getMessageNestedFlux()).flatMap(this::fromStringSourceMessage).filter(filterCriteria());
-        return reduceFlux.sample(Duration.ofMillis(5)).sample(Duration.ofMillis(10)).sample(Duration.ofMillis(50));
+        return reduceFlux;
     }
 
     abstract Flux<KlineData> fromStringSourceMessage(String string);
