@@ -23,7 +23,7 @@ public class TradingUtil {
 
     private static final double ONE_HUNDRED_PERCENT = 100;
 
-    private static ObjectMapper mapper = new ObjectMapper();
+    private static final ObjectMapper mapper = new ObjectMapper();
 
     public static boolean canIgnore(Strategy strategy, KlineData klineData) {
         double lastPump = strategy.getCandleWindow().getLastPump();
@@ -44,10 +44,6 @@ public class TradingUtil {
             return Math.abs(changePercent) > expectedChangePercent;
         }
         return changePercent > expectedChangePercent * expectedSide;
-    }
-
-    public static boolean entryAlready(OrderAckHistory history) {
-        return history == null || !OrderStatus.OPEN.equals(history.getOrderStatus());
     }
 
     public static double calculateTakeProfitPercent(Strategy strategy) {
@@ -87,14 +83,8 @@ public class TradingUtil {
         return newCandle(strategy, klineData) && !canTakeProfit(strategy, klineData);
     }
 
-    public static double calculateReducedTakeProfitPrice(Strategy strategy, KlineData klineData) {
-        StrategyMarker marker = strategy.getStrategyMarker();
-        double lastTakeProfitPercent;
-        if (marker != null) {
-            lastTakeProfitPercent = marker.getActualTp();
-        } else {
-            lastTakeProfitPercent = strategy.getTakeProfit();
-        }
+    public static double calculateReducedTakeProfitPrice(Strategy strategy, KlineData klineData, OrderAckHistory latestOrder) {
+        double lastTakeProfitPercent = latestOrder.getLastTakeProfitPercent();
         double newTakeProfitPercent = deductPercentage(lastTakeProfitPercent, strategy.getReduceTakeProfit());
         return calculateNewValue(klineData.getOpenPrice(), ONE_HUNDRED_PERCENT + newTakeProfitPercent);
     }
@@ -184,15 +174,15 @@ public class TradingUtil {
         return (int) result;
     }
 
-    public static String getSign(MexcOpenOrderRequest request, long ts, String apiKey) throws JsonProcessingException {
+    public static String getMexcSign(MexcOpenOrderRequest request, long ts, String apiKey) throws JsonProcessingException {
         String formdata = mapper.writeValueAsString(request);
-        String g = getG(apiKey, ts)[0];
-        String currentTs = String.valueOf(getG(apiKey, ts)[1]);
+        String g = getMexcG(apiKey, ts)[0];
+        String currentTs = String.valueOf(getMexcG(apiKey, ts)[1]);
         String hashInput = currentTs + formdata + g;
         return getMd5(hashInput);
     }
 
-    private static String[] getG(String TK, long ts) {
+    private static String[] getMexcG(String TK, long ts) {
         String combined = TK + ts;
         String md5Hash = getMd5(combined);
         String g = md5Hash.substring(7);
@@ -211,6 +201,14 @@ public class TradingUtil {
         } catch (NoSuchAlgorithmException e) {
             throw new RuntimeException("MD5 algorithm not found.", e);
         }
+    }
+
+    public static String replaceUsdtSuffix(String input) {
+        return input.substring(0, input.length() - 4).concat("_USDT");
+    }
+
+    public static String addCandleStickPrefix(String input) {
+        return "M".concat(input);
     }
 
 

@@ -16,6 +16,7 @@ public class NotificationPayload {
     private String symbol;
     private String botName;
     private String platform;
+    private String action;
     private OrderStatus orderStatus;
     private Strategy strategy;
     private String strategyShort;
@@ -32,21 +33,8 @@ public class NotificationPayload {
         return formattedValue;
     }
 
-    public String getDecoratedBalance() {
-        DecimalFormat decimalFormat = new DecimalFormat("#,##0.00");
-        String formattedValue = decimalFormat.format(balance);
-        formattedValue = "$" + formattedValue;
-        return formattedValue;
-    }
-
     public static NotificationPayload fromOrderAck(OrderAckHistory orderAckHistory) {
         NotificationPayload notificationPayload = new NotificationPayload();
-        notificationPayload.setBotName(orderAckHistory.getStrategy().getBot().getName());
-        notificationPayload.setSymbol(orderAckHistory.getSymbol());
-        notificationPayload.setPrice(orderAckHistory.getEntryPrice());
-        notificationPayload.setStrategyShort(orderAckHistory.getStrategy().toNotiString());
-        notificationPayload.setOrderStatus(orderAckHistory.getOrderStatus());
-        notificationPayload.setPlatform(orderAckHistory.getPlatform());
         return notificationPayload;
     }
 }

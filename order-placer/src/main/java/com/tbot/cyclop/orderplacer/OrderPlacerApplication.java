@@ -74,6 +74,8 @@ public class OrderPlacerApplication {
                     Flux<OrderAckHistory> orderAckFlux = strategyFlux.publishOn(Schedulers.boundedElastic()).mapNotNull(
                             (Strategy strategy) ->
                             {
+
+                                OrderAckHistory latestOrder = orderAckHistoryRepo.findFirstByStrategyIdOrderByCreatedAtDesc(strategy.getId()).block();
                                 if (newCandle(strategy, value)) {
                                     orderPlacerService.handleCandleWindow(strategy, value);
 
@@ -83,19 +85,20 @@ public class OrderPlacerApplication {
                                 }
                                 if (canEntry(strategy, value)) {
                                     try {
-                                        return orderPlacerService.handleOpenOrder(strategy, value);
+                                        return orderPlacerService.handleOpenOrder(strategy, value, latestOrder);
                                     } catch (Exception e) {
                                         logger.error(e.getMessage());
                                     }
                                 }
-                                if (canTakeProfit(strategy, value)) {
-                                    return orderPlacerService.handleTakeProfit(strategy, value);
+                                if (canTakeProfit(strategy, value) || canStopLoss(strategy, value)) {
+                                    try {
+                                        return orderPlacerService.handleSyncStatus(value, latestOrder);
+                                    } catch (JsonProcessingException e) {
+                                        throw new RuntimeException(e);
+                                    }
                                 }
                                 if (mustReduceTakeProfit(strategy, value)) {
-                                    return orderPlacerService.handleReduceTakeProfit(strategy, value);
-                                }
-                                if (canStopLoss(strategy, value)) {
-                                    return orderPlacerService.handleStopLoss(strategy, value);
+                                    return orderPlacerService.handleReduceTakeProfit(strategy, value, latestOrder);
                                 }
                                 return null;
                             }
@@ -103,14 +106,6 @@ public class OrderPlacerApplication {
                     return orderAckHistoryRepo.saveAll(orderAckFlux).toIterable();
                 }
         );
-    }
-
-    private static String replaceUsdtSuffix(String input) {
-        return input.substring(0, input.length() - 4).concat("_USDT");
-    }
-
-    private static String addCandleStickPrefix(String input) {
-        return "M".concat(input);
     }
 
     public static void main(String[] args) {

@@ -15,6 +15,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
@@ -64,6 +65,7 @@ public class MexcService implements PlatformService {
     }
 
     @Override
+    @Transactional
     public void entry(OrderAckHistory orderAckHistory) throws Exception {
         MexcOpenOrderRequest openOrderRequest = orderAckToMexcOpenOrderRequest(orderAckHistory);
         String mHash = openOrderRequest.getMHash();
@@ -71,7 +73,7 @@ public class MexcService implements PlatformService {
         long timestamp = openOrderRequest.getTimestamp();
 
         String contentLength = String.valueOf(objectMapper.writeValueAsBytes(openOrderRequest).length);
-        String headerHash = getSign(openOrderRequest, timestamp, webToken);
+        String headerHash = getMexcSign(openOrderRequest, timestamp, webToken);
         String path = mexcOrderBaseUrl.concat("api/v1/private/order/create?mhash=").concat(mHash);
 
         MexcOrderResponse response;
@@ -162,7 +164,7 @@ public class MexcService implements PlatformService {
         mexcOrder.setSymbol(ackHistory.getSymbolWithUnderScore());
         mexcOrder.setLeverage(10);
         mexcOrder.setStopLossPrice(ackHistory.getStopLossPrice());
-        mexcOrder.setTakeProfitPrice(ackHistory.getTakeProfitPrice());
+        mexcOrder.setTakeProfitPrice(ackHistory.getCurrentTakeProfitPrice());
         mexcOrder.setK0(getMexcK0(bytesToHex(key)));
         FingerprintSysInfo sysInfo = ackHistory.getStrategy().getBot().getFingerprintSysInfo();
         mexcOrder.setP0(getMexcP0(sysInfo, key));

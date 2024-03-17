@@ -19,7 +19,8 @@ public class OrderAckHistory {
     private String id; //
     private String platform; //
     private double entryPrice; //
-    private double takeProfitPrice;
+    private double currentTakeProfitPrice;
+    private double lastTakeProfitPercent;
     private double stopLossPrice;
     private long timestamp; //
     private OrderStatus orderStatus; //
@@ -32,6 +33,7 @@ public class OrderAckHistory {
     private long createdOnPlatformAt;
     private LocalDateTime updatedAt; //
     private String platformOrderId;
+
     public String getSymbolWithUnderScore() {
         return strategy.getSymbol().getSymbol();
     }

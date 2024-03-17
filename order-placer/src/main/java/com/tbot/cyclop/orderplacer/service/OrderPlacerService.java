@@ -1,15 +1,20 @@
 package com.tbot.cyclop.orderplacer.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.tbot.cyclop.Cyclop.dto.KlineData;
+import com.tbot.cyclop.Cyclop.dto.NotificationPayload;
 import com.tbot.cyclop.Cyclop.model.*;
 import com.tbot.cyclop.orderplacer.repo.CandleWindowRepo;
 import com.tbot.cyclop.orderplacer.repo.OrderAckHistoryRepo;
+import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 
 import static com.tbot.cyclop.orderplacer.util.GenericHttpUtil.decryptSecretKey;
 import static com.tbot.cyclop.orderplacer.util.TradingUtil.*;
@@ -30,12 +35,20 @@ public class OrderPlacerService {
 
     private final Logger logger = LoggerFactory.getLogger(OrderPlacerService.class);
 
+    private final HashMap<String, PlatformService> serviceMap = new HashMap<>();
+
     public OrderPlacerService(OrderAckHistoryRepo historyRepo, MexcService mexcService, BybitService bybitService, CandleWindowRepo candleWindowRepo, TelegramService telegramService) {
         this.historyRepo = historyRepo;
         this.mexcService = mexcService;
         this.bybitService = bybitService;
         this.candleWindowRepo = candleWindowRepo;
         this.telegramService = telegramService;
+    }
+
+    @PostConstruct
+    void initServiceMap() {
+        serviceMap.put("MEXC", mexcService);
+        serviceMap.put("BYBIT", bybitService);
     }
 
     public void handleCandleWindow(Strategy strategy, KlineData klineData) {
@@ -56,36 +69,52 @@ public class OrderPlacerService {
             strategy.getCandleWindow().setLastPump(lastPump);
             CandleWindow persisted = candleWindowRepo.save(strategy.getCandleWindow()).block();
             strategy.setCandleWindow(persisted);
-
             String message = String.format("CANDLE UPDATE | %s | %s |LAST PUMP %s", klineData.getSymbol(), "M".concat(klineData.getInterval()), lastPump);
             logger.info(message);
         }
     }
 
-    public OrderAckHistory handleOpenOrder(Strategy strategy, KlineData klineData) throws Exception {
-        OrderAckHistory orderAckHistory = createOrderAck(klineData, strategy);
-        double takeProfitPrice = calculateTakeProfitPrice(strategy, klineData);
-        orderAckHistory.setTakeProfitPrice(takeProfitPrice);
-        double stopLossPrice = calculateStopLossPrice(strategy, klineData);
-        orderAckHistory.setStopLossPrice(stopLossPrice);
+    @Transactional
+    public OrderAckHistory handleOpenOrder(Strategy strategy, KlineData klineData, OrderAckHistory lastOrder) throws Exception {
+        if (lastOrder == null || OrderStatus.SYS_CREATED.equals(lastOrder.getOrderStatus())) {
+            OrderAckHistory orderAckHistory = createOrderAck(klineData, strategy);
+            double takeProfitPrice = calculateTakeProfitPrice(strategy, klineData);
+            orderAckHistory.setCurrentTakeProfitPrice(takeProfitPrice);
+            double stopLossPrice = calculateStopLossPrice(strategy, klineData);
+            orderAckHistory.setStopLossPrice(stopLossPrice);
+            PlatformService service = getService(klineData.getSourcePlatform());
+            service.entry(orderAckHistory);
+            sendNotification(orderAckHistory);
+            return orderAckHistory;
+        }
 
+        return null;
+    }
+    public OrderAckHistory handleSyncStatus(KlineData klineData, OrderAckHistory latestOrder) throws JsonProcessingException {
         PlatformService service = getService(klineData.getSourcePlatform());
-
-        service.entry(orderAckHistory);
-
-        return orderAckHistory;
+        service.syncPlatformStatus(latestOrder);
+        // check to see if order is open on platform
+        if (latestOrder == null || !OrderStatus.OPEN.equals(latestOrder.getOrderStatus()) || latestOrder.getPlatformOrderId() == null) {
+            return null;
+        } else {
+            sendNotification(latestOrder);
+            return latestOrder;
+        }
     }
 
-    public OrderAckHistory handleTakeProfit(Strategy strategy, KlineData klineData) {
-        return null;
-    }
+    public OrderAckHistory handleReduceTakeProfit(Strategy strategy, KlineData klineData, OrderAckHistory latestOrder) {
+        PlatformService service = getService(klineData.getSourcePlatform());
+        service.syncPlatformStatus(latestOrder);
+        // check to see if order is open on platform
+        if (latestOrder == null || !OrderStatus.OPEN.equals(latestOrder.getOrderStatus()) || latestOrder.getPlatformOrderId() == null) {
+            return null;
+        } else {
+            double newTakeProfitPrice = calculateReducedTakeProfitPrice(strategy, klineData, latestOrder);
+            latestOrder.setCurrentTakeProfitPrice(newTakeProfitPrice);
+            service.reduceProfit(latestOrder);
+            return latestOrder;
+        }
 
-    public OrderAckHistory handleStopLoss(Strategy strategy, KlineData klineData) {
-        return null;
-    }
-
-    public OrderAckHistory handleReduceTakeProfit(Strategy strategy, KlineData klineData) {
-        return null;
     }
 
 
@@ -114,11 +143,17 @@ public class OrderPlacerService {
         ack.setCreatedAt(LocalDateTime.now());
         ack.setUpdatedAt(LocalDateTime.now());
         ack.setOrderStatus(OrderStatus.SYS_CREATED);
+        ack.setLastTakeProfitPercent(calculateNewValue(strategy.getOrderChange(), strategy.getTakeProfit()));
         return ack;
     }
 
     private PlatformService getService(String platform) {
-        return "MEXC".equals(platform) ? mexcService : bybitService;
+        return serviceMap.get(platform);
+    }
+
+    private void sendNotification(OrderAckHistory orderAckHistory) throws JsonProcessingException {
+        NotificationPayload notificationPayload = NotificationPayload.fromOrderAck(orderAckHistory);
+        telegramService.sendNotification(orderAckHistory.getStrategy(), notificationPayload);
     }
 
 

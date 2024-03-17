@@ -31,8 +31,6 @@ public class Strategy implements Serializable {
     @DocumentReference
     private Bot bot;
     @DocumentReference
-    private StrategyMarker strategyMarker;
-    @DocumentReference
     private CandleWindow candleWindow;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
