@@ -115,6 +115,7 @@ public class OrderPlacerService {
         } else {
             double newTakeProfitPrice = calculateReducedTakeProfitPrice(strategy, klineData, latestOrder);
             latestOrder.setCurrentTakeProfitPrice(newTakeProfitPrice);
+            latestOrder.setLastTakeProfitPercent(calculateLastTakeProfitPercent(strategy, klineData, latestOrder));
             service.reduceProfit(latestOrder, klineData);
             return latestOrder;
         }

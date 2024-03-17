@@ -47,22 +47,30 @@ public class TradingUtil {
         return changePercent >= expectedChangePercent * expectedSide;
     }
 
-    public static double calculateTakeProfitPercent(Strategy strategy) {
-        return calculateNewValue(strategy.getOrderChange(), strategy.getTakeProfit());
+    public static double calculateTakeProfitProportion(Strategy strategy) {
+        if (strategy.getPositionSide().equals("LONG")) {
+            return calculateNewValue(strategy.getOrderChange(), strategy.getTakeProfit()) + ONE_HUNDRED_PERCENT;
+        } else {
+            return ONE_HUNDRED_PERCENT - calculateNewValue(strategy.getOrderChange(), strategy.getTakeProfit());
+        }
     }
 
     public static double calculateTakeProfitPrice(Strategy strategy, KlineData klineData) {
-        double takeProfitPercent = calculateTakeProfitPercent(strategy);
-        return calculateNewValue(ONE_HUNDRED_PERCENT + takeProfitPercent, klineData.getCurrentPrice());
+        double takeProfitPercent = calculateTakeProfitProportion(strategy);
+        return calculateNewValue(klineData.getCurrentPrice(), takeProfitPercent);
     }
 
-    public static double calculateStopLossPercent(Strategy strategy) {
-        return calculateNewValue(strategy.getOrderChange(), strategy.getStopLoss());
+    public static double calculateStopLossProportion(Strategy strategy) {
+        if (strategy.getPositionSide().equals("LONG")) {
+            return calculateNewValue(strategy.getOrderChange(), strategy.getStopLoss()) + ONE_HUNDRED_PERCENT;
+        } else {
+            return ONE_HUNDRED_PERCENT - calculateNewValue(strategy.getOrderChange(), strategy.getStopLoss());
+        }
     }
 
     public static double calculateStopLossPrice(Strategy strategy, KlineData klineData) {
-        double stopLossPercent = calculateStopLossPercent(strategy);
-        return calculateNewValue(ONE_HUNDRED_PERCENT - stopLossPercent, klineData.getCurrentPrice());
+        double stopLossPercent = calculateStopLossProportion(strategy);
+        return calculateNewValue(klineData.getCurrentPrice(), stopLossPercent);
     }
 
     public static boolean canTakeProfit(OrderAckHistory latestOrder, KlineData klineData) {
@@ -87,7 +95,18 @@ public class TradingUtil {
     public static double calculateReducedTakeProfitPrice(Strategy strategy, KlineData klineData, OrderAckHistory latestOrder) {
         double lastTakeProfitPercent = latestOrder.getLastTakeProfitPercent();
         double newTakeProfitPercent = deductPercentage(lastTakeProfitPercent, strategy.getReduceTakeProfit());
-        return calculateNewValue(klineData.getOpenPrice(), ONE_HUNDRED_PERCENT + newTakeProfitPercent);
+        double newTakeProfitPrice = 0;
+        if (strategy.getPositionSide().equals("LONG")) {
+            newTakeProfitPrice = calculateNewValue(klineData.getCurrentPrice(), ONE_HUNDRED_PERCENT + newTakeProfitPercent);
+        } else {
+            newTakeProfitPrice = calculateNewValue(klineData.getCurrentPrice(), ONE_HUNDRED_PERCENT - newTakeProfitPercent);
+        }
+        return newTakeProfitPrice;
+    }
+
+    public static double calculateLastTakeProfitPercent(Strategy strategy, KlineData klineData, OrderAckHistory latestOrder){
+        double lastTakeProfitPercent = latestOrder.getLastTakeProfitPercent();
+        return deductPercentage(lastTakeProfitPercent, strategy.getReduceTakeProfit());
     }
 
     public static byte[] generateRandomBytes(int length) {
@@ -181,6 +200,7 @@ public class TradingUtil {
         String hashInput = currentTs + formdata + g;
         return getMd5(hashInput);
     }
+
     public static String getMexcSign(MexcChangePriceRequest request, long ts, String apiKey) throws JsonProcessingException {
         String formdata = request != null ? mapper.writeValueAsString(request) : "";
         String g = getMexcG(apiKey, ts)[0];

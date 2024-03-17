@@ -89,7 +89,7 @@ public class MexcService implements PlatformService {
         MexcOrderResponse response;
 
         try {
-            response = webClient.post()
+            String responseString = webClient.post()
                     .uri(path)
                     .body(BodyInserters.fromValue(openOrderRequest))
                     .header("Content-Type", "application/json")
@@ -98,7 +98,8 @@ public class MexcService implements PlatformService {
                     .header("X-Mxc-Sign", headerHash)
                     .header("Authorization", webToken)
                     .retrieve()
-                    .bodyToMono(MexcOrderResponse.class).block();
+                    .bodyToMono(String.class).block();
+            response = objectMapper.readValue(responseString, MexcOrderResponse.class);
             if (response == null || response.getData() == null || !response.isSuccess()) {
                 throw new OpenOrderFailException(orderAckHistory);
             }
