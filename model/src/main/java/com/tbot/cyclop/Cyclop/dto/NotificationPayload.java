@@ -47,7 +47,7 @@ public class NotificationPayload {
         notificationPayload.setBotName(orderAckHistory.getStrategy().getBot().getName());
         notificationPayload.setAction(orderAckHistory.getOrderStatus().toString().replace("_", " "));
         notificationPayload.setStrategyShort(orderAckHistory.getStrategy().toNotiString());
-        notificationPayload.setAmount(orderAckHistory.getVolume() * orderAckHistory.getEntryPrice());
+        notificationPayload.setAmount(orderAckHistory.getVolume() * orderAckHistory.getEntryPrice() / 10);
         notificationPayload.setPrice(orderAckHistory.getEntryPrice());
         return notificationPayload;
     }
