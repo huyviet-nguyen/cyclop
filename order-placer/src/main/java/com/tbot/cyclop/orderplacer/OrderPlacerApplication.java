@@ -15,6 +15,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import reactor.core.publisher.Flux;
 import reactor.core.scheduler.Schedulers;
+
 import java.util.ArrayList;
 import java.util.function.Function;
 
@@ -57,6 +58,7 @@ public class OrderPlacerApplication {
         return stringKlineDataKStream -> stringKlineDataKStream.flatMapValues(
                 (key, value) ->
                 {
+                    long startProcessTime = System.currentTimeMillis();
                     String candleStick = addCandleStickPrefix(value.getInterval());
                     String symbolString = replaceUsdtSuffix(value.getSymbol());
                     String positionSide = value.getCurrentPrice() > value.getOpenPrice() ? "LONG" : "SHORT";
@@ -88,15 +90,23 @@ public class OrderPlacerApplication {
                                     try {
                                         return orderPlacerService.handleSyncStatus(value, latestOrder);
                                     } catch (JsonProcessingException e) {
-                                        throw new RuntimeException(e);
+                                        logger.error(e.getMessage());
                                     }
                                 }
                                 if (mustReduceTakeProfit(strategy, value)) {
-                                    return orderPlacerService.handleReduceTakeProfit(strategy, value, latestOrder);
+                                    try {
+                                        return orderPlacerService.handleReduceTakeProfit(strategy, value, latestOrder);
+                                    } catch (JsonProcessingException e) {
+                                        logger.error(e.getMessage());
+                                    }
                                 }
                                 return null;
                             }
                     );
+                    long doneProcessTime = System.currentTimeMillis();
+                    if (doneProcessTime - startProcessTime > 100) {
+                        logger.warn("LONG PROCESS : {} ms", doneProcessTime - startProcessTime);
+                    }
                     return orderAckHistoryRepo.saveAll(orderAckFlux).toIterable();
                 }
         );

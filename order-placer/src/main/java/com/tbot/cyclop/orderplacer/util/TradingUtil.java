@@ -52,7 +52,7 @@ public class TradingUtil {
 
     public static double calculateTakeProfitPrice(Strategy strategy, KlineData klineData) {
         double takeProfitPercent = calculateTakeProfitPercent(strategy);
-        return calculateNewValue(ONE_HUNDRED_PERCENT + takeProfitPercent, klineData.getOpenPrice());
+        return calculateNewValue(ONE_HUNDRED_PERCENT + takeProfitPercent, klineData.getCurrentPrice());
     }
 
     public static double calculateStopLossPercent(Strategy strategy) {
@@ -61,7 +61,7 @@ public class TradingUtil {
 
     public static double calculateStopLossPrice(Strategy strategy, KlineData klineData) {
         double stopLossPercent = calculateStopLossPercent(strategy);
-        return calculateNewValue(ONE_HUNDRED_PERCENT - stopLossPercent, klineData.getOpenPrice());
+        return calculateNewValue(ONE_HUNDRED_PERCENT - stopLossPercent, klineData.getCurrentPrice());
     }
 
     public static boolean canTakeProfit(Strategy strategy, KlineData klineData) {
@@ -167,7 +167,6 @@ public class TradingUtil {
         if (strategyAmount < 0 || strategyAmount > 100) {
             throw new IllegalArgumentException("Percentage must be between 0 and 100.");
         }
-        System.out.println("Cont: " + cont);
         double equityFraction = strategyAmount / 100.0;
         double portfolioPortion = balance * equityFraction;
         double result = (portfolioPortion * 10) / cont;
@@ -175,7 +174,7 @@ public class TradingUtil {
     }
 
     public static String getMexcSign(MexcOpenOrderRequest request, long ts, String apiKey) throws JsonProcessingException {
-        String formdata = mapper.writeValueAsString(request);
+        String formdata = request != null ? mapper.writeValueAsString(request) : "";
         String g = getMexcG(apiKey, ts)[0];
         String currentTs = String.valueOf(getMexcG(apiKey, ts)[1]);
         String hashInput = currentTs + formdata + g;

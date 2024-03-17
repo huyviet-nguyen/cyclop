@@ -5,73 +5,86 @@ import lombok.Data;
 
 @Data
 public class MexcOrderHistoryResponse {
-    @JsonProperty("orderId")
-    private String orderId;
+    @JsonProperty("success")
+    private boolean success;
 
-    @JsonProperty("symbol")
-    private String symbol;
+    @JsonProperty("code")
+    private int code;
 
-    @JsonProperty("positionId")
-    private int positionId;
+    @JsonProperty("data")
+    private OrderData orderData;
 
-    @JsonProperty("price")
-    private double price;
+    @Data
+    public static class OrderData {
+        @JsonProperty("orderId")
+        private String orderId;
 
-    @JsonProperty("vol")
-    private int vol;
+        @JsonProperty("symbol")
+        private String symbol;
 
-    @JsonProperty("leverage")
-    private int leverage;
+        @JsonProperty("positionId")
+        private int positionId;
 
-    @JsonProperty("side")
-    private int side;
+        @JsonProperty("price")
+        private double price;
 
-    @JsonProperty("category")
-    private int category;
+        @JsonProperty("vol")
+        private int vol;
 
-    @JsonProperty("orderType")
-    private int orderType;
+        @JsonProperty("leverage")
+        private int leverage;
 
-    @JsonProperty("dealAvgPrice")
-    private double dealAvgPrice;
+        @JsonProperty("side")
+        private int side;
 
-    @JsonProperty("dealVol")
-    private int dealVol;
+        @JsonProperty("category")
+        private int category;
 
-    @JsonProperty("orderMargin")
-    private double orderMargin;
+        @JsonProperty("orderType")
+        private int orderType;
 
-    @JsonProperty("takerFee")
-    private double takerFee;
+        @JsonProperty("dealAvgPrice")
+        private double dealAvgPrice;
 
-    @JsonProperty("makerFee")
-    private double makerFee;
+        @JsonProperty("dealVol")
+        private int dealVol;
 
-    @JsonProperty("profit")
-    private double profit;
+        @JsonProperty("orderMargin")
+        private double orderMargin;
 
-    @JsonProperty("feeCurrency")
-    private String feeCurrency;
+        @JsonProperty("takerFee")
+        private double takerFee;
 
-    @JsonProperty("openType")
-    private int openType;
+        @JsonProperty("makerFee")
+        private double makerFee;
 
-    @JsonProperty("state")
-    private int state;
+        @JsonProperty("profit")
+        private double profit;
 
-    @JsonProperty("externalOid")
-    private String externalOid;
+        @JsonProperty("feeCurrency")
+        private String feeCurrency;
 
-    @JsonProperty("errorCode")
-    private int errorCode;
+        @JsonProperty("openType")
+        private int openType;
 
-    @JsonProperty("usedMargin")
-    private double usedMargin;
+        @JsonProperty("state")
+        private int state;
 
-    @JsonProperty("createTime")
-    private long createTime;
+        @JsonProperty("externalOid")
+        private String externalOid;
 
-    @JsonProperty("updateTime")
-    private long updateTime;
+        @JsonProperty("errorCode")
+        private int errorCode;
+
+        @JsonProperty("usedMargin")
+        private double usedMargin;
+
+        @JsonProperty("createTime")
+        private long createTime;
+
+        @JsonProperty("updateTime")
+        private long updateTime;
+    }
 }
+
 

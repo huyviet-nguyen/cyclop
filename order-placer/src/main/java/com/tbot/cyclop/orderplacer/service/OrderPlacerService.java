@@ -5,7 +5,6 @@ import com.tbot.cyclop.Cyclop.dto.KlineData;
 import com.tbot.cyclop.Cyclop.dto.NotificationPayload;
 import com.tbot.cyclop.Cyclop.model.*;
 import com.tbot.cyclop.orderplacer.repo.CandleWindowRepo;
-import com.tbot.cyclop.orderplacer.repo.OrderAckHistoryRepo;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,8 +22,6 @@ import static com.tbot.cyclop.orderplacer.util.PercentageUtil.*;
 @Service
 public class OrderPlacerService {
 
-    private final OrderAckHistoryRepo historyRepo;
-
     private final MexcService mexcService;
 
     private final BybitService bybitService;
@@ -37,8 +34,7 @@ public class OrderPlacerService {
 
     private final HashMap<String, PlatformService> serviceMap = new HashMap<>();
 
-    public OrderPlacerService(OrderAckHistoryRepo historyRepo, MexcService mexcService, BybitService bybitService, CandleWindowRepo candleWindowRepo, TelegramService telegramService) {
-        this.historyRepo = historyRepo;
+    public OrderPlacerService(MexcService mexcService, BybitService bybitService, CandleWindowRepo candleWindowRepo, TelegramService telegramService) {
         this.mexcService = mexcService;
         this.bybitService = bybitService;
         this.candleWindowRepo = candleWindowRepo;
@@ -74,7 +70,6 @@ public class OrderPlacerService {
         }
     }
 
-    @Transactional
     public OrderAckHistory handleOpenOrder(Strategy strategy, KlineData klineData, OrderAckHistory lastOrder) throws Exception {
         if (lastOrder == null || OrderStatus.SYS_CREATED.equals(lastOrder.getOrderStatus())) {
             OrderAckHistory orderAckHistory = createOrderAck(klineData, strategy);
@@ -85,11 +80,14 @@ public class OrderPlacerService {
             PlatformService service = getService(klineData.getSourcePlatform());
             service.entry(orderAckHistory);
             sendNotification(orderAckHistory);
+            logger.info("OPENED ORDER {} ON {} SYMBOL {}", orderAckHistory.getPlatformOrderId(), orderAckHistory.getPlatform(), orderAckHistory.getSymbol());
             return orderAckHistory;
         }
 
         return null;
     }
+
+    @Transactional
     public OrderAckHistory handleSyncStatus(KlineData klineData, OrderAckHistory latestOrder) throws JsonProcessingException {
         PlatformService service = getService(klineData.getSourcePlatform());
         service.syncPlatformStatus(latestOrder);
@@ -102,7 +100,8 @@ public class OrderPlacerService {
         }
     }
 
-    public OrderAckHistory handleReduceTakeProfit(Strategy strategy, KlineData klineData, OrderAckHistory latestOrder) {
+    @Transactional
+    public OrderAckHistory handleReduceTakeProfit(Strategy strategy, KlineData klineData, OrderAckHistory latestOrder) throws JsonProcessingException {
         PlatformService service = getService(klineData.getSourcePlatform());
         service.syncPlatformStatus(latestOrder);
         // check to see if order is open on platform
@@ -151,9 +150,13 @@ public class OrderPlacerService {
         return serviceMap.get(platform);
     }
 
-    private void sendNotification(OrderAckHistory orderAckHistory) throws JsonProcessingException {
-        NotificationPayload notificationPayload = NotificationPayload.fromOrderAck(orderAckHistory);
-        telegramService.sendNotification(orderAckHistory.getStrategy(), notificationPayload);
+    public void sendNotification(OrderAckHistory orderAckHistory) {
+        try {
+            NotificationPayload notificationPayload = NotificationPayload.fromOrderAck(orderAckHistory);
+            telegramService.sendNotification(orderAckHistory.getStrategy(), notificationPayload);
+        } catch (Exception e) {
+            logger.error("CANNOT SEND NOTIFICATION");
+        }
     }
 
 

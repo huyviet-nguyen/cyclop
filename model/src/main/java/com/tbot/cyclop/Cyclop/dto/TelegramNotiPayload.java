@@ -10,4 +10,5 @@ public class TelegramNotiPayload {
     private String text;
     @JsonProperty("disable_notification")
     private boolean disableNotification;
+    private String parseMode = "Markdown";
 }

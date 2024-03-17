@@ -35,6 +35,12 @@ public class NotificationPayload {
 
     public static NotificationPayload fromOrderAck(OrderAckHistory orderAckHistory) {
         NotificationPayload notificationPayload = new NotificationPayload();
+        notificationPayload.setSymbol(orderAckHistory.getSymbol());
+        notificationPayload.setBotName(orderAckHistory.getStrategy().getBot().getName());
+        notificationPayload.setAction(orderAckHistory.getOrderStatus().toString());
+        notificationPayload.setStrategyShort(orderAckHistory.getStrategy().toNotiString());
+        notificationPayload.setAmount(orderAckHistory.getVolume() * orderAckHistory.getEntryPrice());
+        notificationPayload.setPrice(orderAckHistory.getEntryPrice());
         return notificationPayload;
     }
 }

@@ -39,7 +39,7 @@ public class TelegramService {
     private static final String NOTIFICATION_TEMPLATE =
             """
                     %s      | %s
-                    Bot     : %s
+                    *Bot     : %s
                     Strategy: %s
                     Price   : %s | Amount: %s
                     """;

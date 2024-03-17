@@ -27,12 +27,14 @@ public class OrderAckHistory {
     private String platformOrderStatus;
     private String symbol; //
     private double candleOpenPrice; //
+    private double volume;
     @DocumentReference
     private Strategy strategy; //
     private LocalDateTime createdAt; //
     private long createdOnPlatformAt;
     private LocalDateTime updatedAt; //
     private String platformOrderId;
+    private double profit;
 
     public String getSymbolWithUnderScore() {
         return strategy.getSymbol().getSymbol();
