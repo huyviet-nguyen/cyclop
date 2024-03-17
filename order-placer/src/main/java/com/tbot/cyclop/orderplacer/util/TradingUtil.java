@@ -88,10 +88,6 @@ public class TradingUtil {
         return lastOpenPrice != klineData.getOpenPrice();
     }
 
-    public static boolean mustReduceTakeProfit(Strategy strategy, KlineData klineData, OrderAckHistory latestOrder) {
-        return newCandle(strategy, klineData) && !canTakeProfit(latestOrder, klineData);
-    }
-
     public static double calculateReducedTakeProfitPrice(Strategy strategy, KlineData klineData, OrderAckHistory latestOrder) {
         double lastTakeProfitPercent = latestOrder.getLastTakeProfitPercent();
         double newTakeProfitPercent = deductPercentage(lastTakeProfitPercent, strategy.getReduceTakeProfit());

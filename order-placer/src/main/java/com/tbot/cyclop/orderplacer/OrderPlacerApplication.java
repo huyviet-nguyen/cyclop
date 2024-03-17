@@ -72,8 +72,10 @@ public class OrderPlacerApplication {
                             (Strategy strategy) ->
                             {
 
+
                                 OrderAckHistory latestOrder = orderAckHistoryRepo.findFirstByStrategyIdOrderByCreatedAtDesc(strategy.getId()).block();
-                                if (newCandle(strategy, value)) {
+                                boolean newCandle = newCandle(strategy, value);
+                                if (newCandle) {
                                     orderPlacerService.handleCandleWindow(strategy, value);
                                 }
                                 if (canIgnore(strategy, value)) {
@@ -93,7 +95,7 @@ public class OrderPlacerApplication {
                                         logger.error(e.getMessage());
                                     }
                                 }
-                                if (mustReduceTakeProfit(strategy, value, latestOrder)) {
+                                if (!canTakeProfit(latestOrder, value) && newCandle) {
                                     try {
                                         return orderPlacerService.handleReduceTakeProfit(strategy, value, latestOrder);
                                     } catch (JsonProcessingException e) {
