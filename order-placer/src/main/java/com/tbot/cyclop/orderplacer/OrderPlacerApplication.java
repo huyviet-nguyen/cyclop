@@ -2,7 +2,6 @@ package com.tbot.cyclop.orderplacer;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.tbot.cyclop.Cyclop.dto.KlineData;
-import com.tbot.cyclop.Cyclop.dto.NotificationPayload;
 import com.tbot.cyclop.Cyclop.model.*;
 import com.tbot.cyclop.orderplacer.repo.*;
 import com.tbot.cyclop.orderplacer.service.OrderPlacerService;
@@ -15,11 +14,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
-
-import java.time.Instant;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.function.Function;
 
@@ -78,7 +73,6 @@ public class OrderPlacerApplication {
                                 OrderAckHistory latestOrder = orderAckHistoryRepo.findFirstByStrategyIdOrderByCreatedAtDesc(strategy.getId()).block();
                                 if (newCandle(strategy, value)) {
                                     orderPlacerService.handleCandleWindow(strategy, value);
-
                                 }
                                 if (canIgnore(strategy, value)) {
                                     return null;
