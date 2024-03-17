@@ -7,7 +7,7 @@ import com.tbot.cyclop.Cyclop.dto.KlineData;
 import com.tbot.cyclop.Cyclop.dto.req.MexcChangePriceRequest;
 import com.tbot.cyclop.Cyclop.dto.req.MexcOpenOrderRequest;
 import com.tbot.cyclop.Cyclop.dto.res.MexcChangeOrderResponse;
-import com.tbot.cyclop.Cyclop.dto.res.MexcOrderHistoryResponse;
+import com.tbot.cyclop.Cyclop.dto.res.MexcOrderHistoryListResponse;
 import com.tbot.cyclop.Cyclop.dto.res.MexcOrderResponse;
 import com.tbot.cyclop.Cyclop.model.Bot;
 import com.tbot.cyclop.Cyclop.model.FingerprintSysInfo;
@@ -47,8 +47,6 @@ public class MexcService implements PlatformService {
     private final WebClient webClient = WebClient.create();
 
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private static final int COMPLETED_STATE_MEXC = 3;
-    private static final int CANCELED_STATE_MEXC = 4;
 
     @Override // TESTED
     public double getUsdtBalance(String decryptedApiKey, String decryptedApiSecret) {
@@ -154,46 +152,45 @@ public class MexcService implements PlatformService {
 
 
         String decryptedWebToken = decryptSecretKey(orderAckHistory.getStrategy().getBot().getWebToken());
-        MexcOrderHistoryResponse historyResponse = getPlatformOrder(orderAckHistory.getPlatformOrderId(), decryptedWebToken);
-        double profit = historyResponse.getOrderData().getProfit();
-        orderAckHistory.setProfit(profit);
-        switch (historyResponse.getOrderData().getState()) {
-            case COMPLETED_STATE_MEXC: {
-                OrderStatus status = profit > 0 ? OrderStatus.TOOK_PROFIT : OrderStatus.STOPPED_LOSS;
-                orderAckHistory.setOrderStatus(status);
-            }
-            break;
-            case CANCELED_STATE_MEXC: {
+        MexcOrderHistoryListResponse.MexcOrderHistoryResponse historyResponse = getPlatformOrder(orderAckHistory.getPlatformOrderId(), decryptedWebToken);
+        if (historyResponse.getProfit() == 0) {
+            if (historyResponse.getErrorCode() != 0) {
                 orderAckHistory.setOrderStatus(OrderStatus.CANCELED);
             }
-        }
+        } else if (historyResponse.getProfit() > 0) {
+            orderAckHistory.setOrderStatus(OrderStatus.TOOK_PROFIT);
+        } else {
+            orderAckHistory.setOrderStatus(OrderStatus.STOPPED_LOSS);
 
+        }
     }
 
 
-    private MexcOrderHistoryResponse getPlatformOrder(String mexcOrderId, String decryptedWebToken) throws JsonProcessingException {
+    private MexcOrderHistoryListResponse.MexcOrderHistoryResponse getPlatformOrder(String mexcOrderId, String decryptedWebToken) throws JsonProcessingException {
         long timestamp = System.currentTimeMillis();
 
         String path = mexcOrderBaseUrl.concat("api/v1/private/order/get/").concat("/").concat(mexcOrderId);
         String headerHash = getMexcSign((MexcOpenOrderRequest) null, timestamp, decryptedWebToken);
 
-        return webClient.get()
+        MexcOrderHistoryListResponse mexcOrderHistoryListResponse = webClient.get()
                 .uri(path)
                 .header("Content-Type", "application/json")
                 .header("X-Mxc-Nonce", String.valueOf(timestamp))
                 .header("X-Mxc-Sign", headerHash)
                 .header("Authorization", decryptedWebToken)
                 .retrieve()
-                .bodyToMono(MexcOrderHistoryResponse.class).block();
+                .bodyToMono(MexcOrderHistoryListResponse.class).block();
+
+        return mexcOrderHistoryListResponse.getData().stream().filter(a -> a.getOrderId().equals(mexcOrderId)).findFirst().get();
     }
 
 //    @PostConstruct
 //    public void getPlatformOrder() throws JsonProcessingException {
-//        String mexcOrderId = "524261631504013824";
+//        String mexcOrderId = "524407049203833858";
 //        String decryptedWebToken = decryptSecretKey("U2FsdGVkX1/CgEDh8QFc+pYQjjmPtPFsMVBERy/5Z9rK6ST27amSX0z/YVIbiyzDud7s9N7zVZ/rnB7znToeMhFNAD3E2RQn15T68JztqdvUvL96325GPWM/EFOu8CY8");
 //        long timestamp = System.currentTimeMillis();
 //
-//        String path = mexcOrderBaseUrl.concat("api/v1/private/stoporder/list/orders");
+//        String path = mexcOrderBaseUrl.concat("api/v1/private/order/list/history_orders");
 //        String headerHash = getMexcSign((MexcOpenOrderRequest) null, timestamp, decryptedWebToken);
 //
 //        String response = webClient.get()

@@ -2,9 +2,10 @@ package com.tbot.cyclop.Cyclop.dto.res;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
+import java.util.List;
 
 @Data
-public class MexcOrderHistoryResponse {
+public class MexcOrderHistoryListResponse {
     @JsonProperty("success")
     private boolean success;
 
@@ -12,10 +13,10 @@ public class MexcOrderHistoryResponse {
     private int code;
 
     @JsonProperty("data")
-    private OrderData orderData;
+    private List<MexcOrderHistoryResponse> data;
 
     @Data
-    public static class OrderData {
+    public static class MexcOrderHistoryResponse {
         @JsonProperty("orderId")
         private String orderId;
 
@@ -23,10 +24,13 @@ public class MexcOrderHistoryResponse {
         private String symbol;
 
         @JsonProperty("positionId")
-        private int positionId;
+        private long positionId;
 
         @JsonProperty("price")
         private double price;
+
+        @JsonProperty("priceStr")
+        private String priceStr;
 
         @JsonProperty("vol")
         private int vol;
@@ -45,6 +49,9 @@ public class MexcOrderHistoryResponse {
 
         @JsonProperty("dealAvgPrice")
         private double dealAvgPrice;
+
+        @JsonProperty("dealAvgPriceStr")
+        private String dealAvgPriceStr;
 
         @JsonProperty("dealVol")
         private int dealVol;
@@ -84,7 +91,19 @@ public class MexcOrderHistoryResponse {
 
         @JsonProperty("updateTime")
         private long updateTime;
+
+        @JsonProperty("positionMode")
+        private int positionMode;
+
+        @JsonProperty("version")
+        private int version;
+
+        @JsonProperty("showCancelReason")
+        private int showCancelReason;
+
+        @JsonProperty("showProfitRateShare")
+        private int showProfitRateShare;
+
+        // Additional fields can be added as needed
     }
 }
-
-
