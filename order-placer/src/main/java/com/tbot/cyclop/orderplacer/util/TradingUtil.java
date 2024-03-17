@@ -43,7 +43,7 @@ public class TradingUtil {
         if (expectedSide == 0) {
             return Math.abs(changePercent) > expectedChangePercent;
         }
-        return changePercent > expectedChangePercent * expectedSide;
+        return changePercent >= expectedChangePercent * expectedSide;
     }
 
     public static double calculateTakeProfitPercent(Strategy strategy) {

@@ -159,7 +159,7 @@ public class MexcService implements PlatformService {
                 .bodyToMono(MexcOrderHistoryResponse.class).block();
     }
 
-    @PostConstruct
+//    @PostConstruct
 //    public void getPlatformOrder() throws JsonProcessingException {
 //        String mexcOrderId = "524261631504013824";
 //        String decryptedWebToken = decryptSecretKey("U2FsdGVkX1/CgEDh8QFc+pYQjjmPtPFsMVBERy/5Z9rK6ST27amSX0z/YVIbiyzDud7s9N7zVZ/rnB7znToeMhFNAD3E2RQn15T68JztqdvUvL96325GPWM/EFOu8CY8");
