@@ -112,9 +112,8 @@ public class MexcService implements PlatformService {
 
     @Override
     public void reduceProfit(OrderAckHistory orderAckHistory, KlineData klineData) throws JsonProcessingException {
-        double newTakeProfitPrice = calculateReducedTakeProfitPrice(orderAckHistory.getStrategy(), klineData, orderAckHistory);
         MexcChangePriceRequest changePriceRequest = new MexcChangePriceRequest();
-        changePriceRequest.setTakeProfitPrice(newTakeProfitPrice);
+        changePriceRequest.setTakeProfitPrice(orderAckHistory.getCurrentTakeProfitPrice());
         changePriceRequest.setStopLossPrice(orderAckHistory.getStopLossPrice());
         long timestamp = System.currentTimeMillis();
         changePriceRequest.setTs(timestamp);

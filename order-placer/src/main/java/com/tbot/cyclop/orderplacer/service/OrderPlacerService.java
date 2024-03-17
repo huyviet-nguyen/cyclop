@@ -77,7 +77,7 @@ public class OrderPlacerService {
     }
 
     public OrderAckHistory handleOpenOrder(Strategy strategy, KlineData klineData, OrderAckHistory lastOrder) throws Exception {
-        if (lastOrder == null || OrderStatus.SYS_CREATED.equals(lastOrder.getOrderStatus())) {
+        if (lastOrder == null || !OrderStatus.OPEN.equals(lastOrder.getOrderStatus())) {
             OrderAckHistory orderAckHistory = createOrderAck(klineData, strategy);
             double takeProfitPrice = calculateTakeProfitPrice(strategy, klineData);
             orderAckHistory.setCurrentTakeProfitPrice(takeProfitPrice);
@@ -106,7 +106,6 @@ public class OrderPlacerService {
         }
     }
 
-    @Transactional
     public OrderAckHistory handleReduceTakeProfit(Strategy strategy, KlineData klineData, OrderAckHistory latestOrder) throws JsonProcessingException {
         PlatformService service = getService(klineData.getSourcePlatform());
         service.syncPlatformStatus(latestOrder);
