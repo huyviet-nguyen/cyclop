@@ -1,4 +1,4 @@
-package com.tbot.cyclop.Cyclop.dto;
+package com.tbot.cyclop.Cyclop.dto.req;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
@@ -10,5 +10,6 @@ public class TelegramNotiPayload {
     private String text;
     @JsonProperty("disable_notification")
     private boolean disableNotification;
-    private String parseMode = "Markdown";
+    @JsonProperty("parse_mode")
+    private String parseMode = "markdown";
 }

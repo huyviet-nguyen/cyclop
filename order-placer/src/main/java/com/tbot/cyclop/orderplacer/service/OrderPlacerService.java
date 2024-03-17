@@ -5,6 +5,7 @@ import com.tbot.cyclop.Cyclop.dto.KlineData;
 import com.tbot.cyclop.Cyclop.dto.NotificationPayload;
 import com.tbot.cyclop.Cyclop.model.*;
 import com.tbot.cyclop.orderplacer.repo.CandleWindowRepo;
+import com.tbot.cyclop.orderplacer.repo.StrategyRepo;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,15 +31,18 @@ public class OrderPlacerService {
 
     private final TelegramService telegramService;
 
+    private final StrategyRepo strategyRepo;
+
     private final Logger logger = LoggerFactory.getLogger(OrderPlacerService.class);
 
     private final HashMap<String, PlatformService> serviceMap = new HashMap<>();
 
-    public OrderPlacerService(MexcService mexcService, BybitService bybitService, CandleWindowRepo candleWindowRepo, TelegramService telegramService) {
+    public OrderPlacerService(MexcService mexcService, BybitService bybitService, CandleWindowRepo candleWindowRepo, TelegramService telegramService, StrategyRepo strategyRepo) {
         this.mexcService = mexcService;
         this.bybitService = bybitService;
         this.candleWindowRepo = candleWindowRepo;
         this.telegramService = telegramService;
+        this.strategyRepo = strategyRepo;
     }
 
     @PostConstruct
@@ -47,6 +51,7 @@ public class OrderPlacerService {
         serviceMap.put("BYBIT", bybitService);
     }
 
+    @Transactional
     public void handleCandleWindow(Strategy strategy, KlineData klineData) {
         if (newCandle(strategy, klineData)) {
             double lastPump = 0;
@@ -65,6 +70,7 @@ public class OrderPlacerService {
             strategy.getCandleWindow().setLastPump(lastPump);
             CandleWindow persisted = candleWindowRepo.save(strategy.getCandleWindow()).block();
             strategy.setCandleWindow(persisted);
+            strategyRepo.save(strategy).block();
             String message = String.format("CANDLE UPDATE | %s | %s |LAST PUMP %s", klineData.getSymbol(), "M".concat(klineData.getInterval()), lastPump);
             logger.info(message);
         }
@@ -92,7 +98,7 @@ public class OrderPlacerService {
         PlatformService service = getService(klineData.getSourcePlatform());
         service.syncPlatformStatus(latestOrder);
         // check to see if order is open on platform
-        if (latestOrder == null || !OrderStatus.OPEN.equals(latestOrder.getOrderStatus()) || latestOrder.getPlatformOrderId() == null) {
+        if (latestOrder == null) {
             return null;
         } else {
             sendNotification(latestOrder);
@@ -110,25 +116,10 @@ public class OrderPlacerService {
         } else {
             double newTakeProfitPrice = calculateReducedTakeProfitPrice(strategy, klineData, latestOrder);
             latestOrder.setCurrentTakeProfitPrice(newTakeProfitPrice);
-            service.reduceProfit(latestOrder);
+            service.reduceProfit(latestOrder, klineData);
             return latestOrder;
         }
 
-    }
-
-
-    public double getBalance(Strategy strategy) {
-        Bot bot = strategy.getBot();
-        if (bot == null) {
-            throw new RuntimeException(String.format("NO BOT FOUND FOR STRATEGY %s", strategy.getId()));
-        }
-        String apiKey = decryptSecretKey(bot.getApiKey());
-        String apiSecret = decryptSecretKey(bot.getSecretKey());
-        return switch (strategy.getPlatform()) {
-            case "BYBIT" -> bybitService.getUsdtBalance(apiKey, apiSecret);
-            case "MEXC" -> mexcService.getUsdtBalance(apiKey, apiSecret);
-            default -> 0;
-        };
     }
 
     private OrderAckHistory createOrderAck(KlineData klineData, Strategy strategy) {

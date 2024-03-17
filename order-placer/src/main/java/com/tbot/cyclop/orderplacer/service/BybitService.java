@@ -3,6 +3,7 @@ package com.tbot.cyclop.orderplacer.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tbot.cyclop.Cyclop.dto.KlineData;
 import com.tbot.cyclop.Cyclop.model.OrderAckHistory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,7 +47,7 @@ public class BybitService implements PlatformService {
     }
 
     @Override
-    public void reduceProfit(OrderAckHistory orderAckHistory) {
+    public void reduceProfit(OrderAckHistory orderAckHistory, KlineData klineData) {
 
     }
 

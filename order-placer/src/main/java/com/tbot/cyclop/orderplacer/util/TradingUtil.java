@@ -3,6 +3,7 @@ package com.tbot.cyclop.orderplacer.util;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tbot.cyclop.Cyclop.dto.KlineData;
+import com.tbot.cyclop.Cyclop.dto.req.MexcChangePriceRequest;
 import com.tbot.cyclop.Cyclop.dto.req.MexcOpenOrderRequest;
 import com.tbot.cyclop.Cyclop.model.*;
 
@@ -64,12 +65,12 @@ public class TradingUtil {
         return calculateNewValue(ONE_HUNDRED_PERCENT - stopLossPercent, klineData.getCurrentPrice());
     }
 
-    public static boolean canTakeProfit(Strategy strategy, KlineData klineData) {
-        return klineData.getCurrentPrice() > calculateTakeProfitPrice(strategy, klineData);
+    public static boolean canTakeProfit(OrderAckHistory latestOrder, KlineData klineData) {
+        return latestOrder != null && klineData.getCurrentPrice() > latestOrder.getCurrentTakeProfitPrice();
     }
 
-    public static boolean canStopLoss(Strategy strategy, KlineData klineData) {
-        return klineData.getCurrentPrice() < calculateStopLossPrice(strategy, klineData);
+    public static boolean canStopLoss(OrderAckHistory latestOrder, KlineData klineData) {
+        return latestOrder != null && klineData.getCurrentPrice() < latestOrder.getStopLossPrice();
     }
 
     public static boolean newCandle(Strategy strategy, KlineData klineData) {
@@ -79,8 +80,8 @@ public class TradingUtil {
         return lastOpenPrice != klineData.getOpenPrice();
     }
 
-    public static boolean mustReduceTakeProfit(Strategy strategy, KlineData klineData) {
-        return newCandle(strategy, klineData) && !canTakeProfit(strategy, klineData);
+    public static boolean mustReduceTakeProfit(Strategy strategy, KlineData klineData, OrderAckHistory latestOrder) {
+        return newCandle(strategy, klineData) && !canTakeProfit(latestOrder, klineData);
     }
 
     public static double calculateReducedTakeProfitPrice(Strategy strategy, KlineData klineData, OrderAckHistory latestOrder) {
@@ -174,6 +175,13 @@ public class TradingUtil {
     }
 
     public static String getMexcSign(MexcOpenOrderRequest request, long ts, String apiKey) throws JsonProcessingException {
+        String formdata = request != null ? mapper.writeValueAsString(request) : "";
+        String g = getMexcG(apiKey, ts)[0];
+        String currentTs = String.valueOf(getMexcG(apiKey, ts)[1]);
+        String hashInput = currentTs + formdata + g;
+        return getMd5(hashInput);
+    }
+    public static String getMexcSign(MexcChangePriceRequest request, long ts, String apiKey) throws JsonProcessingException {
         String formdata = request != null ? mapper.writeValueAsString(request) : "";
         String g = getMexcG(apiKey, ts)[0];
         String currentTs = String.valueOf(getMexcG(apiKey, ts)[1]);

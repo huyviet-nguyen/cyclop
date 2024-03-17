@@ -3,7 +3,10 @@ package com.tbot.cyclop.orderplacer.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tbot.cyclop.Cyclop.dto.KlineData;
+import com.tbot.cyclop.Cyclop.dto.req.MexcChangePriceRequest;
 import com.tbot.cyclop.Cyclop.dto.req.MexcOpenOrderRequest;
+import com.tbot.cyclop.Cyclop.dto.res.MexcChangeOrderResponse;
 import com.tbot.cyclop.Cyclop.dto.res.MexcOrderHistoryResponse;
 import com.tbot.cyclop.Cyclop.dto.res.MexcOrderResponse;
 import com.tbot.cyclop.Cyclop.model.Bot;
@@ -11,6 +14,7 @@ import com.tbot.cyclop.Cyclop.model.FingerprintSysInfo;
 import com.tbot.cyclop.Cyclop.model.OrderAckHistory;
 import com.tbot.cyclop.Cyclop.model.OrderStatus;
 import com.tbot.cyclop.orderplacer.exception.OpenOrderFailException;
+import com.tbot.cyclop.orderplacer.exception.ReduceTakeProfitFailException;
 import com.tbot.cyclop.orderplacer.exception.SyncStatusFailException;
 import com.tbot.cyclop.orderplacer.util.TradingUtil;
 import jakarta.annotation.PostConstruct;
@@ -43,13 +47,8 @@ public class MexcService implements PlatformService {
     private final WebClient webClient = WebClient.create();
 
     private final ObjectMapper objectMapper = new ObjectMapper();
-
-    private static final int UNINFORMED_STATE_MEXC = 1;
-    private static final int UNCOMPLETED_STATE_MEXC = 2;
     private static final int COMPLETED_STATE_MEXC = 3;
     private static final int CANCELED_STATE_MEXC = 4;
-    private static final int INVALID_STATE_MEXC = 4;
-
 
     @Override // TESTED
     public double getUsdtBalance(String decryptedApiKey, String decryptedApiSecret) {
@@ -112,8 +111,36 @@ public class MexcService implements PlatformService {
     }
 
     @Override
-    public void reduceProfit(OrderAckHistory orderAckHistory) {
+    public void reduceProfit(OrderAckHistory orderAckHistory, KlineData klineData) throws JsonProcessingException {
+        double newTakeProfitPrice = calculateReducedTakeProfitPrice(orderAckHistory.getStrategy(), klineData, orderAckHistory);
+        MexcChangePriceRequest changePriceRequest = new MexcChangePriceRequest();
+        changePriceRequest.setTakeProfitPrice(newTakeProfitPrice);
+        changePriceRequest.setStopLossPrice(orderAckHistory.getStopLossPrice());
+        long timestamp = System.currentTimeMillis();
+        changePriceRequest.setTs(timestamp);
 
+        String path = mexcOrderBaseUrl.concat("api/v1/private/stoporder/change_price");
+        String webToken = decryptSecretKey(orderAckHistory.getStrategy().getBot().getWebToken());
+        String contentLength = String.valueOf(objectMapper.writeValueAsBytes(changePriceRequest).length);
+        String headerHash = getMexcSign(changePriceRequest, timestamp, webToken);
+        MexcChangeOrderResponse response;
+        try {
+            response = webClient.post()
+                    .uri(path)
+                    .body(BodyInserters.fromValue(changePriceRequest))
+                    .header("Content-Type", "application/json")
+                    .header("Content-Length", contentLength)
+                    .header("X-Mxc-Nonce", String.valueOf(timestamp))
+                    .header("X-Mxc-Sign", headerHash)
+                    .header("Authorization", webToken)
+                    .retrieve()
+                    .bodyToMono(MexcChangeOrderResponse.class).block();
+            if (response == null || !response.isSuccess()) {
+                throw new ReduceTakeProfitFailException(orderAckHistory);
+            }
+        } catch (Exception e) {
+            throw new ReduceTakeProfitFailException(orderAckHistory, e);
+        }
     }
 
     @Override
@@ -135,6 +162,7 @@ public class MexcService implements PlatformService {
                 OrderStatus status = profit > 0 ? OrderStatus.TOOK_PROFIT : OrderStatus.STOPPED_LOSS;
                 orderAckHistory.setOrderStatus(status);
             }
+            break;
             case CANCELED_STATE_MEXC: {
                 orderAckHistory.setOrderStatus(OrderStatus.CANCELED);
             }
@@ -147,7 +175,7 @@ public class MexcService implements PlatformService {
         long timestamp = System.currentTimeMillis();
 
         String path = mexcOrderBaseUrl.concat("api/v1/private/order/get/").concat("/").concat(mexcOrderId);
-        String headerHash = getMexcSign(null, timestamp, decryptedWebToken);
+        String headerHash = getMexcSign((MexcOpenOrderRequest) null, timestamp, decryptedWebToken);
 
         return webClient.get()
                 .uri(path)
@@ -165,17 +193,18 @@ public class MexcService implements PlatformService {
 //        String decryptedWebToken = decryptSecretKey("U2FsdGVkX1/CgEDh8QFc+pYQjjmPtPFsMVBERy/5Z9rK6ST27amSX0z/YVIbiyzDud7s9N7zVZ/rnB7znToeMhFNAD3E2RQn15T68JztqdvUvL96325GPWM/EFOu8CY8");
 //        long timestamp = System.currentTimeMillis();
 //
-//        String path = mexcOrderBaseUrl.concat("api/v1/private/order/get/").concat("/").concat(mexcOrderId);
-//        String headerHash = getMexcSign(null, timestamp, decryptedWebToken);
+//        String path = mexcOrderBaseUrl.concat("api/v1/private/stoporder/list/orders");
+//        String headerHash = getMexcSign((MexcOpenOrderRequest) null, timestamp, decryptedWebToken);
 //
-//        webClient.get()
+//        String response = webClient.get()
 //                .uri(path)
 //                .header("Content-Type", "application/json")
 //                .header("X-Mxc-Nonce", String.valueOf(timestamp))
 //                .header("X-Mxc-Sign", headerHash)
 //                .header("Authorization", decryptedWebToken)
 //                .retrieve()
-//                .bodyToMono(MexcOrderHistoryResponse.class).block();
+//                .bodyToMono(String.class).block();
+//        System.out.println(response);
 //    }
 
     //TESTED

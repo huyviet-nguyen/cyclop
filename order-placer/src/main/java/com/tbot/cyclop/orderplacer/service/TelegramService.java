@@ -3,7 +3,7 @@ package com.tbot.cyclop.orderplacer.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tbot.cyclop.Cyclop.dto.NotificationPayload;
-import com.tbot.cyclop.Cyclop.dto.TelegramNotiPayload;
+import com.tbot.cyclop.Cyclop.dto.req.TelegramNotiPayload;
 import com.tbot.cyclop.Cyclop.model.Bot;
 import com.tbot.cyclop.Cyclop.model.Strategy;
 import com.tbot.cyclop.Cyclop.model.TelegramBotInfo;
@@ -18,8 +18,6 @@ import org.springframework.web.util.UriBuilder;
 
 import java.util.*;
 
-import static com.tbot.cyclop.orderplacer.util.GenericHttpUtil.decryptSecretKey;
-
 
 @Component
 public class TelegramService {
@@ -32,23 +30,19 @@ public class TelegramService {
 
     private static final String DEFAULT_CHANNEL_ID = "-1002026702728";
 
-    private final MexcService mexcService;
-
-    private final BybitService bybitService;
-
     private static final String NOTIFICATION_TEMPLATE =
             """
-                    %s      | %s
-                    *Bot     : %s
-                    Strategy: %s
-                    Price   : %s | Amount: %s
+                    *%s *     | %s
+                    *Bot*     : %s
+                    *Strategy*: %s
+                    *Price*   : %s | *Amount*: %s
                     """;
+    private static final String TAKE_PROFIT = "\n*Profit* : %s";
+    private static final String LOSS = "\n*Loss* : %s";
 
 
-    public TelegramService(TelegramBotInfoRepo infoRepo, MexcService mexcService, BybitService bybitService) {
+    public TelegramService(TelegramBotInfoRepo infoRepo) {
         this.infoRepo = infoRepo;
-        this.mexcService = mexcService;
-        this.bybitService = bybitService;
     }
 
     private String getUrl(String token) {
@@ -56,13 +50,34 @@ public class TelegramService {
     }
 
     private String getTextNotificationPayload(NotificationPayload notificationPayload) {
+        if (notificationPayload.getAction().equals("TOOK_PROFIT")) {
+            return String.format(NOTIFICATION_TEMPLATE.concat(TAKE_PROFIT),
+                    notificationPayload.getSymbol(),
+                    notificationPayload.getAction(),
+                    notificationPayload.getBotName(),
+                    notificationPayload.getStrategyShort(),
+                    notificationPayload.getPrice(),
+                    notificationPayload.getDecoratedAmount(),
+                    notificationPayload.getDecoratedProfit());
+        }
+        if (notificationPayload.getAction().equals("STOPPED_LOSS")) {
+            return String.format(NOTIFICATION_TEMPLATE.concat(LOSS),
+                    notificationPayload.getSymbol(),
+                    notificationPayload.getAction(),
+                    notificationPayload.getBotName(),
+                    notificationPayload.getStrategyShort(),
+                    notificationPayload.getPrice(),
+                    notificationPayload.getDecoratedAmount(),
+                    notificationPayload.getDecoratedProfit());
+        }
         return String.format(NOTIFICATION_TEMPLATE,
                 notificationPayload.getSymbol(),
-                notificationPayload.getOrderStatus().toString(),
+                notificationPayload.getAction(),
                 notificationPayload.getBotName(),
                 notificationPayload.getStrategyShort(),
                 notificationPayload.getPrice(),
                 notificationPayload.getDecoratedAmount());
+
     }
 
 
@@ -74,15 +89,6 @@ public class TelegramService {
             logger.error("Cannot send noti for" + getTextNotificationPayload(payload));
             return;
         }
-        String apiKey = bot.getApiKey();
-        String apiSecret = bot.getSecretKey();
-        double amount = 0;
-        try {
-            amount = getBalance(decryptSecretKey(apiKey), decryptSecretKey(apiSecret), payload.getPlatform()) * payload.getOrderAmount() / 100;
-        } catch (Exception e) {
-            logger.error(e.getMessage());
-        }
-        payload.setAmount(amount);
         TelegramNotiPayload telegramNotiPayload = new TelegramNotiPayload();
         telegramNotiPayload.setText(getTextNotificationPayload(payload));
         telegramNotiPayload.setChatId(Optional.ofNullable(user.getTelegramId()).orElse(DEFAULT_CHANNEL_ID));
@@ -100,13 +106,6 @@ public class TelegramService {
                 .doOnError(e -> logger.error(e.getLocalizedMessage())).block();
     }
 
-    private double getBalance(String apiKey, String apiSecret, String platform) {
-        return switch (platform) {
-            case "BYBIT" -> bybitService.getUsdtBalance(apiKey, apiSecret);
-            case "MEXC" -> mexcService.getUsdtBalance(apiKey, apiSecret);
-            default -> 0;
-        };
-    }
 
 
 }

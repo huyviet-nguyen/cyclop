@@ -86,14 +86,14 @@ public class OrderPlacerApplication {
                                         logger.error(e.getMessage());
                                     }
                                 }
-                                if (canTakeProfit(strategy, value) || canStopLoss(strategy, value)) {
+                                if (canTakeProfit(latestOrder, value) || canStopLoss(latestOrder, value)) {
                                     try {
                                         return orderPlacerService.handleSyncStatus(value, latestOrder);
                                     } catch (JsonProcessingException e) {
                                         logger.error(e.getMessage());
                                     }
                                 }
-                                if (mustReduceTakeProfit(strategy, value)) {
+                                if (mustReduceTakeProfit(strategy, value, latestOrder)) {
                                     try {
                                         return orderPlacerService.handleReduceTakeProfit(strategy, value, latestOrder);
                                     } catch (JsonProcessingException e) {

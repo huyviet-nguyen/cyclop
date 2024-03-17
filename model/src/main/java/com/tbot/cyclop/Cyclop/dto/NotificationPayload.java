@@ -25,6 +25,7 @@ public class NotificationPayload {
     private double amount;
     private double orderAmount;
     private double balance;
+    private double profit;
 
     public String getDecoratedAmount() {
         DecimalFormat decimalFormat = new DecimalFormat("#,##0.00");
@@ -32,12 +33,19 @@ public class NotificationPayload {
         formattedValue = "$" + formattedValue;
         return formattedValue;
     }
+    public String getDecoratedProfit() {
+        DecimalFormat decimalFormat = new DecimalFormat("#,##0.00");
+        String formattedValue = decimalFormat.format(profit);
+        formattedValue = "$" + formattedValue;
+        return formattedValue;
+    }
 
     public static NotificationPayload fromOrderAck(OrderAckHistory orderAckHistory) {
         NotificationPayload notificationPayload = new NotificationPayload();
         notificationPayload.setSymbol(orderAckHistory.getSymbol());
+        notificationPayload.setPlatform(orderAckHistory.getPlatform());
         notificationPayload.setBotName(orderAckHistory.getStrategy().getBot().getName());
-        notificationPayload.setAction(orderAckHistory.getOrderStatus().toString());
+        notificationPayload.setAction(orderAckHistory.getOrderStatus().toString().replace("_", " "));
         notificationPayload.setStrategyShort(orderAckHistory.getStrategy().toNotiString());
         notificationPayload.setAmount(orderAckHistory.getVolume() * orderAckHistory.getEntryPrice());
         notificationPayload.setPrice(orderAckHistory.getEntryPrice());
