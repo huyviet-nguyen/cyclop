@@ -256,7 +256,7 @@ public class MexcService implements PlatformService {
     public MexcOpenOrderRequest orderAckToMexcOpenOrderRequest(OrderAckHistory ackHistory) throws Exception {
         long timestamp = Instant.now().toEpochMilli();
         MexcOpenOrderRequest mexcOrder = new MexcOpenOrderRequest();
-        String side = ackHistory.getStrategy().getPositionSide().equals("LONG") ? "3" : "1";
+        String side = ackHistory.getStrategy().getPositionSide().equals("LONG") ? "1" : "3";
         byte[] key = TradingUtil.generateRandomBytes(32);
         mexcOrder.setSide(side);
         mexcOrder.setSymbol(ackHistory.getSymbolWithUnderScore());
