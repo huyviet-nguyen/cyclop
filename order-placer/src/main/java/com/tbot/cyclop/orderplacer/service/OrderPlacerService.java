@@ -96,13 +96,14 @@ public class OrderPlacerService {
 
     @Transactional
     public OrderAckHistory handleSyncStatus(KlineData klineData, OrderAckHistory latestOrder) throws JsonProcessingException {
-        PlatformService service = getService(klineData.getSourcePlatform());
-        service.syncPlatformStatus(latestOrder);
-        // check to see if order is open on platform
         if (latestOrder == null) {
             return null;
         } else {
-            sendNotification(latestOrder);
+            PlatformService service = getService(klineData.getSourcePlatform());
+            service.syncPlatformStatus(latestOrder);
+            if (!latestOrder.getOrderStatus().equals(OrderStatus.OPEN) && !latestOrder.getOrderStatus().equals(OrderStatus.SYS_CREATED)){
+                sendNotification(latestOrder);
+            }
             return latestOrder;
         }
     }

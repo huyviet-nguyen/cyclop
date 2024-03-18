@@ -177,7 +177,6 @@ public class MexcService implements PlatformService {
             orderAckHistory.setOrderStatus(OrderStatus.TOOK_PROFIT);
         } else {
             orderAckHistory.setOrderStatus(OrderStatus.STOPPED_LOSS);
-
         }
     }
 
