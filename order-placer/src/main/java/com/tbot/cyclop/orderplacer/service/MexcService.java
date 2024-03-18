@@ -27,6 +27,7 @@ import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 
 import static com.tbot.cyclop.orderplacer.util.GenericHttpUtil.calculateHmacSHA256;
@@ -80,9 +81,9 @@ public class MexcService implements PlatformService {
         String mHash = openOrderRequest.getMHash();
         String webToken = decryptSecretKey(orderAckHistory.getStrategy().getBot().getWebToken());
         long timestamp = openOrderRequest.getTimestamp();
-
-        String contentLength = String.valueOf(objectMapper.writeValueAsBytes(openOrderRequest).length);
-        String headerHash = getMexcSign(openOrderRequest, timestamp, webToken);
+        String stringPayload = objectMapper.writeValueAsString(openOrderRequest);
+        String contentLength = String.valueOf(stringPayload.getBytes(StandardCharsets.UTF_8).length);
+        String headerHash = getMexcSign(stringPayload, timestamp, webToken);
         String path = mexcOrderBaseUrl.concat("api/v1/private/order/create?mhash=").concat(mHash);
 
         MexcOrderResponse response;
@@ -118,8 +119,9 @@ public class MexcService implements PlatformService {
         long timestamp = System.currentTimeMillis();
 
         String path = mexcOrderBaseUrl.concat("api/v1/private/stoporder/change_plan_order");
-        String contentLength = String.valueOf(objectMapper.writeValueAsBytes(changePriceRequest).length);
-        String headerHash = getMexcSign(changePriceRequest, timestamp, webToken);
+        String stringPayload = objectMapper.writeValueAsString(changePriceRequest);
+        String contentLength = String.valueOf(stringPayload.getBytes(StandardCharsets.UTF_8).length);
+        String headerHash = getMexcSign(stringPayload, timestamp, webToken);
         MexcChangeOrderResponse response;
         try {
             String stringResponse = webClient.post()
@@ -145,8 +147,8 @@ public class MexcService implements PlatformService {
     private static MexcChangePriceRequest getMexcChangePriceRequest(OrderAckHistory orderAckHistory, MexcStopOrderResponse stopOrder) {
         double pu = orderAckHistory.getStrategy().getSymbol().getPu();
         MexcChangePriceRequest changePriceRequest = new MexcChangePriceRequest();
-        changePriceRequest.setTakeProfitPrice(roundToSameDecimal(pu,orderAckHistory.getCurrentTakeProfitPrice()));
-        changePriceRequest.setStopLossPrice(roundToSameDecimal(pu,orderAckHistory.getStopLossPrice()));
+        changePriceRequest.setTakeProfitPrice(roundToSameDecimal(pu, orderAckHistory.getCurrentTakeProfitPrice()));
+        changePriceRequest.setStopLossPrice(roundToSameDecimal(pu, orderAckHistory.getStopLossPrice()));
         changePriceRequest.setOrderId(stopOrder.getId());
         changePriceRequest.setProfitTrend(stopOrder.getProfitTrend());
         changePriceRequest.setLossTrend(stopOrder.getLossTrend());
@@ -185,7 +187,7 @@ public class MexcService implements PlatformService {
         long timestamp = System.currentTimeMillis();
 
         String path = mexcOrderBaseUrl.concat("api/v1/private/order/list/history_orders");
-        String headerHash = getMexcSign((MexcOpenOrderRequest) null, timestamp, decryptedWebToken);
+        String headerHash = getMexcSign("", timestamp, decryptedWebToken);
 
         MexcOrderHistoryListResponse mexcOrderHistoryListResponse = webClient.get()
                 .uri(path)
@@ -203,7 +205,7 @@ public class MexcService implements PlatformService {
         long timestamp = System.currentTimeMillis();
 
         String path = mexcOrderBaseUrl.concat("api/v1/private/stoporder/open_orders");
-        String headerHash = getMexcSign((MexcOpenOrderRequest) null, timestamp, decryptedWebToken);
+        String headerHash = getMexcSign("", timestamp, decryptedWebToken);
 
         MexcStopOrderListResponse mexcOrderHistoryListResponse = webClient.get()
                 .uri(path)
@@ -220,11 +222,11 @@ public class MexcService implements PlatformService {
     @PostConstruct
     public void getPlatformOrder() throws JsonProcessingException {
         String mexcOrderId = "65f731206ca5e246b5ff2abe";
-        String decryptedWebToken = decryptSecretKey("U2FsdGVkX1/CgEDh8QFc+pYQjjmPtPFsMVBERy/5Z9rK6ST27amSX0z/YVIbiyzDud7s9N7zVZ/rnB7znToeMhFNAD3E2RQn15T68JztqdvUvL96325GPWM/EFOu8CY8");
+        String decryptedWebToken = "mx0vglKV9dV2wsWR95";
         long timestamp = System.currentTimeMillis();
 
         String path = mexcContractBaseUrl.concat("planorder/list/orders");
-        String headerHash = getMexcSign((MexcOpenOrderRequest) null, timestamp, decryptedWebToken);
+        String headerHash = getMexcSign("a", timestamp, decryptedWebToken);
 
         String response = webClient.get()
                 .uri(path)
