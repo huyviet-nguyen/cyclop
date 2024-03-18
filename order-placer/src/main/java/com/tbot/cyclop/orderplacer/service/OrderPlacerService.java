@@ -76,6 +76,7 @@ public class OrderPlacerService {
         }
     }
 
+    @Transactional
     public OrderAckHistory handleOpenOrder(Strategy strategy, KlineData klineData, OrderAckHistory lastOrder) throws Exception {
         if (lastOrder == null || !OrderStatus.OPEN.equals(lastOrder.getOrderStatus())) {
             OrderAckHistory orderAckHistory = createOrderAck(klineData, strategy);

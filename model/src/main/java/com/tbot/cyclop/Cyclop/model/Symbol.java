@@ -18,4 +18,5 @@ public class Symbol implements Serializable {
     private double amount24;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private double pu = 0.01;
 }

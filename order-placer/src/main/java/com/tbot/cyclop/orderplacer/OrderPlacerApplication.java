@@ -91,14 +91,14 @@ public class OrderPlacerApplication {
                                 if (canTakeProfit(latestOrder, value) || canStopLoss(latestOrder, value)) {
                                     try {
                                         return orderPlacerService.handleSyncStatus(value, latestOrder);
-                                    } catch (JsonProcessingException e) {
+                                    } catch (Exception e) {
                                         logger.error(e.getMessage());
                                     }
                                 }
                                 if (!canTakeProfit(latestOrder, value) && newCandle) {
                                     try {
                                         return orderPlacerService.handleReduceTakeProfit(strategy, value, latestOrder);
-                                    } catch (JsonProcessingException e) {
+                                    } catch (Exception e) {
                                         logger.error(e.getMessage());
                                     }
                                 }

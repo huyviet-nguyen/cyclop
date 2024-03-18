@@ -1,18 +1,17 @@
-package com.tbot.cyclop.Cyclop.dto.req;
+package com.tbot.cyclop.Cyclop.dto.res;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;
 
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class MexcChangePriceRequest {
+public class MexcStopOrderResponse {
+    private String id;
     private String orderId;
-    private double stopLossPrice;
-    private double takeProfitPrice;
     private String profitTrend;
     private String lossTrend;
-    private int takeProfitVolume;
-    private int stopLossVolume;
+    private int takeProfitVol;
+    private int stopLossVol;
     private int takeProfitReverse;
     private int stopLossReverse;
 }

@@ -1,5 +1,8 @@
 package com.tbot.cyclop.orderplacer.util;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+
 public class PercentageUtil {
     public static double addPercentage(double value, double percent) {
         return value * (1 + percent / 100);
@@ -28,5 +31,34 @@ public class PercentageUtil {
 
     public static double calculateNewValue(double originalNumber, double percent) {
         return originalNumber * percent / 100;
+    }
+
+    public static double formatToTwoDecimal(double value) {
+        BigDecimal bd = new BigDecimal(Double.toString(value));
+        bd = bd.setScale(2, RoundingMode.HALF_UP);
+        return bd.doubleValue();
+    }
+
+    public static double roundToSameDecimal(double pu, double value) {
+        // Calculate the number of decimal places in pu
+        int decimalPlaces = countDecimalPlaces(pu);
+
+        // Round up the value to the same number of decimal places
+        double roundedValue = round(value, decimalPlaces);
+
+        return roundedValue;
+    }
+
+    // Method to count the number of decimal places in a double value
+    private static int countDecimalPlaces(double value) {
+        String valueStr = Double.toString(value);
+        int index = valueStr.indexOf('.');
+        return index < 0 ? 0 : valueStr.length() - index - 1;
+    }
+
+    // Method to round a double value to a specified number of decimal places
+    private static double round(double value, int decimalPlaces) {
+        double scale = Math.pow(10, decimalPlaces);
+        return Math.ceil(value * scale) / scale;
     }
 }

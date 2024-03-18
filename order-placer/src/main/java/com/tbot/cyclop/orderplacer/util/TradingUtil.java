@@ -197,6 +197,13 @@ public class TradingUtil {
         return getMd5(hashInput);
     }
 
+    public static String getMexcSign(String request, long ts, String apiKey) throws JsonProcessingException {
+        String g = getMexcG(apiKey, ts)[0];
+        String currentTs = String.valueOf(getMexcG(apiKey, ts)[1]);
+        String hashInput = currentTs + request + g;
+        return getMd5(hashInput);
+    }
+
     public static String getMexcSign(MexcChangePriceRequest request, long ts, String apiKey) throws JsonProcessingException {
         String formdata = request != null ? mapper.writeValueAsString(request) : "";
         String g = getMexcG(apiKey, ts)[0];
