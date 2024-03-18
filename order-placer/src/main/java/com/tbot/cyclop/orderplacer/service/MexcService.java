@@ -169,7 +169,7 @@ public class MexcService implements PlatformService {
     private MexcOrderHistoryListResponse.MexcOrderHistoryResponse getPlatformOrder(String mexcOrderId, String decryptedWebToken) throws JsonProcessingException {
         long timestamp = System.currentTimeMillis();
 
-        String path = mexcOrderBaseUrl.concat("api/v1/private/order/get/").concat("/").concat(mexcOrderId);
+        String path = mexcOrderBaseUrl.concat("api/v1/private/order/list/history_orders");
         String headerHash = getMexcSign((MexcOpenOrderRequest) null, timestamp, decryptedWebToken);
 
         MexcOrderHistoryListResponse mexcOrderHistoryListResponse = webClient.get()
