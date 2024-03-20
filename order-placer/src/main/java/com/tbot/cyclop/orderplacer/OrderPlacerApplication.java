@@ -98,13 +98,17 @@ public class OrderPlacerApplication {
                                 return null;
                             }
                     );
-                    long doneProcessTime = System.currentTimeMillis();
-                    if (doneProcessTime - startProcessTime > 200) {
-                        logger.warn("LONG PROCESS : {} ms", doneProcessTime - startProcessTime);
-                    }
+                    logProcessTime(startProcessTime);
                     return orderAckHistoryRepo.saveAll(orderAckFlux).toIterable();
                 }
         );
+    }
+
+    private void logProcessTime(long startTime) {
+        long doneProcessTime = System.currentTimeMillis();
+        if (doneProcessTime - startTime > 200) {
+            logger.warn("LONG PROCESS : {} ms", doneProcessTime - startTime);
+        }
     }
 
     @PostConstruct
@@ -130,5 +134,4 @@ public class OrderPlacerApplication {
     public static void main(String[] args) {
         SpringApplication.run(OrderPlacerApplication.class, args);
     }
-
 }
