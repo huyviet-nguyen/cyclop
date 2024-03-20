@@ -2,7 +2,6 @@ package com.tbot.cyclop.orderplacer.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.tbot.cyclop.Cyclop.dto.KlineData;
-import com.tbot.cyclop.Cyclop.dto.NotificationPayload;
 import com.tbot.cyclop.Cyclop.model.*;
 import com.tbot.cyclop.orderplacer.repo.CandleWindowRepo;
 import com.tbot.cyclop.orderplacer.repo.StrategyRepo;

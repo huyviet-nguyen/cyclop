@@ -1,11 +1,10 @@
 package com.tbot.cyclop.orderplacer;
 
 import com.tbot.cyclop.Cyclop.dto.KlineData;
-import com.tbot.cyclop.Cyclop.dto.NotificationPayload;
 import com.tbot.cyclop.Cyclop.model.*;
 import com.tbot.cyclop.orderplacer.repo.*;
 import com.tbot.cyclop.orderplacer.service.OrderPlacerService;
-import com.tbot.cyclop.orderplacer.service.TelegramService;
+import com.tbot.cyclop.orderplacer.service.NotificationService;
 import jakarta.annotation.PostConstruct;
 import org.apache.kafka.streams.kstream.KStream;
 import org.slf4j.Logger;
@@ -32,7 +31,7 @@ public class OrderPlacerApplication {
     public OrderRepo orderRepo;
 
     @Autowired
-    public TelegramService telegramService;
+    public NotificationService notificationService;
 
     @Autowired
     public OrderPlacerService orderPlacerService;
@@ -108,8 +107,7 @@ public class OrderPlacerApplication {
 
     public Order decorateNotification(Order order) {
         try {
-            NotificationPayload notificationPayload = NotificationPayload.fromOrderAck(order);
-            telegramService.sendNotification(order.getStrategy(), notificationPayload);
+            notificationService.sendNotification(order);
         } catch (Exception e) {
             logger.error("CANNOT SEND NOTIFICATION");
         }
