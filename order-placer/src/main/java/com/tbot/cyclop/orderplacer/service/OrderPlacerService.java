@@ -16,7 +16,6 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 
-import static com.tbot.cyclop.orderplacer.util.GenericHttpUtil.decryptSecretKey;
 import static com.tbot.cyclop.orderplacer.util.TradingUtil.*;
 import static com.tbot.cyclop.orderplacer.util.PercentageUtil.*;
 

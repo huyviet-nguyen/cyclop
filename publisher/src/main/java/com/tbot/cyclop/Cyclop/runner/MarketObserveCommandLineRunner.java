@@ -29,7 +29,6 @@ public class MarketObserveCommandLineRunner implements CommandLineRunner {
     @Value("${kafka.mexc.output.error}")
     private String errorTopic;
     private final MexcSocketService mexcService;
-
     private final BybitSocketService bybitService;
     private final KafkaSender<String, KlineData> producerTemplate;
     private final KafkaSender<String, String> errorSender;

@@ -50,7 +50,6 @@
         <module>publisher</module>
         <module>model</module>
         <module>order-placer</module>
-        <module>auditor</module>
     </modules>
 
 </project>
