@@ -79,6 +79,23 @@ public class TradingUtil {
         return latestOrder != null && klineData.getCurrentPrice() < latestOrder.getStopLossPrice();
     }
 
+    public static boolean canOpen(Order latestOrder, KlineData klineData) {
+        if (latestOrder == null || latestOrder.getStrategy() == null) {
+            return false;
+        }
+        Strategy strategy = latestOrder.getStrategy();
+        double changePercent = calculateChangePercent(klineData.getOpenPrice(), klineData.getCurrentPrice());
+        double expectedSide = switch (strategy.getPositionSide()) {
+            case "LONG" -> 1;
+            case "SHORT" -> -1;
+            default -> 0; // for BOTH
+        };
+        if (expectedSide == 0) {
+            return Math.abs(changePercent) > strategy.getOrderChange();
+        }
+        return changePercent >= strategy.getOrderChange() * expectedSide;
+    }
+
     public static boolean isNewCandle(Strategy strategy, KlineData klineData) {
         CandleWindow candleWindow = strategy.getCandleWindow();
         if (candleWindow == null) return true;

@@ -60,12 +60,12 @@ public class OrderPlacerApplication {
                                 }
                                 if (canSubmit(strategy, value)) {
                                     try {
-                                        return decorateNotification(orderPlacerService.handleSubmitOrder(strategy, value, latestOrder));
+                                        return orderPlacerService.handleSubmitOrder(strategy, value, latestOrder, isNewCandle);
                                     } catch (Exception e) {
                                         logger.error(e.getMessage());
                                     }
                                 }
-                                if (canTakeProfit(latestOrder, value) || canStopLoss(latestOrder, value)) {
+                                if (canTakeProfit(latestOrder, value) || canStopLoss(latestOrder, value) || canOpen(latestOrder, value)) {
                                     try {
                                         return decorateNotification(orderPlacerService.handleSyncStatus(value, latestOrder));
                                     } catch (Exception e) {

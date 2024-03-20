@@ -72,7 +72,7 @@ public class OrderPlacerService {
     }
 
     @Transactional
-    public Order handleSubmitOrder(Strategy strategy, KlineData klineData, Order lastOrder) throws Exception {
+    public Order handleSubmitOrder(Strategy strategy, KlineData klineData, Order lastOrder, boolean isNewCandle) throws Exception {
         if (lastOrder == null || !OrderStatus.OPEN.equals(lastOrder.getOrderStatus())) {
             Order order = createOrderAck(klineData, strategy);
             double takeProfitPrice = calculateTakeProfitPrice(strategy, klineData);
