@@ -7,7 +7,7 @@ import com.tbot.cyclop.Cyclop.model.Order;
 public interface PlatformService {
     double getBalance(String apiKey, String apiSecret);
 
-    void entry(Order newOrder) throws Exception;
+    void submitOrder(Order newOrder) throws Exception;
 
     void reduceProfit(Order orderWithUpdatedProfit, KlineData marketData) throws JsonProcessingException;
 

@@ -42,7 +42,7 @@ public class BybitService implements PlatformService {
     }
 
     @Override
-    public void entry(Order newOrder) {
+    public void submitOrder(Order newOrder) {
 
     }
 

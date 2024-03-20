@@ -74,7 +74,7 @@ public class MexcService implements PlatformService {
 
     @Override
     @Transactional
-    public void entry(Order newOrder) throws Exception {
+    public void submitOrder(Order newOrder) throws Exception {
         MexcOpenOrderRequest openOrderRequest = orderAckToMexcOpenOrderRequest(newOrder);
         String mHash = openOrderRequest.getMHash();
         String webToken = decryptSecretKey(newOrder.getStrategy().getBot().getWebToken());
