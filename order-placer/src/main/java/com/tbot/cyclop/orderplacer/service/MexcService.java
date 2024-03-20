@@ -49,7 +49,7 @@ public class MexcService implements PlatformService {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Override // TESTED
-    public double getUsdtBalance(String decryptedApiKey, String decryptedApiSecret) {
+    public double getBalance(String decryptedApiKey, String decryptedApiSecret) {
         String path = mexcContractBaseUrl.concat("account/asset/USDT");
         long timestamp = System.currentTimeMillis();
         String objectString = String.join("", decryptedApiKey, String.valueOf(timestamp));
@@ -74,10 +74,10 @@ public class MexcService implements PlatformService {
 
     @Override
     @Transactional
-    public void entry(OrderAckHistory orderAckHistory) throws Exception {
-        MexcOpenOrderRequest openOrderRequest = orderAckToMexcOpenOrderRequest(orderAckHistory);
+    public void entry(OrderAckHistory newOrder) throws Exception {
+        MexcOpenOrderRequest openOrderRequest = orderAckToMexcOpenOrderRequest(newOrder);
         String mHash = openOrderRequest.getMHash();
-        String webToken = decryptSecretKey(orderAckHistory.getStrategy().getBot().getWebToken());
+        String webToken = decryptSecretKey(newOrder.getStrategy().getBot().getWebToken());
         long timestamp = openOrderRequest.getTimestamp();
         String stringPayload = objectMapper.writeValueAsString(openOrderRequest);
         String contentLength = String.valueOf(stringPayload.getBytes(StandardCharsets.UTF_8).length);
@@ -99,21 +99,21 @@ public class MexcService implements PlatformService {
                     .bodyToMono(String.class).block();
             response = objectMapper.readValue(responseString, MexcOrderResponse.class);
             if (response == null || response.getData() == null || !response.isSuccess()) {
-                throw new OpenOrderFailException(orderAckHistory);
+                throw new OpenOrderFailException(newOrder);
             }
         } catch (Exception e) {
-            throw new OpenOrderFailException(orderAckHistory, e);
+            throw new OpenOrderFailException(newOrder, e);
         }
-        orderAckHistory.setCreatedOnPlatformAt(response.getData().getTs());
-        orderAckHistory.setPlatformOrderId(response.getData().getOrderId());
-        orderAckHistory.setOrderStatus(OrderStatus.OPEN);
+        newOrder.setCreatedOnPlatformAt(response.getData().getTs());
+        newOrder.setPlatformOrderId(response.getData().getOrderId());
+        newOrder.setOrderStatus(OrderStatus.OPEN);
     }
 
     @Override
-    public void reduceProfit(OrderAckHistory orderAckHistory, KlineData klineData) throws JsonProcessingException {
-        String webToken = decryptSecretKey(orderAckHistory.getStrategy().getBot().getWebToken());
-        MexcStopOrderResponse stopOrder = getPlatformStopOrder(orderAckHistory.getPlatformOrderId(), webToken);
-        MexcChangePriceRequest changePriceRequest = getMexcChangePriceRequest(orderAckHistory, stopOrder);
+    public void reduceProfit(OrderAckHistory orderWithUpdatedProfit, KlineData marketData) throws JsonProcessingException {
+        String webToken = decryptSecretKey(orderWithUpdatedProfit.getStrategy().getBot().getWebToken());
+        MexcStopOrderResponse stopOrder = getPlatformStopOrder(orderWithUpdatedProfit.getPlatformOrderId(), webToken);
+        MexcChangePriceRequest changePriceRequest = getMexcChangePriceRequest(orderWithUpdatedProfit, stopOrder);
         long timestamp = System.currentTimeMillis();
 
         String path = mexcOrderBaseUrl.concat("api/v1/private/stoporder/change_plan_order");
@@ -134,10 +134,10 @@ public class MexcService implements PlatformService {
                     .bodyToMono(String.class).block();
             response = objectMapper.readValue(stringResponse, MexcChangeOrderResponse.class);
             if (response == null || !response.isSuccess()) {
-                throw new ReduceTakeProfitFailException(orderAckHistory);
+                throw new ReduceTakeProfitFailException(orderWithUpdatedProfit);
             }
         } catch (Exception e) {
-            throw new ReduceTakeProfitFailException(orderAckHistory, e);
+            throw new ReduceTakeProfitFailException(orderWithUpdatedProfit, e);
         }
     }
 
@@ -158,27 +158,27 @@ public class MexcService implements PlatformService {
     }
 
     @Override
-    public void syncPlatformStatus(OrderAckHistory orderAckHistory) throws JsonProcessingException {
-        if (orderAckHistory == null) {
+    public void syncStatus(OrderAckHistory order) throws JsonProcessingException {
+        if (order == null) {
             return;
         }
-        if (orderAckHistory.getPlatformOrderId() == null) {
-            throw new SyncStatusFailException(orderAckHistory);
+        if (order.getPlatformOrderId() == null) {
+            throw new SyncStatusFailException(order);
         }
 
 
-        String decryptedWebToken = decryptSecretKey(orderAckHistory.getStrategy().getBot().getWebToken());
-        MexcStopOrderResponse response = getPlatformStopOrder(orderAckHistory.getPlatformOrderId(), decryptedWebToken);
+        String decryptedWebToken = decryptSecretKey(order.getStrategy().getBot().getWebToken());
+        MexcStopOrderResponse response = getPlatformStopOrder(order.getPlatformOrderId(), decryptedWebToken);
         long positionId = Long.parseLong(response.getPositionId());
         MexcOrderHistoryListResponse.MexcOrderHistoryResponse historyResponse = getPlatformOrder(positionId, decryptedWebToken);
         if (historyResponse.getPositionId() == 0) {
-            orderAckHistory.setOrderStatus(OrderStatus.MISSED);
+            order.setOrderStatus(OrderStatus.MISSED);
             return;
         }
         if (historyResponse.getExternalOid().contains("STOP_LOSS")) {
-            orderAckHistory.setOrderStatus(OrderStatus.STOPPED_LOSS);
+            order.setOrderStatus(OrderStatus.STOPPED_LOSS);
         } else {
-            orderAckHistory.setOrderStatus(OrderStatus.STOPPED_LOSS);
+            order.setOrderStatus(OrderStatus.STOPPED_LOSS);
         }
     }
 
@@ -323,7 +323,7 @@ public class MexcService implements PlatformService {
         Bot bot = ackHistory.getStrategy().getBot();
         String apiKey = decryptSecretKey(bot.getApiKey());
         String secretKey = decryptSecretKey(bot.getSecretKey());
-        double balance = getUsdtBalance(apiKey, secretKey);
+        double balance = getBalance(apiKey, secretKey);
         double cont = getContractSize(ackHistory.getSymbolWithUnderScore(), ackHistory.getEntryPrice());
         int volume = getVolume(balance, ackHistory.getStrategy().getAmount(), cont);
         mexcOrder.setVol(volume);

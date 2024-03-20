@@ -99,7 +99,7 @@ public class OrderPlacerService {
             return null;
         } else {
             PlatformService service = getService(klineData.getSourcePlatform());
-            service.syncPlatformStatus(latestOrder);
+            service.syncStatus(latestOrder);
             if (!latestOrder.getOrderStatus().equals(OrderStatus.OPEN) && !latestOrder.getOrderStatus().equals(OrderStatus.SYS_CREATED)){
                 sendNotification(latestOrder);
             }
@@ -109,7 +109,7 @@ public class OrderPlacerService {
 
     public OrderAckHistory handleReduceTakeProfit(Strategy strategy, KlineData klineData, OrderAckHistory latestOrder) throws JsonProcessingException {
         PlatformService service = getService(klineData.getSourcePlatform());
-        service.syncPlatformStatus(latestOrder);
+        service.syncStatus(latestOrder);
         // check to see if order is open on platform
         if (latestOrder == null || !OrderStatus.OPEN.equals(latestOrder.getOrderStatus()) || latestOrder.getPlatformOrderId() == null) {
             return null;

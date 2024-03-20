@@ -23,7 +23,7 @@ public class BybitService implements PlatformService {
     private final Logger logger = LoggerFactory.getLogger(BybitService.class);
 
     @Override
-    public double getUsdtBalance(String apiKey, String apiSecret) {
+    public double getBalance(String apiKey, String apiSecret) {
         String path = bybitBaseUrl.concat("wallet/balance?coin=USDT");
         long timestamp = System.currentTimeMillis();
         String objectString = String.join("", String.valueOf(timestamp), apiKey, "5000", "coin=USDT");
@@ -42,17 +42,17 @@ public class BybitService implements PlatformService {
     }
 
     @Override
-    public void entry(OrderAckHistory orderAckHistory) {
+    public void entry(OrderAckHistory newOrder) {
 
     }
 
     @Override
-    public void reduceProfit(OrderAckHistory orderAckHistory, KlineData klineData) {
+    public void reduceProfit(OrderAckHistory orderWithUpdatedProfit, KlineData marketData) {
 
     }
 
     @Override
-    public void syncPlatformStatus(OrderAckHistory orderAckHistory) {
+    public void syncStatus(OrderAckHistory order) {
 
     }
 

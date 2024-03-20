@@ -8,7 +8,7 @@ import org.springframework.stereotype.Service;
 import java.util.HashMap;
 
 @Service
-public class GenericRepo {
+public class GenericRepoService {
     private final HashMap<Class<?>, ReactiveMongoRepository<?, String>> repositoryMap = new HashMap<>();
     private final BotRepo botRepo;
     private final CandleWindowRepo candleWindowRepo;
@@ -19,7 +19,7 @@ public class GenericRepo {
     private final TelegramBotInfoRepo telegramBotInfoRepo;
     private final UserRepo userRepo;
 
-    public GenericRepo(BotRepo botRepo, CandleWindowRepo candleWindowRepo, OrderAckHistoryRepo orderAckHistoryRepo, StrategyMarkerRepo strategyMarkerRepo, StrategyRepo strategyRepo, SymbolRepo symbolRepo, TelegramBotInfoRepo telegramBotInfoRepo, UserRepo userRepo) {
+    public GenericRepoService(BotRepo botRepo, CandleWindowRepo candleWindowRepo, OrderAckHistoryRepo orderAckHistoryRepo, StrategyMarkerRepo strategyMarkerRepo, StrategyRepo strategyRepo, SymbolRepo symbolRepo, TelegramBotInfoRepo telegramBotInfoRepo, UserRepo userRepo) {
         this.botRepo = botRepo;
         this.candleWindowRepo = candleWindowRepo;
         this.orderAckHistoryRepo = orderAckHistoryRepo;
