@@ -3,8 +3,6 @@ package com.tbot.cyclop.orderplacer.util;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tbot.cyclop.Cyclop.dto.KlineData;
-import com.tbot.cyclop.Cyclop.dto.req.MexcChangePriceRequest;
-import com.tbot.cyclop.Cyclop.dto.req.MexcOpenOrderRequest;
 import com.tbot.cyclop.Cyclop.model.*;
 
 import javax.crypto.Cipher;
@@ -73,11 +71,11 @@ public class TradingUtil {
         return calculateNewValue(klineData.getCurrentPrice(), stopLossPercent);
     }
 
-    public static boolean canTakeProfit(OrderAckHistory latestOrder, KlineData klineData) {
+    public static boolean canTakeProfit(Order latestOrder, KlineData klineData) {
         return latestOrder != null && klineData.getCurrentPrice() > latestOrder.getCurrentTakeProfitPrice();
     }
 
-    public static boolean canStopLoss(OrderAckHistory latestOrder, KlineData klineData) {
+    public static boolean canStopLoss(Order latestOrder, KlineData klineData) {
         return latestOrder != null && klineData.getCurrentPrice() < latestOrder.getStopLossPrice();
     }
 
@@ -88,8 +86,8 @@ public class TradingUtil {
         return lastOpenPrice != klineData.getOpenPrice();
     }
 
-    public static double calculateReducedTakeProfitPrice(Strategy strategy, KlineData klineData, OrderAckHistory latestOrder) {
-        double lastTakeProfitPercent = latestOrder.getLastTakeProfitPercent();
+    public static double calculateReducedTakeProfitPrice(Strategy strategy, KlineData klineData, Order latestOrder) {
+        double lastTakeProfitPercent = latestOrder.getCurrentTakeProfitPercent();
         double newTakeProfitPercent = deductPercentage(lastTakeProfitPercent, strategy.getReduceTakeProfit());
         double newTakeProfitPrice = 0;
         if (strategy.getPositionSide().equals("LONG")) {
@@ -100,8 +98,8 @@ public class TradingUtil {
         return newTakeProfitPrice;
     }
 
-    public static double calculateLastTakeProfitPercent(Strategy strategy, KlineData klineData, OrderAckHistory latestOrder){
-        double lastTakeProfitPercent = latestOrder.getLastTakeProfitPercent();
+    public static double calculateLastTakeProfitPercent(Strategy strategy, KlineData klineData, Order latestOrder){
+        double lastTakeProfitPercent = latestOrder.getCurrentTakeProfitPercent();
         return deductPercentage(lastTakeProfitPercent, strategy.getReduceTakeProfit());
     }
 

@@ -1,6 +1,5 @@
 package com.tbot.cyclop.orderplacer;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.tbot.cyclop.Cyclop.dto.KlineData;
 import com.tbot.cyclop.Cyclop.model.*;
 import com.tbot.cyclop.orderplacer.repo.*;
@@ -54,7 +53,7 @@ public class OrderPlacerApplication {
     private final Logger logger = LoggerFactory.getLogger(OrderPlacerApplication.class);
 
     @Bean
-    public Function<KStream<String, KlineData>, KStream<String, OrderAckHistory>> process() {
+    public Function<KStream<String, KlineData>, KStream<String, Order>> process() {
         return stringKlineDataKStream -> stringKlineDataKStream.flatMapValues(
                 (key, value) ->
                 {
@@ -68,12 +67,12 @@ public class OrderPlacerApplication {
                     }
 
                     Flux<Strategy> strategyFlux = strategyRepo.findByCandleStickAndSymbol(candleStick, symbol).filter(strategy -> "ACTIVE".equals(strategy.getStatus()));
-                    Flux<OrderAckHistory> orderAckFlux = strategyFlux.publishOn(Schedulers.boundedElastic()).mapNotNull(
+                    Flux<Order> orderAckFlux = strategyFlux.publishOn(Schedulers.boundedElastic()).mapNotNull(
                             (Strategy strategy) ->
                             {
 
 
-                                OrderAckHistory latestOrder = orderAckHistoryRepo.findFirstByStrategyIdOrderByCreatedAtDesc(strategy.getId()).block();
+                                Order latestOrder = orderAckHistoryRepo.findFirstByStrategyIdOrderByCreatedAtDesc(strategy.getId()).block();
                                 boolean newCandle = newCandle(strategy, value);
                                 if (newCandle) {
                                     orderPlacerService.handleCandleWindow(strategy, value);

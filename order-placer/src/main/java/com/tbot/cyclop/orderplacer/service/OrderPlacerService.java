@@ -76,25 +76,25 @@ public class OrderPlacerService {
     }
 
     @Transactional
-    public OrderAckHistory handleOpenOrder(Strategy strategy, KlineData klineData, OrderAckHistory lastOrder) throws Exception {
+    public Order handleOpenOrder(Strategy strategy, KlineData klineData, Order lastOrder) throws Exception {
         if (lastOrder == null || !OrderStatus.OPEN.equals(lastOrder.getOrderStatus())) {
-            OrderAckHistory orderAckHistory = createOrderAck(klineData, strategy);
+            Order order = createOrderAck(klineData, strategy);
             double takeProfitPrice = calculateTakeProfitPrice(strategy, klineData);
-            orderAckHistory.setCurrentTakeProfitPrice(takeProfitPrice);
+            order.setCurrentTakeProfitPrice(takeProfitPrice);
             double stopLossPrice = calculateStopLossPrice(strategy, klineData);
-            orderAckHistory.setStopLossPrice(stopLossPrice);
+            order.setStopLossPrice(stopLossPrice);
             PlatformService service = getService(klineData.getSourcePlatform());
-            service.entry(orderAckHistory);
-            sendNotification(orderAckHistory);
-            logger.info("OPENED ORDER {} ON {} SYMBOL {}", orderAckHistory.getPlatformOrderId(), orderAckHistory.getPlatform(), orderAckHistory.getSymbol());
-            return orderAckHistory;
+            service.entry(order);
+            sendNotification(order);
+            logger.info("OPENED ORDER {} ON {} SYMBOL {}", order.getPlatformOrderId(), order.getPlatform(), order.getSymbol());
+            return order;
         }
 
         return null;
     }
 
     @Transactional
-    public OrderAckHistory handleSyncStatus(KlineData klineData, OrderAckHistory latestOrder) throws JsonProcessingException {
+    public Order handleSyncStatus(KlineData klineData, Order latestOrder) throws JsonProcessingException {
         if (latestOrder == null) {
             return null;
         } else {
@@ -107,7 +107,7 @@ public class OrderPlacerService {
         }
     }
 
-    public OrderAckHistory handleReduceTakeProfit(Strategy strategy, KlineData klineData, OrderAckHistory latestOrder) throws JsonProcessingException {
+    public Order handleReduceTakeProfit(Strategy strategy, KlineData klineData, Order latestOrder) throws JsonProcessingException {
         PlatformService service = getService(klineData.getSourcePlatform());
         service.syncStatus(latestOrder);
         // check to see if order is open on platform
@@ -116,15 +116,15 @@ public class OrderPlacerService {
         } else {
             double newTakeProfitPrice = calculateReducedTakeProfitPrice(strategy, klineData, latestOrder);
             latestOrder.setCurrentTakeProfitPrice(newTakeProfitPrice);
-            latestOrder.setLastTakeProfitPercent(calculateLastTakeProfitPercent(strategy, klineData, latestOrder));
+            latestOrder.setCurrentTakeProfitPercent(calculateLastTakeProfitPercent(strategy, klineData, latestOrder));
             service.reduceProfit(latestOrder, klineData);
             return latestOrder;
         }
 
     }
 
-    private OrderAckHistory createOrderAck(KlineData klineData, Strategy strategy) {
-        OrderAckHistory ack = new OrderAckHistory();
+    private Order createOrderAck(KlineData klineData, Strategy strategy) {
+        Order ack = new Order();
         ack.setPlatform(strategy.getPlatform());
         ack.setSymbol(strategy.getSymbol().getSymbol());
         ack.setEntryPrice(klineData.getCurrentPrice());
@@ -134,7 +134,7 @@ public class OrderPlacerService {
         ack.setCreatedAt(LocalDateTime.now());
         ack.setUpdatedAt(LocalDateTime.now());
         ack.setOrderStatus(OrderStatus.SYS_CREATED);
-        ack.setLastTakeProfitPercent(calculateNewValue(strategy.getOrderChange(), strategy.getTakeProfit()));
+        ack.setCurrentTakeProfitPercent(calculateNewValue(strategy.getOrderChange(), strategy.getTakeProfit()));
         return ack;
     }
 
@@ -142,10 +142,10 @@ public class OrderPlacerService {
         return serviceMap.get(platform);
     }
 
-    public void sendNotification(OrderAckHistory orderAckHistory) {
+    public void sendNotification(Order order) {
         try {
-            NotificationPayload notificationPayload = NotificationPayload.fromOrderAck(orderAckHistory);
-            telegramService.sendNotification(orderAckHistory.getStrategy(), notificationPayload);
+            NotificationPayload notificationPayload = NotificationPayload.fromOrderAck(order);
+            telegramService.sendNotification(order.getStrategy(), notificationPayload);
         } catch (Exception e) {
             logger.error("CANNOT SEND NOTIFICATION");
         }

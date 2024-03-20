@@ -9,7 +9,7 @@ import com.tbot.cyclop.Cyclop.dto.req.MexcOpenOrderRequest;
 import com.tbot.cyclop.Cyclop.dto.res.*;
 import com.tbot.cyclop.Cyclop.model.Bot;
 import com.tbot.cyclop.Cyclop.model.FingerprintSysInfo;
-import com.tbot.cyclop.Cyclop.model.OrderAckHistory;
+import com.tbot.cyclop.Cyclop.model.Order;
 import com.tbot.cyclop.Cyclop.model.OrderStatus;
 import com.tbot.cyclop.orderplacer.exception.OpenOrderFailException;
 import com.tbot.cyclop.orderplacer.exception.ReduceTakeProfitFailException;
@@ -74,7 +74,7 @@ public class MexcService implements PlatformService {
 
     @Override
     @Transactional
-    public void entry(OrderAckHistory newOrder) throws Exception {
+    public void entry(Order newOrder) throws Exception {
         MexcOpenOrderRequest openOrderRequest = orderAckToMexcOpenOrderRequest(newOrder);
         String mHash = openOrderRequest.getMHash();
         String webToken = decryptSecretKey(newOrder.getStrategy().getBot().getWebToken());
@@ -104,13 +104,13 @@ public class MexcService implements PlatformService {
         } catch (Exception e) {
             throw new OpenOrderFailException(newOrder, e);
         }
-        newOrder.setCreatedOnPlatformAt(response.getData().getTs());
+        newOrder.setPlatformTimestamp(response.getData().getTs());
         newOrder.setPlatformOrderId(response.getData().getOrderId());
         newOrder.setOrderStatus(OrderStatus.OPEN);
     }
 
     @Override
-    public void reduceProfit(OrderAckHistory orderWithUpdatedProfit, KlineData marketData) throws JsonProcessingException {
+    public void reduceProfit(Order orderWithUpdatedProfit, KlineData marketData) throws JsonProcessingException {
         String webToken = decryptSecretKey(orderWithUpdatedProfit.getStrategy().getBot().getWebToken());
         MexcStopOrderResponse stopOrder = getPlatformStopOrder(orderWithUpdatedProfit.getPlatformOrderId(), webToken);
         MexcChangePriceRequest changePriceRequest = getMexcChangePriceRequest(orderWithUpdatedProfit, stopOrder);
@@ -142,11 +142,11 @@ public class MexcService implements PlatformService {
     }
 
     @NotNull
-    private static MexcChangePriceRequest getMexcChangePriceRequest(OrderAckHistory orderAckHistory, MexcStopOrderResponse stopOrder) {
-        double pu = orderAckHistory.getStrategy().getSymbol().getPu();
+    private static MexcChangePriceRequest getMexcChangePriceRequest(Order order, MexcStopOrderResponse stopOrder) {
+        double pu = order.getStrategy().getSymbol().getPu();
         MexcChangePriceRequest changePriceRequest = new MexcChangePriceRequest();
-        changePriceRequest.setTakeProfitPrice(roundToSameDecimal(pu, orderAckHistory.getCurrentTakeProfitPrice()));
-        changePriceRequest.setStopLossPrice(roundToSameDecimal(pu, orderAckHistory.getStopLossPrice()));
+        changePriceRequest.setTakeProfitPrice(roundToSameDecimal(pu, order.getCurrentTakeProfitPrice()));
+        changePriceRequest.setStopLossPrice(roundToSameDecimal(pu, order.getStopLossPrice()));
         changePriceRequest.setOrderId(stopOrder.getId());
         changePriceRequest.setProfitTrend(stopOrder.getProfitTrend());
         changePriceRequest.setLossTrend(stopOrder.getLossTrend());
@@ -158,7 +158,7 @@ public class MexcService implements PlatformService {
     }
 
     @Override
-    public void syncStatus(OrderAckHistory order) throws JsonProcessingException {
+    public void syncStatus(Order order) throws JsonProcessingException {
         if (order == null) {
             return;
         }
@@ -303,7 +303,7 @@ public class MexcService implements PlatformService {
 
 
     @Transactional
-    public MexcOpenOrderRequest orderAckToMexcOpenOrderRequest(OrderAckHistory ackHistory) throws Exception {
+    public MexcOpenOrderRequest orderAckToMexcOpenOrderRequest(Order ackHistory) throws Exception {
         long timestamp = Instant.now().toEpochMilli();
         MexcOpenOrderRequest mexcOrder = new MexcOpenOrderRequest();
         String side = ackHistory.getStrategy().getPositionSide().equals("LONG") ? "1" : "3";

@@ -4,7 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tbot.cyclop.Cyclop.dto.KlineData;
-import com.tbot.cyclop.Cyclop.model.OrderAckHistory;
+import com.tbot.cyclop.Cyclop.model.Order;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -42,17 +42,17 @@ public class BybitService implements PlatformService {
     }
 
     @Override
-    public void entry(OrderAckHistory newOrder) {
+    public void entry(Order newOrder) {
 
     }
 
     @Override
-    public void reduceProfit(OrderAckHistory orderWithUpdatedProfit, KlineData marketData) {
+    public void reduceProfit(Order orderWithUpdatedProfit, KlineData marketData) {
 
     }
 
     @Override
-    public void syncStatus(OrderAckHistory order) {
+    public void syncStatus(Order order) {
 
     }
 

@@ -1,6 +1,6 @@
 package com.tbot.cyclop.Cyclop.dto;
 
-import com.tbot.cyclop.Cyclop.model.OrderAckHistory;
+import com.tbot.cyclop.Cyclop.model.Order;
 import com.tbot.cyclop.Cyclop.model.OrderStatus;
 import com.tbot.cyclop.Cyclop.model.Strategy;
 import lombok.AllArgsConstructor;
@@ -40,15 +40,15 @@ public class NotificationPayload {
         return formattedValue;
     }
 
-    public static NotificationPayload fromOrderAck(OrderAckHistory orderAckHistory) {
+    public static NotificationPayload fromOrderAck(Order order) {
         NotificationPayload notificationPayload = new NotificationPayload();
-        notificationPayload.setSymbol(orderAckHistory.getSymbol());
-        notificationPayload.setPlatform(orderAckHistory.getPlatform());
-        notificationPayload.setBotName(orderAckHistory.getStrategy().getBot().getName());
-        notificationPayload.setAction(orderAckHistory.getOrderStatus().toString().replace("_", " "));
-        notificationPayload.setStrategyShort(orderAckHistory.getStrategy().toNotiString());
-        notificationPayload.setAmount(orderAckHistory.getVolume() * orderAckHistory.getEntryPrice() / 10);
-        notificationPayload.setPrice(orderAckHistory.getEntryPrice());
+        notificationPayload.setSymbol(order.getSymbol());
+        notificationPayload.setPlatform(order.getPlatform());
+        notificationPayload.setBotName(order.getStrategy().getBot().getName());
+        notificationPayload.setAction(order.getOrderStatus().toString().replace("_", " "));
+        notificationPayload.setStrategyShort(order.getStrategy().toNotiString());
+        notificationPayload.setAmount(order.getVolume() * order.getEntryPrice() / 10);
+        notificationPayload.setPrice(order.getEntryPrice());
         return notificationPayload;
     }
 }
