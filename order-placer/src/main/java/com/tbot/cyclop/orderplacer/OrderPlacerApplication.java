@@ -1,10 +1,12 @@
 package com.tbot.cyclop.orderplacer;
 
 import com.tbot.cyclop.Cyclop.dto.KlineData;
+import com.tbot.cyclop.Cyclop.dto.NotificationPayload;
 import com.tbot.cyclop.Cyclop.model.*;
 import com.tbot.cyclop.orderplacer.repo.*;
 import com.tbot.cyclop.orderplacer.service.OrderPlacerService;
 import com.tbot.cyclop.orderplacer.service.TelegramService;
+import jakarta.annotation.PostConstruct;
 import org.apache.kafka.streams.kstream.KStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,7 +17,6 @@ import org.springframework.context.annotation.Bean;
 import reactor.core.publisher.Flux;
 import reactor.core.scheduler.Schedulers;
 
-import java.util.ArrayList;
 import java.util.function.Function;
 
 import static com.tbot.cyclop.orderplacer.util.TradingUtil.*;
@@ -61,42 +62,35 @@ public class OrderPlacerApplication {
                     String candleStick = addCandleStickPrefix(value.getInterval());
                     String symbolString = replaceUsdtSuffix(value.getSymbol());
                     String positionSide = value.getCurrentPrice() > value.getOpenPrice() ? "LONG" : "SHORT";
-                    Symbol symbol = symbolRepo.findBySymbolAndPlatform(symbolString, value.getSourcePlatform()).block();
-                    if (symbol == null) {
-                        return new ArrayList<>();
-                    }
-
-                    Flux<Strategy> strategyFlux = strategyRepo.findByCandleStickAndSymbol(candleStick, symbol).filter(strategy -> "ACTIVE".equals(strategy.getStatus()));
+                    Flux<Strategy> strategyFlux = strategyRepo.findByCandleStickAndSymbolStringAndPositionSideAndStatus(candleStick, symbolString, positionSide, "ACTIVE");
                     Flux<Order> orderAckFlux = strategyFlux.publishOn(Schedulers.boundedElastic()).mapNotNull(
                             (Strategy strategy) ->
                             {
-
-
-                                Order latestOrder = orderAckHistoryRepo.findFirstByStrategyIdOrderByCreatedAtDesc(strategy.getId()).block();
-                                boolean newCandle = newCandle(strategy, value);
-                                if (newCandle) {
-                                    orderPlacerService.handleCandleWindow(strategy, value);
+                                Order latestOrder = strategy.getLatestOrder();
+                                boolean isNewCandle = isNewCandle(strategy, value);
+                                if (isNewCandle) {
+                                    orderPlacerService.updateCandle(strategy, value);
                                 }
                                 if (canIgnore(strategy, value)) {
                                     return null;
                                 }
-                                if (canEntry(strategy, value)) {
+                                if (canSubmit(strategy, value)) {
                                     try {
-                                        return orderPlacerService.handleOpenOrder(strategy, value, latestOrder);
+                                        return decorateNotification(orderPlacerService.handleSubmitOrder(strategy, value, latestOrder));
                                     } catch (Exception e) {
                                         logger.error(e.getMessage());
                                     }
                                 }
                                 if (canTakeProfit(latestOrder, value) || canStopLoss(latestOrder, value)) {
                                     try {
-                                        return orderPlacerService.handleSyncStatus(value, latestOrder);
+                                        return decorateNotification(orderPlacerService.handleSyncStatus(value, latestOrder));
                                     } catch (Exception e) {
                                         logger.error(e.getMessage());
                                     }
                                 }
-                                if (!canTakeProfit(latestOrder, value) && newCandle) {
+                                if (!canTakeProfit(latestOrder, value) && isNewCandle) {
                                     try {
-                                        return orderPlacerService.handleReduceTakeProfit(strategy, value, latestOrder);
+                                        return decorateNotification(orderPlacerService.handleReduceTakeProfit(strategy, value, latestOrder));
                                     } catch (Exception e) {
                                         logger.error(e.getMessage());
                                     }
@@ -105,12 +99,32 @@ public class OrderPlacerApplication {
                             }
                     );
                     long doneProcessTime = System.currentTimeMillis();
-                    if (doneProcessTime - startProcessTime > 100) {
+                    if (doneProcessTime - startProcessTime > 200) {
                         logger.warn("LONG PROCESS : {} ms", doneProcessTime - startProcessTime);
                     }
                     return orderAckHistoryRepo.saveAll(orderAckFlux).toIterable();
                 }
         );
+    }
+
+    @PostConstruct
+    public void populateSymbolString() {
+        strategyRepo.saveAll(strategyRepo.findAll().map(strategy -> {
+            if (strategy.getSymbol() != null) {
+                strategy.setSymbolString(strategy.getSymbol().getSymbol());
+            }
+            return strategy;
+        }).toIterable()).subscribe();
+    }
+
+    public Order decorateNotification(Order order) {
+        try {
+            NotificationPayload notificationPayload = NotificationPayload.fromOrderAck(order);
+            telegramService.sendNotification(order.getStrategy(), notificationPayload);
+        } catch (Exception e) {
+            logger.error("CANNOT SEND NOTIFICATION");
+        }
+        return order;
     }
 
     public static void main(String[] args) {

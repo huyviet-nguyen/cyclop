@@ -31,7 +31,7 @@ public class TradingUtil {
         return Math.abs(changePercent) < Math.abs(ignorePercent);
     }
 
-    public static boolean canEntry(Strategy strategy, KlineData klineData) {
+    public static boolean canSubmit(Strategy strategy, KlineData klineData) {
         double changePercent = calculateChangePercent(klineData.getOpenPrice(), klineData.getCurrentPrice());
         double expectedSide = switch (strategy.getPositionSide()) {
             case "LONG" -> 1;
@@ -79,7 +79,7 @@ public class TradingUtil {
         return latestOrder != null && klineData.getCurrentPrice() < latestOrder.getStopLossPrice();
     }
 
-    public static boolean newCandle(Strategy strategy, KlineData klineData) {
+    public static boolean isNewCandle(Strategy strategy, KlineData klineData) {
         CandleWindow candleWindow = strategy.getCandleWindow();
         if (candleWindow == null) return true;
         double lastOpenPrice = candleWindow.getOpenPrice();
@@ -98,7 +98,7 @@ public class TradingUtil {
         return newTakeProfitPrice;
     }
 
-    public static double calculateLastTakeProfitPercent(Strategy strategy, KlineData klineData, Order latestOrder){
+    public static double calculateLastTakeProfitPercent(Strategy strategy, KlineData klineData, Order latestOrder) {
         double lastTakeProfitPercent = latestOrder.getCurrentTakeProfitPercent();
         return deductPercentage(lastTakeProfitPercent, strategy.getReduceTakeProfit());
     }

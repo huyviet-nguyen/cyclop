@@ -32,8 +32,11 @@ public class Strategy implements Serializable {
     private Bot bot;
     @DocumentReference
     private CandleWindow candleWindow;
+    @DocumentReference
+    private Order latestOrder;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private String symbolString;
 
     public String toNotiString() {
         String template = "Futures | %s | OC: %s | TP: %s";

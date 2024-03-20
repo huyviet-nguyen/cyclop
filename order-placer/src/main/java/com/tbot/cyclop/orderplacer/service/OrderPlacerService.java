@@ -51,8 +51,8 @@ public class OrderPlacerService {
     }
 
     @Transactional
-    public void handleCandleWindow(Strategy strategy, KlineData klineData) {
-        if (newCandle(strategy, klineData)) {
+    public void updateCandle(Strategy strategy, KlineData klineData) {
+        if (isNewCandle(strategy, klineData)) {
             double lastPump = 0;
             if (strategy.getCandleWindow() == null) {
                 CandleWindow newCandle = new CandleWindow();
@@ -76,7 +76,7 @@ public class OrderPlacerService {
     }
 
     @Transactional
-    public Order handleOpenOrder(Strategy strategy, KlineData klineData, Order lastOrder) throws Exception {
+    public Order handleSubmitOrder(Strategy strategy, KlineData klineData, Order lastOrder) throws Exception {
         if (lastOrder == null || !OrderStatus.OPEN.equals(lastOrder.getOrderStatus())) {
             Order order = createOrderAck(klineData, strategy);
             double takeProfitPrice = calculateTakeProfitPrice(strategy, klineData);
@@ -85,7 +85,6 @@ public class OrderPlacerService {
             order.setStopLossPrice(stopLossPrice);
             PlatformService service = getService(klineData.getSourcePlatform());
             service.entry(order);
-            sendNotification(order);
             logger.info("OPENED ORDER {} ON {} SYMBOL {}", order.getPlatformOrderId(), order.getPlatform(), order.getSymbol());
             return order;
         }
@@ -100,9 +99,6 @@ public class OrderPlacerService {
         } else {
             PlatformService service = getService(klineData.getSourcePlatform());
             service.syncStatus(latestOrder);
-            if (!latestOrder.getOrderStatus().equals(OrderStatus.OPEN) && !latestOrder.getOrderStatus().equals(OrderStatus.SYS_CREATED)){
-                sendNotification(latestOrder);
-            }
             return latestOrder;
         }
     }
@@ -139,15 +135,4 @@ public class OrderPlacerService {
     private PlatformService getService(String platform) {
         return serviceMap.get(platform);
     }
-
-    public void sendNotification(Order order) {
-        try {
-            NotificationPayload notificationPayload = NotificationPayload.fromOrderAck(order);
-            telegramService.sendNotification(order.getStrategy(), notificationPayload);
-        } catch (Exception e) {
-            logger.error("CANNOT SEND NOTIFICATION");
-        }
-    }
-
-
 }
