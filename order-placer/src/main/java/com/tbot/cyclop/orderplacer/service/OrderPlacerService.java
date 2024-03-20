@@ -28,19 +28,16 @@ public class OrderPlacerService {
 
     private final CandleWindowRepo candleWindowRepo;
 
-    private final TelegramService telegramService;
-
     private final StrategyRepo strategyRepo;
 
     private final Logger logger = LoggerFactory.getLogger(OrderPlacerService.class);
 
     private final HashMap<String, PlatformService> serviceMap = new HashMap<>();
 
-    public OrderPlacerService(MexcService mexcService, BybitService bybitService, CandleWindowRepo candleWindowRepo, TelegramService telegramService, StrategyRepo strategyRepo) {
+    public OrderPlacerService(MexcService mexcService, BybitService bybitService, CandleWindowRepo candleWindowRepo, StrategyRepo strategyRepo) {
         this.mexcService = mexcService;
         this.bybitService = bybitService;
         this.candleWindowRepo = candleWindowRepo;
-        this.telegramService = telegramService;
         this.strategyRepo = strategyRepo;
     }
 

@@ -29,25 +29,10 @@ public class OrderPlacerApplication {
     public StrategyRepo strategyRepo;
 
     @Autowired
-    public OrderAckHistoryRepo orderAckHistoryRepo;
-
-    @Autowired
-    public BotRepo botRepo;
-
-    @Autowired
-    public SymbolRepo symbolRepo;
-
-    @Autowired
-    public CandleWindowRepo candleWindowRepo;
-
-    @Autowired
-    public StrategyMarkerRepo strategyMarkerRepo;
+    public OrderRepo orderRepo;
 
     @Autowired
     public TelegramService telegramService;
-
-    @Autowired
-    public UserRepo userRepo;
 
     @Autowired
     public OrderPlacerService orderPlacerService;
@@ -99,7 +84,7 @@ public class OrderPlacerApplication {
                             }
                     );
                     logProcessTime(startProcessTime);
-                    return orderAckHistoryRepo.saveAll(orderAckFlux).toIterable();
+                    return orderRepo.saveAll(orderAckFlux).toIterable();
                 }
         );
     }
