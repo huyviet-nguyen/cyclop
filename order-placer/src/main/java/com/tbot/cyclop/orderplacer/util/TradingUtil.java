@@ -89,7 +89,7 @@ public class TradingUtil {
     public static double calculateReducedTakeProfitPrice(Strategy strategy, KlineData klineData, Order latestOrder) {
         double lastTakeProfitPercent = latestOrder.getCurrentTakeProfitPercent();
         double newTakeProfitPercent = deductPercentage(lastTakeProfitPercent, strategy.getReduceTakeProfit());
-        double newTakeProfitPrice = 0;
+        double newTakeProfitPrice;
         if (strategy.getPositionSide().equals("LONG")) {
             newTakeProfitPrice = calculateNewValue(klineData.getCurrentPrice(), ONE_HUNDRED_PERCENT + newTakeProfitPercent);
         } else {

@@ -116,7 +116,6 @@ public class OrderPlacerService {
         } else {
             double newTakeProfitPrice = calculateReducedTakeProfitPrice(strategy, klineData, latestOrder);
             latestOrder.setCurrentTakeProfitPrice(newTakeProfitPrice);
-            latestOrder.setCurrentTakeProfitPercent(calculateLastTakeProfitPercent(strategy, klineData, latestOrder));
             service.reduceProfit(latestOrder, klineData);
             return latestOrder;
         }
@@ -134,7 +133,6 @@ public class OrderPlacerService {
         ack.setCreatedAt(LocalDateTime.now());
         ack.setUpdatedAt(LocalDateTime.now());
         ack.setOrderStatus(OrderStatus.SYS_CREATED);
-        ack.setCurrentTakeProfitPercent(calculateNewValue(strategy.getOrderChange(), strategy.getTakeProfit()));
         return ack;
     }
 
