@@ -101,7 +101,7 @@ public class NotificationService {
         WebClient client = WebClient.builder()
                 .baseUrl(getUrl(botInfo.getApiToken()))
                 .build();
-        String response = client.post()
+        client.post()
                 .uri(UriBuilder::build)
                 .header("Content-Type", "application/json")
                 .body(BodyInserters.fromValue(objectMapper.writeValueAsString(telegramNotiPayload)))

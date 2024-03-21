@@ -57,6 +57,11 @@ public class BybitService implements PlatformService {
 
     }
 
+    @Override
+    public void cancelOrder(Order order, Strategy strategy) {
+
+    }
+
     private static double extractAvailableBalanceBybit(String jsonResponse) {
         try {
             ObjectMapper mapper = new ObjectMapper();

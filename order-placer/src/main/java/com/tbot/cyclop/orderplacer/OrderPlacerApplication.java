@@ -5,7 +5,6 @@ import com.tbot.cyclop.Cyclop.model.*;
 import com.tbot.cyclop.orderplacer.repo.*;
 import com.tbot.cyclop.orderplacer.service.OrderPlacerService;
 import com.tbot.cyclop.orderplacer.service.NotificationService;
-import jakarta.annotation.PostConstruct;
 import org.apache.kafka.streams.kstream.KStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,6 +57,13 @@ public class OrderPlacerApplication {
                                 if (canIgnore(strategy, value)) {
                                     return null;
                                 }
+                                if (needToCancel(isNewCandle, latestOrder)){
+                                    try {
+                                        orderPlacerService.handleCancelOrder(latestOrder, strategy);
+                                    } catch (Exception e) {
+                                        logger.error(e.getMessage());
+                                    }
+                                }
                                 if (canSubmit(strategy, value)) {
                                     try {
                                         Order order = orderPlacerService.handleSubmitOrder(strategy, value, latestOrder, isNewCandle);
@@ -103,16 +109,6 @@ public class OrderPlacerApplication {
         if (doneProcessTime - startTime > 10) {
             logger.warn("LONG PROCESS : {} ms", doneProcessTime - startTime);
         }
-    }
-
-    @PostConstruct
-    public void populateSymbolString() {
-        strategyRepo.saveAll(strategyRepo.findAll().map(strategy -> {
-            if (strategy.getSymbol() != null) {
-                strategy.setSymbolString(strategy.getSymbol().getSymbol());
-            }
-            return strategy;
-        }).toIterable()).subscribe();
     }
 
     public Order decorateNotification(Order order, Strategy strategy) {

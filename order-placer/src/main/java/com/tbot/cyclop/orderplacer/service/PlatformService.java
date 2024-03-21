@@ -13,4 +13,6 @@ public interface PlatformService {
     void reduceProfit(Order orderWithUpdatedProfit, Strategy strategy, KlineData marketData) throws JsonProcessingException;
 
     void syncStatus(Order order, Strategy strategy) throws JsonProcessingException;
+
+    void cancelOrder(Order order, Strategy strategy) throws JsonProcessingException;
 }

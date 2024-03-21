@@ -74,23 +74,24 @@ public class OrderPlacerService {
         }
     }
 
+    public void handleCancelOrder(Order order, Strategy strategy) throws JsonProcessingException {
+        PlatformService service = getService(strategy.getPlatform());
+        service.cancelOrder(order, strategy);
+    }
+
     @Transactional
     public Order handleSubmitOrder(Strategy strategy, KlineData klineData, Order lastOrder, boolean isNewCandle) throws Exception {
-        if (isNewCandle) {
-            if (lastOrder == null || SUBMITABLE_ORDER_STATUS.contains(lastOrder.getOrderStatus())) {
-                Order order = createOrderAck(klineData, strategy);
-                double takeProfitPrice = calculateTakeProfitPrice(strategy, order);
-                order.setCurrentTakeProfitPrice(takeProfitPrice);
-                double stopLossPrice = calculateStopLossPrice(strategy, order);
-                order.setStopLossPrice(stopLossPrice);
-                PlatformService service = getService(klineData.getSourcePlatform());
-                service.submitOrder(order, strategy);
-                logger.info("SUBMIT ORDER {} ON {} SYMBOL {}", order.getPlatformOrderId(), order.getPlatform(), order.getSymbol());
-                return order;
-            }
+        if (lastOrder == null || SUBMITABLE_ORDER_STATUS.contains(lastOrder.getOrderStatus()) || (lastOrder.getOrderStatus().equals(OrderStatus.SUBMIT) && isNewCandle)) {
+            Order order = createOrderAck(klineData, strategy);
+            double takeProfitPrice = calculateTakeProfitPrice(strategy, order);
+            order.setCurrentTakeProfitPrice(takeProfitPrice);
+            double stopLossPrice = calculateStopLossPrice(strategy, order);
+            order.setStopLossPrice(stopLossPrice);
+            PlatformService service = getService(klineData.getSourcePlatform());
+            service.submitOrder(order, strategy);
+            logger.info("SUBMIT ORDER {} ON {} SYMBOL {}", order.getPlatformOrderId(), order.getPlatform(), order.getSymbol());
+            return order;
         }
-
-
         return null;
     }
 

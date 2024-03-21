@@ -177,8 +177,35 @@ public class MexcService implements PlatformService {
             } else {
                 order.setOrderStatus(OrderStatus.MISSED);
             }
+            logger.info("UPDATED STATUS OF {} TO {}", order.getId(), order.getOrderStatus());
         }
     }
+
+    @Override
+    public void cancelOrder(Order order, Strategy strategy) throws JsonProcessingException {
+        long timestamp = System.currentTimeMillis();
+        String decryptWebToken = decryptSecretKey(strategy.getBot().getWebToken());
+        String path = mexcOrderBaseUrl.concat("api/v1/private/order/cancel");
+        String payload = "[\"" + order.getPlatformOrderId() + "\"]";
+        String contentLength = String.valueOf(payload.getBytes(StandardCharsets.UTF_8).length);
+        String headerHash = getMexcSign(payload, timestamp, decryptWebToken);
+
+        try {
+            String responseString = webClient.post()
+                    .uri(path)
+                    .header("Content-Type", "application/json")
+                    .header("X-Mxc-Nonce", String.valueOf(timestamp))
+                    .header("X-Mxc-Sign", headerHash)
+                    .header("Content-Length", contentLength)
+                    .header("Authorization", decryptWebToken)
+                    .retrieve()
+                    .bodyToMono(String.class).block();
+            logger.info("CANCEL ORDER : {}", responseString);
+        } catch (Exception e) {
+            logger.error("CANNOT CANCEL ORDER : {}");
+        }
+    }
+
 
 
     private MexcOrderHistoryListResponse.MexcOrderHistoryResponse getClosed(String mexcOrderId, String decryptedWebToken) throws JsonProcessingException {

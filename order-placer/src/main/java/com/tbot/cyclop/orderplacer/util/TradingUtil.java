@@ -45,6 +45,10 @@ public class TradingUtil {
         return changePercent >= expectedChangePercent * expectedSide;
     }
 
+    public static boolean needToCancel(boolean isNewCandle, Order order){
+        return isNewCandle && OrderStatus.SUBMIT.equals(order.getOrderStatus());
+    }
+
     public static double calculateTakeProfitProportion(Strategy strategy) {
         if (strategy.getPositionSide().equals("LONG")) {
             return ONE_HUNDRED_PERCENT + strategy.getTakeProfit();
@@ -112,11 +116,6 @@ public class TradingUtil {
             newTakeProfitPrice = calculateNewValue(klineData.getCurrentPrice(), ONE_HUNDRED_PERCENT - newTakeProfitPercent);
         }
         return newTakeProfitPrice;
-    }
-
-    public static double calculateLastTakeProfitPercent(Strategy strategy, KlineData klineData, Order latestOrder) {
-        double lastTakeProfitPercent = latestOrder.getCurrentTakeProfitPercent();
-        return deductPercentage(lastTakeProfitPercent, strategy.getReduceTakeProfit());
     }
 
     public static byte[] generateRandomBytes(int length) {
