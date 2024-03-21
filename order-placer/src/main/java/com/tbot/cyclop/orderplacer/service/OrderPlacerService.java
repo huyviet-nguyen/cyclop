@@ -89,7 +89,6 @@ public class OrderPlacerService {
         order.setStopLossPrice(stopLossPrice);
         PlatformService service = getService(klineData.getSourcePlatform());
         service.submitOrder(order, strategy);
-        logger.info("SUBMIT ORDER {} ON {} SYMBOL {}", order.getPlatformOrderId(), order.getPlatform(), order.getSymbol());
         return order;
     }
 

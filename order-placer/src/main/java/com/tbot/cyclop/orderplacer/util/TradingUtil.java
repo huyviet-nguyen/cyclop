@@ -45,15 +45,15 @@ public class TradingUtil {
         return changePercent >= expectedChangePercent * expectedSide;
     }
 
-    public static boolean needToCancel(boolean isNewCandle, Order order){
+    public static boolean needToCancel(boolean isNewCandle, Order order) {
         return order != null && isNewCandle && OrderStatus.SUBMIT.equals(order.getOrderStatus());
     }
 
     public static double calculateTakeProfitProportion(Strategy strategy) {
         if (strategy.getPositionSide().equals("LONG")) {
-            return ONE_HUNDRED_PERCENT + strategy.getTakeProfit();
+            return ONE_HUNDRED_PERCENT + calculateNewValue(strategy.getOrderChange(), strategy.getTakeProfit());
         } else {
-            return ONE_HUNDRED_PERCENT - strategy.getTakeProfit();
+            return ONE_HUNDRED_PERCENT - calculateNewValue(strategy.getOrderChange(), strategy.getTakeProfit());
         }
     }
 
@@ -64,9 +64,9 @@ public class TradingUtil {
 
     public static double calculateStopLossProportion(Strategy strategy) {
         if (strategy.getPositionSide().equals("SHORT")) {
-            return ONE_HUNDRED_PERCENT + strategy.getStopLoss();
+            return ONE_HUNDRED_PERCENT + calculateNewValue(strategy.getOrderChange(), strategy.getStopLoss());
         } else {
-            return ONE_HUNDRED_PERCENT - strategy.getStopLoss();
+            return ONE_HUNDRED_PERCENT - calculateNewValue(strategy.getOrderChange(), strategy.getStopLoss());
         }
     }
 
@@ -83,7 +83,7 @@ public class TradingUtil {
         return latestOrder != null && klineData.getCurrentPrice() < latestOrder.getStopLossPrice();
     }
 
-    public static boolean canOpen(Order latestOrder,Strategy strategy, KlineData klineData) {
+    public static boolean canOpen(Order latestOrder, Strategy strategy, KlineData klineData) {
         if (latestOrder == null || strategy == null) {
             return false;
         }
