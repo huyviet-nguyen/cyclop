@@ -46,7 +46,7 @@ public class TradingUtil {
     }
 
     public static boolean needToCancel(boolean isNewCandle, Order order){
-        return isNewCandle && OrderStatus.SUBMIT.equals(order.getOrderStatus());
+        return order != null && isNewCandle && OrderStatus.SUBMIT.equals(order.getOrderStatus());
     }
 
     public static double calculateTakeProfitProportion(Strategy strategy) {

@@ -74,51 +74,39 @@ public class OrderPlacerService {
         }
     }
 
-    public void handleCancelOrder(Order order, Strategy strategy) throws JsonProcessingException {
+    public Order handleCancelOrder(Order order, Strategy strategy) throws JsonProcessingException {
         PlatformService service = getService(strategy.getPlatform());
         service.cancelOrder(order, strategy);
+        return order;
     }
 
     @Transactional
-    public Order handleSubmitOrder(Strategy strategy, KlineData klineData, Order lastOrder, boolean isNewCandle) throws Exception {
-        if (lastOrder == null || SUBMITABLE_ORDER_STATUS.contains(lastOrder.getOrderStatus()) || (lastOrder.getOrderStatus().equals(OrderStatus.SUBMIT) && isNewCandle)) {
-            Order order = createOrderAck(klineData, strategy);
-            double takeProfitPrice = calculateTakeProfitPrice(strategy, order);
-            order.setCurrentTakeProfitPrice(takeProfitPrice);
-            double stopLossPrice = calculateStopLossPrice(strategy, order);
-            order.setStopLossPrice(stopLossPrice);
-            PlatformService service = getService(klineData.getSourcePlatform());
-            service.submitOrder(order, strategy);
-            logger.info("SUBMIT ORDER {} ON {} SYMBOL {}", order.getPlatformOrderId(), order.getPlatform(), order.getSymbol());
-            return order;
-        }
-        return null;
+    public Order handleSubmitOrder(Strategy strategy, KlineData klineData, boolean isNewCandle) throws Exception {
+        Order order = createOrderAck(klineData, strategy);
+        double takeProfitPrice = calculateTakeProfitPrice(strategy, order);
+        order.setCurrentTakeProfitPrice(takeProfitPrice);
+        double stopLossPrice = calculateStopLossPrice(strategy, order);
+        order.setStopLossPrice(stopLossPrice);
+        PlatformService service = getService(klineData.getSourcePlatform());
+        service.submitOrder(order, strategy);
+        logger.info("SUBMIT ORDER {} ON {} SYMBOL {}", order.getPlatformOrderId(), order.getPlatform(), order.getSymbol());
+        return order;
     }
 
     @Transactional
     public Order handleSyncStatus(KlineData klineData, Order latestOrder, Strategy strategy) throws JsonProcessingException {
-        if (latestOrder == null) {
-            return null;
-        } else {
-            PlatformService service = getService(klineData.getSourcePlatform());
-            service.syncStatus(latestOrder, strategy);
-            return latestOrder;
-        }
+        PlatformService service = getService(klineData.getSourcePlatform());
+        service.syncStatus(latestOrder, strategy);
+        return latestOrder;
     }
 
     public Order handleReduceTakeProfit(Strategy strategy, KlineData klineData, Order latestOrder) throws JsonProcessingException {
         PlatformService service = getService(klineData.getSourcePlatform());
         service.syncStatus(latestOrder, strategy);
-        // check to see if order is open on platform
-        if (latestOrder == null || !OrderStatus.OPEN.equals(latestOrder.getOrderStatus()) || latestOrder.getPlatformOrderId() == null) {
-            return null;
-        } else {
-            double newTakeProfitPrice = calculateReducedTakeProfitPrice(strategy, klineData, latestOrder);
-            latestOrder.setCurrentTakeProfitPrice(newTakeProfitPrice);
-            service.reduceProfit(latestOrder, strategy, klineData);
-            return latestOrder;
-        }
-
+        double newTakeProfitPrice = calculateReducedTakeProfitPrice(strategy, klineData, latestOrder);
+        latestOrder.setCurrentTakeProfitPrice(newTakeProfitPrice);
+        service.reduceProfit(latestOrder, strategy, klineData);
+        return latestOrder;
     }
 
     private Order createOrderAck(KlineData klineData, Strategy strategy) {

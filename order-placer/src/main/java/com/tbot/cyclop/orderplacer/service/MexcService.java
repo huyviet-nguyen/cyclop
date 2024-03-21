@@ -131,6 +131,7 @@ public class MexcService implements PlatformService {
                     .retrieve()
                     .bodyToMono(String.class).block();
             response = objectMapper.readValue(stringResponse, MexcChangeOrderResponse.class);
+            logger.info("REDUCED TAKE PROFIT FOR ORDER {}", orderWithUpdatedProfit.getPlatformOrderId());
             if (response == null || !response.isSuccess()) {
                 throw new ReduceTakeProfitFailException(orderWithUpdatedProfit);
             }
@@ -170,10 +171,10 @@ public class MexcService implements PlatformService {
             order.setOrderStatus(OrderStatus.OPEN);
         }
         MexcOrderHistoryListResponse.MexcOrderHistoryResponse historyResponse = getHistoryOrder(order.getPositionId(), decryptedWebToken);
-        if (historyResponse != null){
-            if (historyResponse.getProfit() > 0){
+        if (historyResponse != null) {
+            if (historyResponse.getProfit() > 0) {
                 order.setOrderStatus(OrderStatus.TOOK_PROFIT);
-            } else if (historyResponse.getProfit() < 0){
+            } else if (historyResponse.getProfit() < 0) {
                 order.setOrderStatus(OrderStatus.STOPPED_LOSS);
             } else {
                 order.setOrderStatus(OrderStatus.CLOSED_UNKNOWN);

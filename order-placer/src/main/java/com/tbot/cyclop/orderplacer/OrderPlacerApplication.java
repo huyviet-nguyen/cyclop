@@ -49,57 +49,64 @@ public class OrderPlacerApplication {
                     Flux<Order> orderAckFlux = strategyFlux.publishOn(Schedulers.boundedElastic()).mapNotNull(
                             (Strategy strategy) ->
                             {
-                                Order latestOrder = strategy.getLatestOrder();
-                                boolean isNewCandle = isNewCandle(strategy, value);
-                                if (isNewCandle) {
-                                    orderPlacerService.updateCandle(strategy, value);
-                                }
-                                if (canIgnore(strategy, value)) {
-                                    return null;
-                                }
-                                if (needToCancel(isNewCandle, latestOrder)){
-                                    try {
-                                        orderPlacerService.handleCancelOrder(latestOrder, strategy);
-                                    } catch (Exception e) {
-                                        logger.error(e.getMessage());
+                                try {
+                                    boolean isNewCandle = isNewCandle(strategy, value);
+                                    if (isNewCandle) {
+                                        orderPlacerService.updateCandle(strategy, value);
                                     }
-                                }
-                                if (canSubmit(strategy, value)) {
-                                    try {
-                                        Order order = orderPlacerService.handleSubmitOrder(strategy, value, latestOrder, isNewCandle);
-                                        if (order != null) {
-                                            strategy.setLatestOrder(orderRepo.insert(order).block());
+                                    if (canIgnore(strategy, value)) {
+                                        return null;
+                                    }
+                                    Order latestOrder = strategy.getLatestOrder();
+                                    if (latestOrder == null) {
+                                        if (canSubmit(strategy, value)) {
+                                            return orderPlacerService.handleSubmitOrder(strategy, value, isNewCandle);
+                                        }
+                                    } else {
+                                        if (isNewCandle && latestOrder.getOrderStatus().equals(OrderStatus.SUBMIT)) {
+                                            strategy.setLatestOrder(null);
                                             strategyRepo.save(strategy).block();
+                                            return orderPlacerService.handleCancelOrder(latestOrder, strategy);
                                         }
-                                        return order;
-                                    } catch (Exception e) {
-                                        logger.error(e.getMessage());
+                                        OrderStatus oldStatus = latestOrder.getOrderStatus();
+                                        switch (latestOrder.getOrderStatus()) {
+                                            case SYS_CREATED, TOOK_PROFIT, STOPPED_LOSS, MISSED, CLOSED_UNKNOWN -> {
+                                                if (canSubmit(strategy, value)) {
+                                                    return orderPlacerService.handleSubmitOrder(strategy, value, isNewCandle);
+                                                }
+                                            }
+                                            case SUBMIT -> {
+                                                if (canOpen(latestOrder, strategy, value)) {
+                                                    Order order = orderPlacerService.handleSyncStatus(value, latestOrder, strategy);
+                                                    if (!order.getOrderStatus().equals(oldStatus)) {
+                                                        return decorateNotification(order, strategy);
+                                                    } else {
+                                                        return order;
+                                                    }
+                                                } else if (isNewCandle) {
+                                                    orderPlacerService.handleReduceTakeProfit(strategy, value, latestOrder);
+                                                }
+                                            }
+                                            case OPEN -> {
+                                                if (canTakeProfit(latestOrder, value) || canStopLoss(latestOrder, value)) {
+                                                    Order order = orderPlacerService.handleSyncStatus(value, latestOrder, strategy);
+                                                    if (!order.getOrderStatus().equals(oldStatus)) {
+                                                        return decorateNotification(order, strategy);
+                                                    } else {
+                                                        return order;
+                                                    }
+                                                }
+                                            }
+                                        }
                                     }
+                                } catch (Exception e) {
+                                    logger.error(e.getMessage());
                                 }
-                                if (latestOrder != null) {
-                                    if (canTakeProfit(latestOrder, value) || canStopLoss(latestOrder, value) || canOpen(latestOrder, strategy, value)) {
-                                        try {
-                                            return decorateNotification(orderPlacerService.handleSyncStatus(value, latestOrder, strategy), strategy);
-                                        } catch (Exception e) {
-                                            logger.error(e.getMessage());
-                                        }
-                                    }
-                                    if (!canTakeProfit(latestOrder, value) && isNewCandle) {
-                                        try {
-                                            return decorateNotification(orderPlacerService.handleReduceTakeProfit(strategy, value, latestOrder), strategy);
-                                        } catch (Exception e) {
-                                            logger.error(e.getMessage());
-                                        }
-                                    }
-                                    return null;
-                                } else {
-                                    return null;
-                                }
+                                return null;
                             }
                     );
                     logProcessTime(startProcessTime);
                     return orderAckFlux.mapNotNull(order -> orderRepo.save(order).block()).toIterable();
-//                    return orderRepo.saveAll(orderAckFlux).toIterable();
                 }
         );
     }
