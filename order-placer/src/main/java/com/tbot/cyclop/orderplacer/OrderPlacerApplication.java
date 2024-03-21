@@ -71,16 +71,16 @@ public class OrderPlacerApplication {
                                     }
                                 }
                                 if (latestOrder != null) {
-                                    if (canTakeProfit(latestOrder, value) || canStopLoss(latestOrder, value) || canOpen(latestOrder, value)) {
+                                    if (canTakeProfit(latestOrder, value) || canStopLoss(latestOrder, value) || canOpen(latestOrder, strategy, value)) {
                                         try {
-                                            return decorateNotification(orderPlacerService.handleSyncStatus(value, latestOrder));
+                                            return decorateNotification(orderPlacerService.handleSyncStatus(value, latestOrder, strategy), strategy);
                                         } catch (Exception e) {
                                             logger.error(e.getMessage());
                                         }
                                     }
                                     if (!canTakeProfit(latestOrder, value) && isNewCandle) {
                                         try {
-                                            return decorateNotification(orderPlacerService.handleReduceTakeProfit(strategy, value, latestOrder));
+                                            return decorateNotification(orderPlacerService.handleReduceTakeProfit(strategy, value, latestOrder), strategy);
                                         } catch (Exception e) {
                                             logger.error(e.getMessage());
                                         }
@@ -114,10 +114,10 @@ public class OrderPlacerApplication {
         }).toIterable()).subscribe();
     }
 
-    public Order decorateNotification(Order order) {
+    public Order decorateNotification(Order order, Strategy strategy) {
         try {
             if (order != null) {
-                notificationService.sendNotification(order);
+                notificationService.sendNotification(order, strategy);
             }
         } catch (Exception e) {
             logger.error("CANNOT SEND NOTIFICATION");

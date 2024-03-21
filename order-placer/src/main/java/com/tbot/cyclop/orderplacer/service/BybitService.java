@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tbot.cyclop.Cyclop.dto.KlineData;
 import com.tbot.cyclop.Cyclop.model.Order;
+import com.tbot.cyclop.Cyclop.model.Strategy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -42,17 +43,17 @@ public class BybitService implements PlatformService {
     }
 
     @Override
-    public void submitOrder(Order newOrder) {
+    public void submitOrder(Order newOrder, Strategy strategy) {
 
     }
 
     @Override
-    public void reduceProfit(Order orderWithUpdatedProfit, KlineData marketData) {
+    public void reduceProfit(Order orderWithUpdatedProfit, Strategy strategy, KlineData marketData) {
 
     }
 
     @Override
-    public void syncStatus(Order order) {
+    public void syncStatus(Order order, Strategy strategy) {
 
     }
 

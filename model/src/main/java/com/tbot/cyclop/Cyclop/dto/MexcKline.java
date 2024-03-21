@@ -3,9 +3,12 @@ package com.tbot.cyclop.Cyclop.dto;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 
 
-@Data
+@Getter
+@Setter
 @JsonIgnoreProperties(ignoreUnknown = false)
 public class MexcKline {
     private String symbol;
@@ -13,7 +16,8 @@ public class MexcKline {
     private String channel;
     private long ts;
 
-    @Data
+    @Getter
+    @Setter
     public static class DetailData {
         private String symbol;
         private String interval;

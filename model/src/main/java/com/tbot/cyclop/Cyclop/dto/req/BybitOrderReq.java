@@ -2,8 +2,11 @@ package com.tbot.cyclop.Cyclop.dto.req;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 
-@Data
+@Getter
+@Setter
 public class BybitOrderReq {
     @JsonProperty("symbol")
     private String symbol;

@@ -1,15 +1,14 @@
 package com.tbot.cyclop.Cyclop.model;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.DocumentReference;
 
 import java.time.LocalDateTime;
 
-@Data
+@Getter
+@Setter
 @Document(collection = "order")
 @AllArgsConstructor
 @NoArgsConstructor
@@ -29,18 +28,12 @@ public class Order {
     private double candleOpenPrice;
     private double volume;
     private String placedByBotName;
-    @DocumentReference
-    private Strategy strategy;
     private LocalDateTime createdAt;
     private long platformTimestamp;
     private LocalDateTime updatedAt;
     private String platformOrderId;
     private double profit;
-
-    public String getSymbolWithUnderScore() {
-        return strategy.getSymbol().getSymbol();
-    }
-
+    
     public double getCurrentTakeProfitPercent() {
         return Math.abs(((currentTakeProfitPrice - openOrderPrice) / openOrderPrice) * 100);
     }

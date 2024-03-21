@@ -79,11 +79,10 @@ public class TradingUtil {
         return latestOrder != null && klineData.getCurrentPrice() < latestOrder.getStopLossPrice();
     }
 
-    public static boolean canOpen(Order latestOrder, KlineData klineData) {
-        if (latestOrder == null || latestOrder.getStrategy() == null) {
+    public static boolean canOpen(Order latestOrder,Strategy strategy, KlineData klineData) {
+        if (latestOrder == null || strategy == null) {
             return false;
         }
-        Strategy strategy = latestOrder.getStrategy();
         double changePercent = calculateChangePercent(klineData.getOpenPrice(), klineData.getCurrentPrice());
         double expectedSide = switch (strategy.getPositionSide()) {
             case "LONG" -> 1;

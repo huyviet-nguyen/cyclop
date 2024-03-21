@@ -64,7 +64,7 @@ public class NotificationService {
         return String.format("https://api.telegram.org/bot%s/sendMessage", token);
     }
 
-    private String getNotificationContent(Order order) {
+    private String getNotificationContent(Order order, Strategy strategy) {
         String template = switch (order.getOrderStatus()) {
             case OPEN -> OPEN_ORDER_NOTIFICATION_TEMPLATE;
             case STOPPED_LOSS -> STOP_LOSS_ORDER_NOTIFICATION_TEMPLATE;
@@ -74,41 +74,42 @@ public class NotificationService {
 
         return String.format(template,
                 order.getSymbol(),
-                order.getStrategy().getPositionSide(),
-                order.getStrategy().getBot().getName(),
-                order.getStrategy().toNotiString(),
+                strategy.getPositionSide(),
+                strategy.getBot().getName(),
+                strategy.toNotiString(),
                 order.getOpenOrderPrice(),
                 order.getProfit());
     }
 
 
-    public void sendNotification(Order order) throws JsonProcessingException {
+    public void sendNotification(Order order, Strategy strategy) throws JsonProcessingException {
         TelegramBotInfo botInfo = infoRepo.findAll().blockFirst();
-        Bot bot = order.getStrategy().getBot();
-        User user = order.getStrategy().getUser();
+        Bot bot = strategy.getBot();
+        User user = strategy.getUser();
         if (botInfo == null || botInfo.getApiToken() == null || bot == null || bot.getApiKey() == null || bot.getSecretKey() == null || user == null) {
             logger.error("Cannot send noti for" + order.getId());
             return;
         }
         TelegramNotiPayload telegramNotiPayload = new TelegramNotiPayload();
-        String content = getNotificationContent(order);
+        String content = getNotificationContent(order, strategy);
         if (content.isEmpty()) {
             return;
         }
         telegramNotiPayload.setText(content);
         telegramNotiPayload.setChatId(Optional.ofNullable(user.getTelegramId()).orElse(DEFAULT_CHANNEL_ID));
         telegramNotiPayload.setDisableNotification(false);
-        logger.info("SENT NOTIFICATION TO " + user.getName() + " at " + user.getTelegramId());
         WebClient client = WebClient.builder()
                 .baseUrl(getUrl(botInfo.getApiToken()))
                 .build();
-        client.post()
+        String response = client.post()
                 .uri(UriBuilder::build)
                 .header("Content-Type", "application/json")
                 .body(BodyInserters.fromValue(objectMapper.writeValueAsString(telegramNotiPayload)))
                 .retrieve()
                 .bodyToMono(String.class)
                 .doOnError(e -> logger.error(e.getLocalizedMessage())).block();
+
+        logger.info("SENT NOTIFICATION TO " + user.getName() + " at " + user.getTelegramId());
     }
 
 

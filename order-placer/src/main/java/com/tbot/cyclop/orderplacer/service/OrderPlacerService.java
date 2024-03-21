@@ -85,7 +85,7 @@ public class OrderPlacerService {
                 double stopLossPrice = calculateStopLossPrice(strategy, klineData);
                 order.setStopLossPrice(stopLossPrice);
                 PlatformService service = getService(klineData.getSourcePlatform());
-                service.submitOrder(order);
+                service.submitOrder(order, strategy);
                 logger.info("OPENED ORDER {} ON {} SYMBOL {}", order.getPlatformOrderId(), order.getPlatform(), order.getSymbol());
                 return order;
             }
@@ -96,26 +96,26 @@ public class OrderPlacerService {
     }
 
     @Transactional
-    public Order handleSyncStatus(KlineData klineData, Order latestOrder) throws JsonProcessingException {
+    public Order handleSyncStatus(KlineData klineData, Order latestOrder, Strategy strategy) throws JsonProcessingException {
         if (latestOrder == null) {
             return null;
         } else {
             PlatformService service = getService(klineData.getSourcePlatform());
-            service.syncStatus(latestOrder);
+            service.syncStatus(latestOrder, strategy);
             return latestOrder;
         }
     }
 
     public Order handleReduceTakeProfit(Strategy strategy, KlineData klineData, Order latestOrder) throws JsonProcessingException {
         PlatformService service = getService(klineData.getSourcePlatform());
-        service.syncStatus(latestOrder);
+        service.syncStatus(latestOrder, strategy);
         // check to see if order is open on platform
         if (latestOrder == null || !OrderStatus.OPEN.equals(latestOrder.getOrderStatus()) || latestOrder.getPlatformOrderId() == null) {
             return null;
         } else {
             double newTakeProfitPrice = calculateReducedTakeProfitPrice(strategy, klineData, latestOrder);
             latestOrder.setCurrentTakeProfitPrice(newTakeProfitPrice);
-            service.reduceProfit(latestOrder, klineData);
+            service.reduceProfit(latestOrder, strategy, klineData);
             return latestOrder;
         }
 
@@ -130,7 +130,6 @@ public class OrderPlacerService {
         ack.setOpenOrderPrice(openOrderPrice);
         ack.setTimestamp(Instant.now().toEpochMilli());
         ack.setCandleOpenPrice(klineData.getOpenPrice());
-        ack.setStrategy(strategy);
         ack.setCreatedAt(LocalDateTime.now());
         ack.setUpdatedAt(LocalDateTime.now());
         ack.setOrderStatus(OrderStatus.SYS_CREATED);

@@ -7,10 +7,7 @@ import com.tbot.cyclop.Cyclop.dto.KlineData;
 import com.tbot.cyclop.Cyclop.dto.req.MexcChangePriceRequest;
 import com.tbot.cyclop.Cyclop.dto.req.MexcOpenOrderRequest;
 import com.tbot.cyclop.Cyclop.dto.res.*;
-import com.tbot.cyclop.Cyclop.model.Bot;
-import com.tbot.cyclop.Cyclop.model.FingerprintSysInfo;
-import com.tbot.cyclop.Cyclop.model.Order;
-import com.tbot.cyclop.Cyclop.model.OrderStatus;
+import com.tbot.cyclop.Cyclop.model.*;
 import com.tbot.cyclop.orderplacer.exception.OpenOrderFailException;
 import com.tbot.cyclop.orderplacer.exception.ReduceTakeProfitFailException;
 import com.tbot.cyclop.orderplacer.exception.SyncStatusFailException;
@@ -74,10 +71,10 @@ public class MexcService implements PlatformService {
 
     @Override
     @Transactional
-    public void submitOrder(Order newOrder) throws Exception {
-        MexcOpenOrderRequest openOrderRequest = orderAckToMexcOpenOrderRequest(newOrder);
+    public void submitOrder(Order newOrder, Strategy strategy) throws Exception {
+        MexcOpenOrderRequest openOrderRequest = orderAckToMexcOpenOrderRequest(newOrder, strategy);
         String mHash = openOrderRequest.getMHash();
-        String webToken = decryptSecretKey(newOrder.getStrategy().getBot().getWebToken());
+        String webToken = decryptSecretKey(strategy.getBot().getWebToken());
         long timestamp = openOrderRequest.getTimestamp();
         String stringPayload = objectMapper.writeValueAsString(openOrderRequest);
         String contentLength = String.valueOf(stringPayload.getBytes(StandardCharsets.UTF_8).length);
@@ -110,10 +107,10 @@ public class MexcService implements PlatformService {
     }
 
     @Override
-    public void reduceProfit(Order orderWithUpdatedProfit, KlineData marketData) throws JsonProcessingException {
-        String webToken = decryptSecretKey(orderWithUpdatedProfit.getStrategy().getBot().getWebToken());
+    public void reduceProfit(Order orderWithUpdatedProfit, Strategy strategy, KlineData marketData) throws JsonProcessingException {
+        String webToken = decryptSecretKey(strategy.getBot().getWebToken());
         MexcStopOrderResponse stopOrder = getPendingOrder(orderWithUpdatedProfit.getPlatformOrderId(), webToken);
-        MexcChangePriceRequest changePriceRequest = getMexcChangePriceRequest(orderWithUpdatedProfit, stopOrder);
+        MexcChangePriceRequest changePriceRequest = getMexcChangePriceRequest(orderWithUpdatedProfit, stopOrder, strategy);
         long timestamp = System.currentTimeMillis();
 
         String path = mexcOrderBaseUrl.concat("api/v1/private/stoporder/change_plan_order");
@@ -142,8 +139,8 @@ public class MexcService implements PlatformService {
     }
 
     @NotNull
-    private static MexcChangePriceRequest getMexcChangePriceRequest(Order order, MexcStopOrderResponse stopOrder) {
-        double pu = order.getStrategy().getSymbol().getPu();
+    private static MexcChangePriceRequest getMexcChangePriceRequest(Order order, MexcStopOrderResponse stopOrder, Strategy strategy) {
+        double pu = strategy.getSymbol().getPu();
         MexcChangePriceRequest changePriceRequest = new MexcChangePriceRequest();
         changePriceRequest.setTakeProfitPrice(roundToSameDecimal(pu, order.getCurrentTakeProfitPrice()));
         changePriceRequest.setStopLossPrice(roundToSameDecimal(pu, order.getStopLossPrice()));
@@ -158,7 +155,7 @@ public class MexcService implements PlatformService {
     }
 
     @Override
-    public void syncStatus(Order order) throws JsonProcessingException {
+    public void syncStatus(Order order, Strategy strategy) throws JsonProcessingException {
         if (order == null) {
             return;
         }
@@ -167,7 +164,7 @@ public class MexcService implements PlatformService {
         }
 
 
-        String decryptedWebToken = decryptSecretKey(order.getStrategy().getBot().getWebToken());
+        String decryptedWebToken = decryptSecretKey(strategy.getBot().getWebToken());
         MexcStopOrderResponse response = getPendingOrder(order.getPlatformOrderId(), decryptedWebToken);
         if (response.getState() == 1) {
             order.setOrderStatus(OrderStatus.OPEN);
@@ -307,31 +304,31 @@ public class MexcService implements PlatformService {
 
 
     @Transactional
-    public MexcOpenOrderRequest orderAckToMexcOpenOrderRequest(Order sysOrder) throws Exception {
+    public MexcOpenOrderRequest orderAckToMexcOpenOrderRequest(Order sysOrder, Strategy strategy) throws Exception {
         long timestamp = Instant.now().toEpochMilli();
-        double pu = sysOrder.getStrategy().getSymbol().getPu();
+        double pu = strategy.getSymbol().getPu();
         MexcOpenOrderRequest mexcOrder = new MexcOpenOrderRequest();
-        String side = sysOrder.getStrategy().getPositionSide().equals("LONG") ? "1" : "3";
+        String side = strategy.getPositionSide().equals("LONG") ? "1" : "3";
         byte[] key = TradingUtil.generateRandomBytes(32);
         mexcOrder.setSide(side);
-        mexcOrder.setSymbol(sysOrder.getSymbolWithUnderScore());
+        mexcOrder.setSymbol(sysOrder.getSymbol());
         mexcOrder.setLeverage(10);
         mexcOrder.setStopLossPrice(roundToSameDecimal(pu, sysOrder.getStopLossPrice()));
         mexcOrder.setTakeProfitPrice(roundToSameDecimal(pu, sysOrder.getCurrentTakeProfitPrice()));
         mexcOrder.setPrice(roundToSameDecimal(pu, sysOrder.getOpenOrderPrice()));
         mexcOrder.setK0(getMexcK0(bytesToHex(key)));
-        FingerprintSysInfo sysInfo = sysOrder.getStrategy().getBot().getFingerprintSysInfo();
+        FingerprintSysInfo sysInfo = strategy.getBot().getFingerprintSysInfo();
         mexcOrder.setP0(getMexcP0(sysInfo, key));
         mexcOrder.setTimestamp(timestamp);
         mexcOrder.setCHash(getMexcCHashs());
         mexcOrder.setMToken(sysInfo.getMtoken());
         mexcOrder.setMHash(sysInfo.getMhash());
-        Bot bot = sysOrder.getStrategy().getBot();
+        Bot bot = strategy.getBot();
         String apiKey = decryptSecretKey(bot.getApiKey());
         String secretKey = decryptSecretKey(bot.getSecretKey());
         double balance = getBalance(apiKey, secretKey);
-        double cont = getContractSize(sysOrder.getSymbolWithUnderScore(), sysOrder.getEntryPrice());
-        int volume = getVolume(balance, sysOrder.getStrategy().getAmount(), cont);
+        double cont = getContractSize(sysOrder.getSymbol(), sysOrder.getEntryPrice());
+        int volume = getVolume(balance, strategy.getAmount(), cont);
         mexcOrder.setVol(volume);
         sysOrder.setVolume(volume);
         return mexcOrder;
