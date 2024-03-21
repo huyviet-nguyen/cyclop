@@ -62,7 +62,7 @@ public class OrderPlacerApplication {
                                     try {
                                         Order order = orderPlacerService.handleSubmitOrder(strategy, value, latestOrder, isNewCandle);
                                         if (order != null) {
-                                            strategy.setLatestOrder(orderRepo.save(order).block());
+                                            strategy.setLatestOrder(orderRepo.insert(order).block());
                                             strategyRepo.save(strategy).block();
                                         }
                                         return order;
@@ -92,7 +92,8 @@ public class OrderPlacerApplication {
                             }
                     );
                     logProcessTime(startProcessTime);
-                    return orderRepo.saveAll(orderAckFlux).toIterable();
+                    return orderAckFlux.mapNotNull(order -> orderRepo.save(order).block()).toIterable();
+//                    return orderRepo.saveAll(orderAckFlux).toIterable();
                 }
         );
     }

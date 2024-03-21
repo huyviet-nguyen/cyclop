@@ -79,13 +79,13 @@ public class OrderPlacerService {
         if (isNewCandle) {
             if (lastOrder == null || SUBMITABLE_ORDER_STATUS.contains(lastOrder.getOrderStatus())) {
                 Order order = createOrderAck(klineData, strategy);
-                double takeProfitPrice = calculateTakeProfitPrice(strategy, klineData);
+                double takeProfitPrice = calculateTakeProfitPrice(strategy, order);
                 order.setCurrentTakeProfitPrice(takeProfitPrice);
-                double stopLossPrice = calculateStopLossPrice(strategy, klineData);
+                double stopLossPrice = calculateStopLossPrice(strategy, order);
                 order.setStopLossPrice(stopLossPrice);
                 PlatformService service = getService(klineData.getSourcePlatform());
                 service.submitOrder(order, strategy);
-                logger.info("OPENED ORDER {} ON {} SYMBOL {}", order.getPlatformOrderId(), order.getPlatform(), order.getSymbol());
+                logger.info("SUBMIT ORDER {} ON {} SYMBOL {}", order.getPlatformOrderId(), order.getPlatform(), order.getSymbol());
                 return order;
             }
         }

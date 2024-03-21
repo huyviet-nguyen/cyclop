@@ -53,9 +53,9 @@ public class TradingUtil {
         }
     }
 
-    public static double calculateTakeProfitPrice(Strategy strategy, KlineData klineData) {
+    public static double calculateTakeProfitPrice(Strategy strategy, Order klineData) {
         double takeProfitPercent = calculateTakeProfitProportion(strategy);
-        return calculateNewValue(klineData.getCurrentPrice(), takeProfitPercent);
+        return calculateNewValue(klineData.getOpenOrderPrice(), takeProfitPercent);
     }
 
     public static double calculateStopLossProportion(Strategy strategy) {
@@ -66,9 +66,9 @@ public class TradingUtil {
         }
     }
 
-    public static double calculateStopLossPrice(Strategy strategy, KlineData klineData) {
+    public static double calculateStopLossPrice(Strategy strategy, Order klineData) {
         double stopLossPercent = calculateStopLossProportion(strategy);
-        return calculateNewValue(klineData.getCurrentPrice(), stopLossPercent);
+        return calculateNewValue(klineData.getOpenOrderPrice(), stopLossPercent);
     }
 
     public static boolean canTakeProfit(Order latestOrder, KlineData klineData) {

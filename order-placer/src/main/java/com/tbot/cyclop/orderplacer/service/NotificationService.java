@@ -73,7 +73,7 @@ public class NotificationService {
         };
 
         return String.format(template,
-                order.getSymbol(),
+                order.getSymbol().replace("_"," "),
                 strategy.getPositionSide(),
                 strategy.getBot().getName(),
                 strategy.toNotiString(),

@@ -8,7 +8,7 @@ import java.time.LocalDateTime;
 
 @Getter
 @Setter
-@Document(collection = "order")
+@Document(collection = "order_ack")
 @AllArgsConstructor
 @NoArgsConstructor
 public class Order {
