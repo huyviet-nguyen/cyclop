@@ -27,7 +27,7 @@ public class MexcOpenOrderRequest {
     private int leverage;
 
     @JsonProperty("marketCeiling")
-    private boolean marketCeiling = false; // Default value false for marketCeiling
+    private boolean marketCeiling = false; // Default value false for limit
 
     @JsonProperty("priceProtect")
     private String priceProtect = "0"; // Default value "0" for priceProtect
