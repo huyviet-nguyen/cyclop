@@ -47,9 +47,9 @@ public class TradingUtil {
 
     public static double calculateTakeProfitProportion(Strategy strategy) {
         if (strategy.getPositionSide().equals("LONG")) {
-            return calculateNewValue(strategy.getOrderChange(), strategy.getTakeProfit()) + ONE_HUNDRED_PERCENT;
+            return ONE_HUNDRED_PERCENT + strategy.getTakeProfit();
         } else {
-            return ONE_HUNDRED_PERCENT - calculateNewValue(strategy.getOrderChange(), strategy.getTakeProfit());
+            return ONE_HUNDRED_PERCENT - strategy.getTakeProfit();
         }
     }
 
@@ -60,9 +60,9 @@ public class TradingUtil {
 
     public static double calculateStopLossProportion(Strategy strategy) {
         if (strategy.getPositionSide().equals("SHORT")) {
-            return calculateNewValue(strategy.getOrderChange(), strategy.getStopLoss()) + ONE_HUNDRED_PERCENT;
+            return ONE_HUNDRED_PERCENT + strategy.getStopLoss();
         } else {
-            return ONE_HUNDRED_PERCENT - calculateNewValue(strategy.getOrderChange(), strategy.getStopLoss());
+            return ONE_HUNDRED_PERCENT - strategy.getStopLoss();
         }
     }
 

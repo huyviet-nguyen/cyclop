@@ -31,6 +31,7 @@ import java.time.Instant;
 
 import static com.tbot.cyclop.orderplacer.util.GenericHttpUtil.calculateHmacSHA256;
 import static com.tbot.cyclop.orderplacer.util.GenericHttpUtil.decryptSecretKey;
+import static com.tbot.cyclop.orderplacer.util.PercentageUtil.addPercentage;
 import static com.tbot.cyclop.orderplacer.util.PercentageUtil.roundToSameDecimal;
 import static com.tbot.cyclop.orderplacer.util.TradingUtil.*;
 
@@ -106,7 +107,7 @@ public class MexcService implements PlatformService {
         }
         newOrder.setPlatformTimestamp(response.getData().getTs());
         newOrder.setPlatformOrderId(response.getData().getOrderId());
-        newOrder.setOrderStatus(OrderStatus.OPEN);
+        newOrder.setOrderStatus(OrderStatus.SUBMIT);
     }
 
     @Override
@@ -303,31 +304,32 @@ public class MexcService implements PlatformService {
 
 
     @Transactional
-    public MexcOpenOrderRequest orderAckToMexcOpenOrderRequest(Order ackHistory) throws Exception {
+    public MexcOpenOrderRequest orderAckToMexcOpenOrderRequest(Order sysOrder) throws Exception {
         long timestamp = Instant.now().toEpochMilli();
         MexcOpenOrderRequest mexcOrder = new MexcOpenOrderRequest();
-        String side = ackHistory.getStrategy().getPositionSide().equals("LONG") ? "1" : "3";
+        String side = sysOrder.getStrategy().getPositionSide().equals("LONG") ? "1" : "3";
         byte[] key = TradingUtil.generateRandomBytes(32);
         mexcOrder.setSide(side);
-        mexcOrder.setSymbol(ackHistory.getSymbolWithUnderScore());
+        mexcOrder.setSymbol(sysOrder.getSymbolWithUnderScore());
         mexcOrder.setLeverage(10);
-        mexcOrder.setStopLossPrice(ackHistory.getStopLossPrice());
-        mexcOrder.setTakeProfitPrice(ackHistory.getCurrentTakeProfitPrice());
+        mexcOrder.setStopLossPrice(sysOrder.getStopLossPrice());
+        mexcOrder.setTakeProfitPrice(sysOrder.getCurrentTakeProfitPrice());
+        mexcOrder.setPrice(sysOrder.getOpenOrderPrice());
         mexcOrder.setK0(getMexcK0(bytesToHex(key)));
-        FingerprintSysInfo sysInfo = ackHistory.getStrategy().getBot().getFingerprintSysInfo();
+        FingerprintSysInfo sysInfo = sysOrder.getStrategy().getBot().getFingerprintSysInfo();
         mexcOrder.setP0(getMexcP0(sysInfo, key));
         mexcOrder.setTimestamp(timestamp);
         mexcOrder.setCHash(getMexcCHashs());
         mexcOrder.setMToken(sysInfo.getMtoken());
         mexcOrder.setMHash(sysInfo.getMhash());
-        Bot bot = ackHistory.getStrategy().getBot();
+        Bot bot = sysOrder.getStrategy().getBot();
         String apiKey = decryptSecretKey(bot.getApiKey());
         String secretKey = decryptSecretKey(bot.getSecretKey());
         double balance = getBalance(apiKey, secretKey);
-        double cont = getContractSize(ackHistory.getSymbolWithUnderScore(), ackHistory.getEntryPrice());
-        int volume = getVolume(balance, ackHistory.getStrategy().getAmount(), cont);
+        double cont = getContractSize(sysOrder.getSymbolWithUnderScore(), sysOrder.getEntryPrice());
+        int volume = getVolume(balance, sysOrder.getStrategy().getAmount(), cont);
         mexcOrder.setVol(volume);
-        ackHistory.setVolume(volume);
+        sysOrder.setVolume(volume);
         return mexcOrder;
     }
 }

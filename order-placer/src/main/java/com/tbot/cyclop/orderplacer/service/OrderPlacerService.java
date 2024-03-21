@@ -14,6 +14,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
 
 import static com.tbot.cyclop.orderplacer.util.TradingUtil.*;
 import static com.tbot.cyclop.orderplacer.util.PercentageUtil.*;
@@ -32,6 +34,8 @@ public class OrderPlacerService {
     private final Logger logger = LoggerFactory.getLogger(OrderPlacerService.class);
 
     private final HashMap<String, PlatformService> serviceMap = new HashMap<>();
+
+    private final Set<OrderStatus> SUBMITABLE_ORDER_STATUS = Set.of(OrderStatus.SYS_CREATED, OrderStatus.MISSED, OrderStatus.STOPPED_LOSS, OrderStatus.TOOK_PROFIT);
 
     public OrderPlacerService(MexcService mexcService, BybitService bybitService, CandleWindowRepo candleWindowRepo, StrategyRepo strategyRepo) {
         this.mexcService = mexcService;
@@ -73,17 +77,20 @@ public class OrderPlacerService {
 
     @Transactional
     public Order handleSubmitOrder(Strategy strategy, KlineData klineData, Order lastOrder, boolean isNewCandle) throws Exception {
-        if (lastOrder == null || !OrderStatus.OPEN.equals(lastOrder.getOrderStatus())) {
-            Order order = createOrderAck(klineData, strategy);
-            double takeProfitPrice = calculateTakeProfitPrice(strategy, klineData);
-            order.setCurrentTakeProfitPrice(takeProfitPrice);
-            double stopLossPrice = calculateStopLossPrice(strategy, klineData);
-            order.setStopLossPrice(stopLossPrice);
-            PlatformService service = getService(klineData.getSourcePlatform());
-            service.submitOrder(order);
-            logger.info("OPENED ORDER {} ON {} SYMBOL {}", order.getPlatformOrderId(), order.getPlatform(), order.getSymbol());
-            return order;
+        if (isNewCandle) {
+            if (lastOrder == null || SUBMITABLE_ORDER_STATUS.contains(lastOrder.getOrderStatus())) {
+                Order order = createOrderAck(klineData, strategy);
+                double takeProfitPrice = calculateTakeProfitPrice(strategy, klineData);
+                order.setCurrentTakeProfitPrice(takeProfitPrice);
+                double stopLossPrice = calculateStopLossPrice(strategy, klineData);
+                order.setStopLossPrice(stopLossPrice);
+                PlatformService service = getService(klineData.getSourcePlatform());
+                service.submitOrder(order);
+                logger.info("OPENED ORDER {} ON {} SYMBOL {}", order.getPlatformOrderId(), order.getPlatform(), order.getSymbol());
+                return order;
+            }
         }
+
 
         return null;
     }
@@ -119,6 +126,8 @@ public class OrderPlacerService {
         ack.setPlatform(strategy.getPlatform());
         ack.setSymbol(strategy.getSymbol().getSymbol());
         ack.setEntryPrice(klineData.getCurrentPrice());
+        double openOrderPrice = strategy.getPositionSide().equals("LONG") ? addPercentage(klineData.getCurrentPrice(), strategy.getOrderChange()) : deductPercentage(klineData.getCurrentPrice(), strategy.getOrderChange());
+        ack.setOpenOrderPrice(openOrderPrice);
         ack.setTimestamp(Instant.now().toEpochMilli());
         ack.setCandleOpenPrice(klineData.getOpenPrice());
         ack.setStrategy(strategy);

@@ -8,6 +8,9 @@ public class MexcOpenOrderRequest {
     @JsonProperty("symbol")
     private String symbol;
 
+    @JsonProperty("price")
+    private double price;
+
     @JsonProperty("side")
     private String side; // 1=open long | 3 = open short
 
@@ -15,7 +18,7 @@ public class MexcOpenOrderRequest {
     private int openType = 1; // Default value 1 for ISOLATED
 
     @JsonProperty("type")
-    private String type = "5";
+    private String type = "1";
 
     @JsonProperty("vol")
     private double vol;
