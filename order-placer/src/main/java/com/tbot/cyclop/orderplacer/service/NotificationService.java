@@ -65,20 +65,28 @@ public class NotificationService {
     }
 
     private String getNotificationContent(Order order, Strategy strategy) {
-        String template = switch (order.getOrderStatus()) {
-            case OPEN -> OPEN_ORDER_NOTIFICATION_TEMPLATE;
-            case STOPPED_LOSS -> STOP_LOSS_ORDER_NOTIFICATION_TEMPLATE;
-            case TOOK_PROFIT -> TAKE_PROFIT_ORDER_NOTIFICATION_TEMPLATE;
+        return switch (order.getOrderStatus()) {
+            case OPEN -> String.format(OPEN_ORDER_NOTIFICATION_TEMPLATE,
+                    order.getSymbol().replace("_", " "),
+                    strategy.getPositionSide(),
+                    strategy.getBot().getName(),
+                    strategy.toNotiString(),
+                    order.getOpenOrderPrice(),
+                    order.getVolume() * order.getOpenOrderPrice());
+            case STOPPED_LOSS -> String.format(STOP_LOSS_ORDER_NOTIFICATION_TEMPLATE,
+                    order.getSymbol().replace("_", " "),
+                    strategy.getBot().getName(),
+                    strategy.toNotiString(),
+                    order.getOpenOrderPrice(),
+                    order.getProfit());
+            case TOOK_PROFIT -> String.format(TAKE_PROFIT_ORDER_NOTIFICATION_TEMPLATE,
+                    order.getSymbol().replace("_", " "),
+                    strategy.getBot().getName(),
+                    strategy.toNotiString(),
+                    order.getOpenOrderPrice(),
+                    order.getProfit());
             default -> "";
         };
-
-        return String.format(template,
-                order.getSymbol().replace("_"," "),
-                strategy.getPositionSide(),
-                strategy.getBot().getName(),
-                strategy.toNotiString(),
-                order.getOpenOrderPrice(),
-                order.getProfit());
     }
 
 

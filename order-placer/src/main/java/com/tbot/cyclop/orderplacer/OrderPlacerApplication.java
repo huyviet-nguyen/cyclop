@@ -60,9 +60,16 @@ public class OrderPlacerApplication {
                                     Order latestOrder = strategy.getLatestOrder();
                                     if (latestOrder == null) {
                                         if (canSubmit(strategy, value)) {
-                                            return orderPlacerService.handleSubmitOrder(strategy, value, isNewCandle);
+                                            Order order = orderRepo.save(orderPlacerService.handleSubmitOrder(strategy, value, isNewCandle)).block();
+                                            strategy.setLatestOrder(order);
+                                            strategyRepo.save(strategy).block();
+                                            return order;
                                         }
                                     } else {
+                                        if (isNewCandle && latestOrder.getOrderStatus().equals(OrderStatus.OPEN)) {
+                                            orderPlacerService.handleReduceTakeProfit(strategy, value, latestOrder);
+                                            return latestOrder;
+                                        }
                                         if (isNewCandle && latestOrder.getOrderStatus().equals(OrderStatus.SUBMIT)) {
                                             strategy.setLatestOrder(null);
                                             strategyRepo.save(strategy).block();
@@ -72,7 +79,10 @@ public class OrderPlacerApplication {
                                         switch (latestOrder.getOrderStatus()) {
                                             case SYS_CREATED, TOOK_PROFIT, STOPPED_LOSS, MISSED, CLOSED_UNKNOWN -> {
                                                 if (canSubmit(strategy, value)) {
-                                                    return orderPlacerService.handleSubmitOrder(strategy, value, isNewCandle);
+                                                    Order order = orderRepo.save(orderPlacerService.handleSubmitOrder(strategy, value, isNewCandle)).block();
+                                                    strategy.setLatestOrder(order);
+                                                    strategyRepo.save(strategy).block();
+                                                    return order;
                                                 }
                                             }
                                             case SUBMIT -> {
@@ -83,8 +93,6 @@ public class OrderPlacerApplication {
                                                     } else {
                                                         return order;
                                                     }
-                                                } else if (isNewCandle) {
-                                                    orderPlacerService.handleReduceTakeProfit(strategy, value, latestOrder);
                                                 }
                                             }
                                             case OPEN -> {
