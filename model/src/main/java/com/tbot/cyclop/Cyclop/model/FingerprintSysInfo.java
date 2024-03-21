@@ -1,6 +1,5 @@
 package com.tbot.cyclop.Cyclop.model;
 
-import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
 

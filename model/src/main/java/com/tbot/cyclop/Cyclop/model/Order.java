@@ -3,7 +3,6 @@ package com.tbot.cyclop.Cyclop.model;
 import lombok.*;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
-import org.springframework.data.mongodb.core.mapping.DocumentReference;
 
 import java.time.LocalDateTime;
 
@@ -33,7 +32,7 @@ public class Order {
     private LocalDateTime updatedAt;
     private String platformOrderId;
     private double profit;
-    
+
     public double getCurrentTakeProfitPercent() {
         return Math.abs(((currentTakeProfitPrice - openOrderPrice) / openOrderPrice) * 100);
     }

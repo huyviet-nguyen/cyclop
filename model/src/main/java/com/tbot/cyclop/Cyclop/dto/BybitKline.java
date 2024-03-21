@@ -2,8 +2,6 @@ package com.tbot.cyclop.Cyclop.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.tbot.cyclop.Cyclop.dto.KlineData;
-import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -33,9 +31,9 @@ public class BybitKline {
         KlineData pairData = new KlineData();
         pairData.setTimestamp(timestamp);
         pairData.setSymbol(getSymbol());
-        pairData.setOpenPrice(Double.parseDouble(this.getData().get(0).getOpen()));
-        pairData.setCurrentPrice(Double.parseDouble(this.getData().get(0).getClose()));
-        pairData.setInterval(this.getData().get(0).getInterval());
+        pairData.setOpenPrice(Double.parseDouble(this.getData().getFirst().getOpen()));
+        pairData.setCurrentPrice(Double.parseDouble(this.getData().getFirst().getClose()));
+        pairData.setInterval(this.getData().getFirst().getInterval());
         pairData.setSourcePlatform("BYBIT");
         return pairData;
     }
