@@ -60,26 +60,35 @@ public class OrderPlacerApplication {
                                 }
                                 if (canSubmit(strategy, value)) {
                                     try {
-                                        return orderPlacerService.handleSubmitOrder(strategy, value, latestOrder, isNewCandle);
+                                        Order order = orderPlacerService.handleSubmitOrder(strategy, value, latestOrder, isNewCandle);
+                                        if (order != null) {
+                                            strategy.setLatestOrder(orderRepo.save(order).block());
+                                            strategyRepo.save(strategy).block();
+                                        }
+                                        return order;
                                     } catch (Exception e) {
                                         logger.error(e.getMessage());
                                     }
                                 }
-                                if (canTakeProfit(latestOrder, value) || canStopLoss(latestOrder, value) || canOpen(latestOrder, value)) {
-                                    try {
-                                        return decorateNotification(orderPlacerService.handleSyncStatus(value, latestOrder));
-                                    } catch (Exception e) {
-                                        logger.error(e.getMessage());
+                                if (latestOrder != null) {
+                                    if (canTakeProfit(latestOrder, value) || canStopLoss(latestOrder, value) || canOpen(latestOrder, value)) {
+                                        try {
+                                            return decorateNotification(orderPlacerService.handleSyncStatus(value, latestOrder));
+                                        } catch (Exception e) {
+                                            logger.error(e.getMessage());
+                                        }
                                     }
-                                }
-                                if (!canTakeProfit(latestOrder, value) && isNewCandle) {
-                                    try {
-                                        return decorateNotification(orderPlacerService.handleReduceTakeProfit(strategy, value, latestOrder));
-                                    } catch (Exception e) {
-                                        logger.error(e.getMessage());
+                                    if (!canTakeProfit(latestOrder, value) && isNewCandle) {
+                                        try {
+                                            return decorateNotification(orderPlacerService.handleReduceTakeProfit(strategy, value, latestOrder));
+                                        } catch (Exception e) {
+                                            logger.error(e.getMessage());
+                                        }
                                     }
+                                    return null;
+                                } else {
+                                    return null;
                                 }
-                                return null;
                             }
                     );
                     logProcessTime(startProcessTime);
@@ -90,7 +99,7 @@ public class OrderPlacerApplication {
 
     private void logProcessTime(long startTime) {
         long doneProcessTime = System.currentTimeMillis();
-        if (doneProcessTime - startTime > 200) {
+        if (doneProcessTime - startTime > 10) {
             logger.warn("LONG PROCESS : {} ms", doneProcessTime - startTime);
         }
     }
@@ -107,7 +116,9 @@ public class OrderPlacerApplication {
 
     public Order decorateNotification(Order order) {
         try {
-            notificationService.sendNotification(order);
+            if (order != null) {
+                notificationService.sendNotification(order);
+            }
         } catch (Exception e) {
             logger.error("CANNOT SEND NOTIFICATION");
         }

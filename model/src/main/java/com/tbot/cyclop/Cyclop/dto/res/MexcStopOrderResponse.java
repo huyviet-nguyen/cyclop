@@ -15,4 +15,5 @@ public class MexcStopOrderResponse {
     private int stopLossVol;
     private int takeProfitReverse;
     private int stopLossReverse;
+    private int state;
 }
