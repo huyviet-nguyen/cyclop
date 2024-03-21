@@ -32,6 +32,7 @@ public class Order {
     private LocalDateTime updatedAt;
     private String platformOrderId;
     private double profit;
+    private long positionId;
 
     public double getCurrentTakeProfitPercent() {
         return Math.abs(((currentTakeProfitPrice - openOrderPrice) / openOrderPrice) * 100);
