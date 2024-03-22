@@ -8,7 +8,7 @@ import lombok.Data;
 public class MexcStopOrderResponse {
     private String id;
     private String orderId;
-    private long positionId;
+    private String positionId;
     private String profitTrend;
     private String lossTrend;
     private int takeProfitVol;

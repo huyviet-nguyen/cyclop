@@ -10,26 +10,33 @@ public class MexcOpenOrderRequest {
     @JsonProperty("symbol")
     private String symbol;
 
-    @JsonProperty("price")
-    private double price;
+    @JsonProperty("trend")
+    private int trend = 1;
+
+    @JsonProperty("triggerPrice")
+    private String triggerPrice;
 
     @JsonProperty("side")
-    private String side; // 1=open long | 3 = open short
+    private int side; // 1=open long | 3 = open short
+
+    @JsonProperty("triggerType")
+    private int triggerType; // 1=open long | 2 = open short
 
     @JsonProperty("openType")
     private int openType = 1; // Default value 1 for ISOLATED
 
-    @JsonProperty("type")
-    private String type = "1";
+    @JsonProperty("orderType")
+    private int orderType = 5;
+
+    @JsonProperty("positionMode")
+    private int positionMode = 1;
 
     @JsonProperty("vol")
     private double vol;
 
     @JsonProperty("leverage")
     private int leverage;
-
-    @JsonProperty("marketCeiling")
-    private boolean marketCeiling = false; // Default value false for limit
+    // Default value false for limit
 
     @JsonProperty("priceProtect")
     private String priceProtect = "0"; // Default value "0" for priceProtect
@@ -53,9 +60,18 @@ public class MexcOpenOrderRequest {
     private String mHash;
 
     @JsonProperty("takeProfitPrice")
-    private double takeProfitPrice;
+    private String takeProfitPrice;
 
     @JsonProperty("stopLossPrice")
-    private double stopLossPrice;
+    private String stopLossPrice;
+
+    @JsonProperty("profitTrend")
+    private String profitTrend = "1";
+
+    @JsonProperty("lossTrend")
+    private String lossTrend = "1";
+
+    @JsonProperty("executeCycle")
+    private int executeCycle = 3;
 
 }

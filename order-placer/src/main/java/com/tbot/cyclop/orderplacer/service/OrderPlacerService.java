@@ -93,13 +93,13 @@ public class OrderPlacerService {
     }
 
     @Transactional
-    public Order handleSyncStatus(KlineData klineData, Order latestOrder, Strategy strategy) throws JsonProcessingException {
+    public Order handleSyncStatus(KlineData klineData, Order latestOrder, Strategy strategy) throws JsonProcessingException, InterruptedException {
         PlatformService service = getService(klineData.getSourcePlatform());
         service.syncStatus(latestOrder, strategy);
         return latestOrder;
     }
 
-    public Order handleReduceTakeProfit(Strategy strategy, KlineData klineData, Order latestOrder) throws JsonProcessingException {
+    public Order handleReduceTakeProfit(Strategy strategy, KlineData klineData, Order latestOrder) throws JsonProcessingException, InterruptedException {
         PlatformService service = getService(klineData.getSourcePlatform());
         service.syncStatus(latestOrder, strategy);
         double newTakeProfitPrice = calculateReducedTakeProfitPrice(strategy, klineData, latestOrder);

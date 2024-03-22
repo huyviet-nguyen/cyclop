@@ -51,9 +51,9 @@ public class PercentageUtil {
 
     // Method to count the number of decimal places in a double value
     private static int countDecimalPlaces(double value) {
-        String valueStr = Double.toString(value);
+        String valueStr = String.valueOf(BigDecimal.valueOf(value));
         int index = valueStr.indexOf('.');
-        return index < 0 ? 0 : valueStr.length() - index - 1;
+        return index < 0 ? 0 : valueStr.length() - index - 2;
     }
 
     // Method to round a double value to a specified number of decimal places

@@ -66,45 +66,29 @@ public class OrderPlacerApplication {
                                             return order;
                                         }
                                     } else {
-                                        if (isNewCandle && latestOrder.getOrderStatus().equals(OrderStatus.OPEN)) {
-                                            orderPlacerService.handleReduceTakeProfit(strategy, value, latestOrder);
-                                            return latestOrder;
-                                        }
-                                        if (isNewCandle && latestOrder.getOrderStatus().equals(OrderStatus.SUBMIT)) {
-                                            strategy.setLatestOrder(null);
-                                            strategyRepo.save(strategy).block();
-                                            return orderPlacerService.handleCancelOrder(latestOrder, strategy);
-                                        }
                                         OrderStatus oldStatus = latestOrder.getOrderStatus();
+                                        Order order = orderPlacerService.handleSyncStatus(value, latestOrder, strategy);
+                                        if (!order.getOrderStatus().equals(oldStatus)) {
+                                            return decorateNotification(order, strategy);
+                                        }
+                                        if (isNewCandle && latestOrder.getOrderStatus().equals(OrderStatus.OPEN)) {
+                                            return orderPlacerService.handleReduceTakeProfit(strategy, value, latestOrder);
+                                        }
                                         switch (latestOrder.getOrderStatus()) {
                                             case SYS_CREATED, TOOK_PROFIT, STOPPED_LOSS, MISSED, CLOSED_UNKNOWN -> {
                                                 if (canSubmit(strategy, value)) {
-                                                    Order order = orderRepo.save(orderPlacerService.handleSubmitOrder(strategy, value, isNewCandle)).block();
-                                                    strategy.setLatestOrder(order);
+                                                    Order newOrder = orderRepo.save(orderPlacerService.handleSubmitOrder(strategy, value, isNewCandle)).block();
+                                                    strategy.setLatestOrder(newOrder);
                                                     strategyRepo.save(strategy).block();
                                                     return order;
                                                 }
                                             }
-                                            case SUBMIT -> {
-                                                if (canOpen(latestOrder, strategy, value)) {
-                                                    Order order = orderPlacerService.handleSyncStatus(value, latestOrder, strategy);
-                                                    if (!order.getOrderStatus().equals(oldStatus)) {
-                                                        return decorateNotification(order, strategy);
-                                                    } else {
-                                                        return order;
-                                                    }
-                                                }
-                                            }
-                                            case OPEN -> {
-                                                if (canTakeProfit(latestOrder, value) || canStopLoss(latestOrder, value)) {
-                                                    Order order = orderPlacerService.handleSyncStatus(value, latestOrder, strategy);
-                                                    if (!order.getOrderStatus().equals(oldStatus)) {
-                                                        return decorateNotification(order, strategy);
-                                                    } else {
-                                                        return order;
-                                                    }
-                                                }
-                                            }
+                                        }
+
+                                        if (isNewCandle && latestOrder.getOrderStatus().equals(OrderStatus.SUBMIT)) {
+                                            strategy.setLatestOrder(null);
+                                            strategyRepo.save(strategy).block();
+                                            return orderPlacerService.handleCancelOrder(latestOrder, strategy);
                                         }
                                     }
                                 } catch (Exception e) {
