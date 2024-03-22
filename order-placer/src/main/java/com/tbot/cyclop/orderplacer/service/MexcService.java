@@ -165,7 +165,7 @@ public class MexcService implements PlatformService {
         if (order.getPlatformOrderId() == null) {
             logger.error("SKIP SYNC ORDER STATUS {}", order.getId());
         }
-        Thread.sleep(500);
+        Thread.sleep(200);
         String decryptedWebToken = decryptSecretKey(strategy.getBot().getWebToken());
         MexcStopOrderResponse openedOrder = getOpenedOrder(order.getPlatformOrderId(), decryptedWebToken);
         MexcOrderHistoryListResponse.MexcOrderHistoryResponse historyResponse = getHistoryOrder(order.getPositionId(), decryptedWebToken);
