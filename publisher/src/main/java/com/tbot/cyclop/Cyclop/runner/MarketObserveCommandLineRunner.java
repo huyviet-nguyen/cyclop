@@ -10,6 +10,7 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 import reactor.kafka.sender.KafkaSender;
 import reactor.kafka.sender.SenderRecord;
 import reactor.kafka.sender.SenderResult;
@@ -77,7 +78,7 @@ public class MarketObserveCommandLineRunner implements CommandLineRunner {
                 concurrentHashMap.put(klineData.getKafkaKey(), 0);
                 return null;
             }
-            if (concurrentHashMap.get(klineData.getKafkaKey()) == 20) {
+            if (concurrentHashMap.get(klineData.getKafkaKey()) == 10) {
                 concurrentHashMap.put(klineData.getKafkaKey(), 0);
                 return klineData;
             } else {
@@ -98,7 +99,7 @@ public class MarketObserveCommandLineRunner implements CommandLineRunner {
                 String message = String.format("PUBLISHED %s | M%s | %s | OPEN PRICE : %s | CURRENT PRICE : %s", i.getSymbol(), i.getInterval(), i.getSourcePlatform(), i.getOpenPrice(), i.getCurrentPrice());
                 logger.info(message);
             }
-        }).doOnError(error -> {
+        }).publishOn(Schedulers.boundedElastic()).doOnError(error -> {
             logger.error(error.getMessage());
             SenderRecord<String, String, String> senderRecord = SenderRecord.create(errorTopic, null, Instant.now().toEpochMilli(), Instant.now().toString(), error.getMessage(), error.getMessage());
             errorSender.send(Mono.just(senderRecord)).subscribe();
