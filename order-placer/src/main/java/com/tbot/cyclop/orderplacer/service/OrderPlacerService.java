@@ -34,8 +34,6 @@ public class OrderPlacerService {
 
     private final HashMap<String, PlatformService> serviceMap = new HashMap<>();
 
-    private final Set<OrderStatus> SUBMITABLE_ORDER_STATUS = Set.of(OrderStatus.SYS_CREATED, OrderStatus.MISSED, OrderStatus.STOPPED_LOSS, OrderStatus.TOOK_PROFIT);
-
     public OrderPlacerService(MexcService mexcService, BybitService bybitService, CandleWindowRepo candleWindowRepo, StrategyRepo strategyRepo) {
         this.mexcService = mexcService;
         this.bybitService = bybitService;
@@ -81,7 +79,7 @@ public class OrderPlacerService {
     }
 
     @Transactional
-    public Order handleSubmitOrder(Strategy strategy, KlineData klineData, boolean isNewCandle) throws Exception {
+    public Order handleSubmitOrder(Strategy strategy, KlineData klineData) throws Exception {
         Order order = createOrderAck(klineData, strategy);
         double takeProfitPrice = calculateTakeProfitPrice(strategy, order);
         order.setCurrentTakeProfitPrice(takeProfitPrice);

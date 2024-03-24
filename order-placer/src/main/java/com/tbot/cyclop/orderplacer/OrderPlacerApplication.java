@@ -60,7 +60,7 @@ public class OrderPlacerApplication {
                                     Order latestOrder = strategy.getLatestOrder();
                                     if (latestOrder == null) {
                                         if (canSubmit(strategy, value)) {
-                                            Order order = orderRepo.save(orderPlacerService.handleSubmitOrder(strategy, value, isNewCandle)).block();
+                                            Order order = orderRepo.save(orderPlacerService.handleSubmitOrder(strategy, value)).block();
                                             strategy.setLatestOrder(order);
                                             strategyRepo.save(strategy).block();
                                             return order;
@@ -77,7 +77,7 @@ public class OrderPlacerApplication {
                                         switch (latestOrder.getOrderStatus()) {
                                             case SYS_CREATED, TOOK_PROFIT, STOPPED_LOSS, MISSED, CLOSED_UNKNOWN -> {
                                                 if (canSubmit(strategy, value)) {
-                                                    Order newOrder = orderRepo.save(orderPlacerService.handleSubmitOrder(strategy, value, isNewCandle)).block();
+                                                    Order newOrder = orderRepo.save(orderPlacerService.handleSubmitOrder(strategy, value)).block();
                                                     strategy.setLatestOrder(newOrder);
                                                     strategyRepo.save(strategy).block();
                                                     return order;

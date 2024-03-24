@@ -45,10 +45,6 @@ public class TradingUtil {
         return changePercent >= expectedChangePercent * expectedSide;
     }
 
-    public static boolean needToCancel(boolean isNewCandle, Order order) {
-        return order != null && isNewCandle && OrderStatus.SUBMIT.equals(order.getOrderStatus());
-    }
-
     public static double calculateTakeProfitProportion(Strategy strategy) {
         if (strategy.getPositionSide().equals("LONG")) {
             return ONE_HUNDRED_PERCENT + calculateNewValue(strategy.getOrderChange(), strategy.getTakeProfit());
