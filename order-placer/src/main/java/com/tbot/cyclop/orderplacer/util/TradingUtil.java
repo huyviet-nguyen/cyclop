@@ -1,6 +1,5 @@
 package com.tbot.cyclop.orderplacer.util;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tbot.cyclop.Cyclop.dto.KlineData;
 import com.tbot.cyclop.Cyclop.model.*;
@@ -193,5 +192,5 @@ public class TradingUtil {
             throw new RuntimeException("MD5 algorithm not found.", e);
         }
     }
-    
+
 }
