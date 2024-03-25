@@ -50,7 +50,7 @@ public class OrderPlacerApplication {
     @PostConstruct
     public void initWatchList() {
         ACTIVE_WATCH_LIST.clear();
-        strategyRepo.findAll().subscribe(strategy -> {
+        strategyRepo.findAllByStatus("ACTIVE").subscribe(strategy -> {
             String watch = String.join(".", strategy.getPlatform(), strategy.getSymbolString().replace("_", ""), strategy.getCandleStick().replace("M", ""), strategy.getPositionSide());
             ACTIVE_WATCH_LIST.computeIfAbsent(watch, k -> new HashSet<>());
             ACTIVE_WATCH_LIST.get(watch).add(strategy.getId());
@@ -69,6 +69,7 @@ public class OrderPlacerApplication {
         return stringKlineDataKStream -> stringKlineDataKStream.flatMapValues(
                 (key, value) ->
                 {
+                    logger.debug("LAG : {}", System.currentTimeMillis() - value.getTimestamp());
                     maintainWatchList();
                     String positionSide = value.getCurrentPrice() >= value.getOpenPrice() ? "LONG" : "SHORT";
                     if (!ACTIVE_WATCH_LIST.containsKey(key.concat(".").concat(positionSide))) {

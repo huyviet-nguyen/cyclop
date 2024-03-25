@@ -36,8 +36,8 @@ public class MexcKline {
         @JsonProperty("rl")
         private double low;
 
-        public String getNumInterval(){
-            return this.interval.replace("Min","");
+        public String getNumInterval() {
+            return this.interval.replace("Min", "");
         }
     }
 
@@ -49,7 +49,7 @@ public class MexcKline {
         klineData.setCurrentPrice(this.getData().getC());
         klineData.setTimestamp(this.getTs());
         klineData.setInterval(this.getData().getNumInterval());
-        klineData.setSymbol(getSymbol().replace("_",""));
+        klineData.setSymbol(getSymbol().replace("_", ""));
         return klineData;
     }
 }
