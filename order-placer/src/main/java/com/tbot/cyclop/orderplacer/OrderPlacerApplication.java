@@ -7,6 +7,7 @@ import com.tbot.cyclop.orderplacer.service.OrderPlacerService;
 import com.tbot.cyclop.orderplacer.service.NotificationService;
 import jakarta.annotation.PostConstruct;
 import org.apache.kafka.streams.kstream.KStream;
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -80,7 +81,7 @@ public class OrderPlacerApplication {
                                 try {
                                     Strategy strategy = strategyRepo.findById(s.getId()).block();
                                     assert strategy != null;
-                                    logger.info("<============| START PROCESS WITH STRATEGY {} | POSITION {}", strategy.toNotiString(), strategy.getPositionSide());
+                                    logger.info("<============| START PROCESS WITH | SYMBOL: {} | STRATEGY {}  | POSITION {}", strategy.getSymbolString(), strategy.toNotiString(), strategy.getPositionSide());
                                     boolean isNewCandle = isNewCandle(strategy, value);
                                     if (isNewCandle) {
                                         orderPlacerService.updateCandle(strategy, value);
@@ -90,12 +91,8 @@ public class OrderPlacerApplication {
                                     }
                                     Order latestOrder = strategy.getLatestOrder();
                                     if (latestOrder == null) {
-                                        if (canSubmit(strategy, value)) {
-                                            Order order = orderRepo.save(orderPlacerService.handleSubmitOrder(strategy, value)).block();
-                                            strategy.setLatestOrder(order);
-                                            strategyRepo.save(strategy).block();
-                                            return order;
-                                        }
+                                        Order submitOrder = submitOrder(value, strategy);
+                                        if (submitOrder != null) return submitOrder;
                                     } else {
                                         OrderStatus oldStatus = latestOrder.getOrderStatus();
                                         Order order = orderPlacerService.handleSyncStatus(value, latestOrder, strategy);
@@ -108,10 +105,8 @@ public class OrderPlacerApplication {
                                         switch (latestOrder.getOrderStatus()) {
                                             case SYS_CREATED, TOOK_PROFIT, STOPPED_LOSS, MISSED, CLOSED_UNKNOWN -> {
                                                 if (canSubmit(strategy, value)) {
-                                                    Order newOrder = orderRepo.save(orderPlacerService.handleSubmitOrder(strategy, value)).block();
-                                                    strategy.setLatestOrder(newOrder);
-                                                    strategyRepo.save(strategy).block();
-                                                    return order;
+                                                    Order submitOrder = submitOrder(value, strategy);
+                                                    if (submitOrder != null) return submitOrder;
                                                 }
                                             }
                                         }
@@ -128,9 +123,28 @@ public class OrderPlacerApplication {
                                 return null;
                             }
                     );
-                    return orderAckFlux.filter(order -> !order.getOrderStatus().equals(OrderStatus.SYS_CREATED)).mapNotNull(order -> orderRepo.save(order).block()).toIterable();
+                    return orderAckFlux.filter(order -> !order.getOrderStatus().equals(OrderStatus.SYS_CREATED)).mapNotNull(order -> {
+                        if (order.getOrderStatus().equals(OrderStatus.CANCELED)) {
+                            orderRepo.delete(order).block();
+                            return null;
+                        } else {
+                            return orderRepo.save(order).block();
+                        }
+                    }).toIterable();
                 }
         );
+    }
+
+    @Nullable
+    private Order submitOrder(KlineData value, Strategy strategy) throws Exception {
+        Order submitOrder = orderPlacerService.handleSubmitOrder(strategy, value);
+        if (submitOrder.getOrderStatus().equals(OrderStatus.SUBMIT)) {
+            Order newOrder = orderRepo.save(submitOrder).block();
+            strategy.setLatestOrder(newOrder);
+            strategyRepo.save(strategy).block();
+            return submitOrder;
+        }
+        return null;
     }
 
     public Order decorateNotification(Order order, Strategy strategy) {

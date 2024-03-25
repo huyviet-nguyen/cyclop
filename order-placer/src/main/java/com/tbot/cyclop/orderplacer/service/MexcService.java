@@ -44,6 +44,8 @@ public class MexcService implements PlatformService {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+    private static final int LEVERAGE = 2;
+
     @Override // TESTED
     public double getBalance(String decryptedApiKey, String decryptedApiSecret) {
         String path = mexcContractBaseUrl.concat("account/asset/USDT");
@@ -378,7 +380,7 @@ public class MexcService implements PlatformService {
         mexcOrder.setSide(Integer.parseInt(side));
         mexcOrder.setTriggerType(Integer.parseInt(triggerType));
         mexcOrder.setSymbol(sysOrder.getSymbol());
-        mexcOrder.setLeverage(10);
+        mexcOrder.setLeverage(LEVERAGE);
         mexcOrder.setStopLossPrice(String.valueOf(roundToSameDecimal(pu, sysOrder.getStopLossPrice())));
         mexcOrder.setTakeProfitPrice(String.valueOf(roundToSameDecimal(pu, sysOrder.getCurrentTakeProfitPrice())));
         mexcOrder.setTriggerPrice(String.valueOf(roundToSameDecimal(pu, sysOrder.getOpenOrderPrice())));

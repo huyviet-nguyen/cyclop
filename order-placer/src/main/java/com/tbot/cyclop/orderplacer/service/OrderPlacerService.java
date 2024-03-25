@@ -75,6 +75,7 @@ public class OrderPlacerService {
         order.setStopLossPrice(stopLossPrice);
         PlatformService service = getService(klineData.getSourcePlatform());
         service.submitOrder(order, strategy);
+        logger.info("SUBMIT ORDER : {} | {} | {} | {} | {} | PLATFORM ID : {}", order.getSymbol(), order.getOpenOrderPrice(), order.getCurrentTakeProfitPrice(), order.getStopLossPrice(), order.getVolume(), order.getPlatformOrderId());
         return order;
     }
 
@@ -99,9 +100,9 @@ public class OrderPlacerService {
         ack.setPlatform(strategy.getPlatform());
         ack.setSymbol(strategy.getSymbol().getSymbol());
         ack.setEntryPrice(klineData.getCurrentPrice());
-        double openOrderPrice = strategy.getPositionSide().equals("LONG") ? addPercentage(klineData.getCurrentPrice(), strategy.getOrderChange()) : deductPercentage(klineData.getCurrentPrice(), strategy.getOrderChange());
+        double openOrderPrice = strategy.getPositionSide().equals("LONG") ? addPercentage(klineData.getOpenPrice(), strategy.getOrderChange()) : deductPercentage(klineData.getOpenPrice(), strategy.getOrderChange());
         ack.setOpenOrderPrice(openOrderPrice);
-        ack.setTimestamp(Instant.now().toEpochMilli());
+        ack.setTimestamp(System.currentTimeMillis());
         ack.setCandleOpenPrice(klineData.getOpenPrice());
         ack.setCreatedAt(LocalDateTime.now());
         ack.setUpdatedAt(LocalDateTime.now());
