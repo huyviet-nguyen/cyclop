@@ -25,7 +25,7 @@ public class Order {
     private String platformOrderStatus;
     private String symbol;
     private double candleOpenPrice;
-    private double volume;
+    private int volume;
     private String placedByBotName;
     private LocalDateTime createdAt;
     private long platformTimestamp;

@@ -11,6 +11,7 @@ import com.tbot.cyclop.Cyclop.model.*;
 import com.tbot.cyclop.orderplacer.exception.OpenOrderFailException;
 import com.tbot.cyclop.orderplacer.exception.ReduceTakeProfitFailException;
 import com.tbot.cyclop.orderplacer.util.TradingUtil;
+import jakarta.annotation.PostConstruct;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -161,14 +162,8 @@ public class MexcService implements PlatformService {
 
     @Override
     public void syncStatus(Order order, Strategy strategy) throws JsonProcessingException {
-        if (order == null) {
-            return;
-        }
-        if (order.getPlatformOrderId() == null) {
-            logger.error("SKIP SYNC ORDER STATUS {}", order.getId());
-        }
         String decryptedWebToken = decryptSecretKey(strategy.getBot().getWebToken());
-        MexcStopOrderResponse openedOrder = getOpenedOrder(order.getPlatformOrderId(), decryptedWebToken);
+        MexcStopOrderResponse openedOrder = getStopOrderBySymbolTpSlVol(order.getSymbol(), order.getCurrentTakeProfitPrice(), order.getStopLossPrice(), order.getVolume(), decryptedWebToken);
         MexcOrderHistoryListResponse.MexcOrderHistoryResponse historyResponse = getHistoryOrder(order.getPositionId(), decryptedWebToken);
         if (openedOrder != null) {
             order.setPositionId(Long.parseLong(openedOrder.getPositionId()));
@@ -272,13 +267,33 @@ public class MexcService implements PlatformService {
         return mexcOrderHistoryListResponse.getData().stream().filter(a -> a.getOrderId().equals(mexcOrderId)).findFirst().orElse(null);
     }
 
+    private MexcStopOrderResponse getStopOrderBySymbolTpSlVol(String symbol, double takeProfit, double stopLoss, int vol, String decryptedWebToken) throws JsonProcessingException {
+        long timestamp = System.currentTimeMillis();
+
+        String path = mexcOrderBaseUrl.concat("api/v1/private/stoporder/list/orders");
+        String headerHash = getMexcSign("", timestamp, decryptedWebToken);
+
+        MexcStopOrderListResponse mexcOrderHistoryListResponse = webClient.get()
+                .uri(path)
+                .header("Content-Type", "application/json")
+                .header("X-Mxc-Nonce", String.valueOf(timestamp))
+                .header("X-Mxc-Sign", headerHash)
+                .header("Authorization", decryptedWebToken)
+                .retrieve()
+                .bodyToMono(MexcStopOrderListResponse.class).block();
+        assert mexcOrderHistoryListResponse != null;
+        return mexcOrderHistoryListResponse.getData().stream().filter(a -> {
+            return a.getSymbol().equals(symbol) && a.getVol() == vol && a.getTakeProfitPrice() == takeProfit && a.getStopLossPrice() == stopLoss;
+        }).findFirst().orElse(null);
+    }
+
 //    @PostConstruct
 //    public void getPlatformOrder() throws JsonProcessingException {
 //        String mexcOrderId = "525654021252650050";
-//        String decryptedWebToken = decryptSecretKey("U2FsdGVkX19u01ru8tns+ck3a8jGKiUK5mJa2mrzSnjQvhMUDVx5ZHi+YqWwGa2PXBCligFIvF8nQFwnlA/sVxZC2ovAd958HMFW6pu6cnNw+884OAaI8YbIuazNVuac");
+//        String decryptedWebToken = "WEB7a25d6f5cce3f05d5474397dadbbb2e094fbc3b57337d43acfbb5517180e2803";
 //        long timestamp = System.currentTimeMillis();
 //
-//        String openUrl = mexcOrderBaseUrl.concat("api/v1/private/stoporder/open_orders");
+//        String openUrl = mexcOrderBaseUrl.concat("api/v1/private/stoporder/list/orders");
 //        String historyUrl = mexcOrderBaseUrl.concat("api/v1/private/order/list/history_orders");
 //        String holdingPosition = mexcOrderBaseUrl.concat("api/v1/private/position/open_positions");
 //        String openOrderNotStopOrder = mexcOrderBaseUrl.concat("api/v1/private/order/list/open_orders");
@@ -399,6 +414,10 @@ public class MexcService implements PlatformService {
         int volume = getVolume(balance, strategy.getAmount(), cont);
         mexcOrder.setVol(volume);
         sysOrder.setVolume(volume);
+        //update price to match decimal
+        sysOrder.setOpenOrderPrice(Double.parseDouble(mexcOrder.getTriggerPrice()));
+        sysOrder.setCurrentTakeProfitPrice(Double.parseDouble(mexcOrder.getTakeProfitPrice()));
+        sysOrder.setStopLossPrice(Double.parseDouble(mexcOrder.getStopLossPrice()));
         return mexcOrder;
     }
 }
