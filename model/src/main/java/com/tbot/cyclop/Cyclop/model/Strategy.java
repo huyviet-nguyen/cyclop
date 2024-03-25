@@ -31,16 +31,16 @@ public class Strategy implements Serializable {
     @DocumentReference
     private Bot bot;
     @DocumentReference
-    private CandleWindow candleWindow;
-    @DocumentReference
     private Order latestOrder;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private String symbolString;
+    private double lastOpenPrice;
+    private double lastPump;
 
     public String toNotiString() {
-        String template = "Futures | %s | OC: %s | TP: %s";
-        return String.format(template, candleStick, orderChange, takeProfit);
+        String template = "SIDE: %s | %s | OC: %s | EXT: %s | TP: %s | SL: %s";
+        return String.format(template, positionSide, candleStick, orderChange, extendOrderChangePercent, takeProfit, stopLoss);
     }
 }
 

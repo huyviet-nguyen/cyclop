@@ -39,6 +39,17 @@ public class MarketObserveCommandLineRunner implements CommandLineRunner {
 
     @Value("${app.runBybit}")
     public Boolean isRunBybit;
+
+    @Value("${app.compressRatio.1}")
+    public int COMPRESS_RATIO_1;
+    @Value("${app.compressRatio.5}")
+    public int COMPRESS_RATIO_5;
+    @Value("${app.compressRatio.15}")
+    public int COMPRESS_RATIO_15;
+    @Value("${app.compressRatio.30}")
+    public int COMPRESS_RATIO_30;
+    @Value("${app.compressRatio.60}")
+    public int COMPRESS_RATIO_60;
     private final Logger logger = LoggerFactory.getLogger(MarketObserveCommandLineRunner.class);
 
     private final ConcurrentMap<String, Integer> concurrentHashMap = new ConcurrentHashMap<>();
@@ -72,13 +83,32 @@ public class MarketObserveCommandLineRunner implements CommandLineRunner {
         publish(bybitService.startWebsocket());
     }
 
+    public static int extractNumber(String input) {
+        String[] parts = input.split("\\.");
+
+        // Find the last part, which should be the number
+        String lastPart = parts[parts.length - 1];
+
+        // Convert the last part to an integer and return
+        return Integer.parseInt(lastPart);
+    }
+
     private Flux<KlineData> getFilteredFlux(Flux<KlineData> unfilteredFlux) {
         return unfilteredFlux.mapNotNull(klineData -> {
             if (!concurrentHashMap.containsKey(klineData.getKafkaKey())) {
                 concurrentHashMap.put(klineData.getKafkaKey(), 0);
                 return null;
             }
-            if (concurrentHashMap.get(klineData.getKafkaKey()) == 10) {
+            int compressRatio = switch (extractNumber(klineData.getKafkaKey())) {
+                case 1 -> COMPRESS_RATIO_1;
+                case 5 -> COMPRESS_RATIO_5;
+                case 15 -> COMPRESS_RATIO_15;
+                case 30 -> COMPRESS_RATIO_30;
+                case 60 -> COMPRESS_RATIO_60;
+                default -> 1;
+            };
+
+            if (concurrentHashMap.get(klineData.getKafkaKey()) == compressRatio) {
                 concurrentHashMap.put(klineData.getKafkaKey(), 0);
                 return klineData;
             } else {

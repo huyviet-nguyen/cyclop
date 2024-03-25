@@ -25,7 +25,7 @@ public class TradingUtil {
     private static final ObjectMapper mapper = new ObjectMapper();
 
     public static boolean canIgnore(Strategy strategy, KlineData klineData) {
-        double lastPump = strategy.getCandleWindow().getLastPump();
+        double lastPump = strategy.getLastPump();
         double ignorePercent = calculateNewValue(lastPump, strategy.getIgnore());
         double changePercent = calculateChangePercent(klineData.getOpenPrice(), klineData.getCurrentPrice());
         return Math.abs(changePercent) < Math.abs(ignorePercent);
@@ -33,16 +33,9 @@ public class TradingUtil {
 
     public static boolean canSubmit(Strategy strategy, KlineData klineData) {
         double changePercent = calculateChangePercent(klineData.getOpenPrice(), klineData.getCurrentPrice());
-        double expectedSide = switch (strategy.getPositionSide()) {
-            case "LONG" -> 1;
-            case "SHORT" -> -1;
-            default -> 0; // for BOTH
-        };
-        double expectedChangePercent = calculateNewValue(strategy.getOrderChange(), strategy.getExtendOrderChangePercent());
-        if (expectedSide == 0) {
-            return Math.abs(changePercent) > expectedChangePercent;
-        }
-        return changePercent >= expectedChangePercent * expectedSide;
+        boolean matchSide = (changePercent >= 0 && strategy.getPositionSide().equals("LONG")) || (changePercent < 0 && strategy.getPositionSide().equals("SHORT"));
+        boolean matchPrice = Math.abs(changePercent) > calculateNewValue(strategy.getOrderChange(), strategy.getExtendOrderChangePercent());
+        return matchSide && matchPrice;
     }
 
     public static double calculateTakeProfitProportion(Strategy strategy) {
@@ -71,34 +64,9 @@ public class TradingUtil {
         return calculateNewValue(klineData.getOpenOrderPrice(), stopLossPercent);
     }
 
-    public static boolean canTakeProfit(Order latestOrder, KlineData klineData) {
-        return latestOrder != null && klineData.getCurrentPrice() > latestOrder.getCurrentTakeProfitPrice();
-    }
-
-    public static boolean canStopLoss(Order latestOrder, KlineData klineData) {
-        return latestOrder != null && klineData.getCurrentPrice() < latestOrder.getStopLossPrice();
-    }
-
-    public static boolean canOpen(Order latestOrder, Strategy strategy, KlineData klineData) {
-        if (latestOrder == null || strategy == null) {
-            return false;
-        }
-        double changePercent = calculateChangePercent(klineData.getOpenPrice(), klineData.getCurrentPrice());
-        double expectedSide = switch (strategy.getPositionSide()) {
-            case "LONG" -> 1;
-            case "SHORT" -> -1;
-            default -> 0; // for BOTH
-        };
-        if (expectedSide == 0) {
-            return Math.abs(changePercent) > strategy.getOrderChange();
-        }
-        return changePercent >= strategy.getOrderChange() * expectedSide;
-    }
-
     public static boolean isNewCandle(Strategy strategy, KlineData klineData) {
-        CandleWindow candleWindow = strategy.getCandleWindow();
-        if (candleWindow == null) return true;
-        double lastOpenPrice = candleWindow.getOpenPrice();
+        if (strategy.getLastOpenPrice() == 0) return true;
+        double lastOpenPrice = strategy.getLastOpenPrice();
         return lastOpenPrice != klineData.getOpenPrice();
     }
 
@@ -198,7 +166,7 @@ public class TradingUtil {
         return (int) result;
     }
 
-    public static String getMexcSign(String payload, long ts, String apiKey) throws JsonProcessingException {
+    public static String getMexcSign(String payload, long ts, String apiKey) {
         String g = getMexcG(apiKey, ts)[0];
         String currentTs = String.valueOf(getMexcG(apiKey, ts)[1]);
         String hashInput = currentTs + payload + g;
@@ -225,14 +193,5 @@ public class TradingUtil {
             throw new RuntimeException("MD5 algorithm not found.", e);
         }
     }
-
-    public static String replaceUsdtSuffix(String input) {
-        return input.substring(0, input.length() - 4).concat("_USDT");
-    }
-
-    public static String addCandleStickPrefix(String input) {
-        return "M".concat(input);
-    }
-
-
+    
 }

@@ -80,7 +80,7 @@ public class MexcService implements PlatformService {
         String headerHash = getMexcSign(stringPayload, timestamp, webToken);
         String path = mexcOrderBaseUrl.concat("api/v1/private/planorder/place/v2?mhash=").concat(mHash);
 
-        ;
+
         if (openOrderRequest.getVol() > 0) {
             try {
                 MexcOrderResponse response = webClient.post()
@@ -158,14 +158,13 @@ public class MexcService implements PlatformService {
     }
 
     @Override
-    public void syncStatus(Order order, Strategy strategy) throws JsonProcessingException, InterruptedException {
+    public void syncStatus(Order order, Strategy strategy) throws JsonProcessingException {
         if (order == null) {
             return;
         }
         if (order.getPlatformOrderId() == null) {
             logger.error("SKIP SYNC ORDER STATUS {}", order.getId());
         }
-        Thread.sleep(200);
         String decryptedWebToken = decryptSecretKey(strategy.getBot().getWebToken());
         MexcStopOrderResponse openedOrder = getOpenedOrder(order.getPlatformOrderId(), decryptedWebToken);
         MexcOrderHistoryListResponse.MexcOrderHistoryResponse historyResponse = getHistoryOrder(order.getPositionId(), decryptedWebToken);

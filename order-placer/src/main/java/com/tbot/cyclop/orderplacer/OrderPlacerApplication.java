@@ -5,16 +5,19 @@ import com.tbot.cyclop.Cyclop.model.*;
 import com.tbot.cyclop.orderplacer.repo.*;
 import com.tbot.cyclop.orderplacer.service.OrderPlacerService;
 import com.tbot.cyclop.orderplacer.service.NotificationService;
+import jakarta.annotation.PostConstruct;
 import org.apache.kafka.streams.kstream.KStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import reactor.core.publisher.Flux;
 import reactor.core.scheduler.Schedulers;
 
+import java.util.*;
 import java.util.function.Function;
 
 import static com.tbot.cyclop.orderplacer.util.TradingUtil.*;
@@ -34,22 +37,50 @@ public class OrderPlacerApplication {
 
     @Autowired
     public OrderPlacerService orderPlacerService;
+
+    @Value("${bot.strategy.refreshRate}")
+    public long STRATEGY_REFRESH_RATE;
     private final Logger logger = LoggerFactory.getLogger(OrderPlacerApplication.class);
+
+    private final Map<String, Set<String>> ACTIVE_WATCH_LIST = new HashMap<>();
+
+    private long WATCH_LIST_UPDATED_ON;
+
+    @PostConstruct
+    public void initWatchList() {
+        ACTIVE_WATCH_LIST.clear();
+        strategyRepo.findAll().subscribe(strategy -> {
+            String watch = String.join(".", strategy.getPlatform(), strategy.getSymbolString().replace("_", ""), strategy.getCandleStick().replace("M", ""), strategy.getPositionSide());
+            ACTIVE_WATCH_LIST.computeIfAbsent(watch, k -> new HashSet<>());
+            ACTIVE_WATCH_LIST.get(watch).add(strategy.getId());
+        });
+        WATCH_LIST_UPDATED_ON = System.currentTimeMillis();
+    }
+
+    private void maintainWatchList() {
+        if (System.currentTimeMillis() - WATCH_LIST_UPDATED_ON > STRATEGY_REFRESH_RATE) {
+            initWatchList();
+        }
+    }
 
     @Bean
     public Function<KStream<String, KlineData>, KStream<String, Order>> process() {
         return stringKlineDataKStream -> stringKlineDataKStream.flatMapValues(
                 (key, value) ->
                 {
-                    long startProcessTime = System.currentTimeMillis();
-                    String candleStick = addCandleStickPrefix(value.getInterval());
-                    String symbolString = replaceUsdtSuffix(value.getSymbol());
-                    String positionSide = value.getCurrentPrice() > value.getOpenPrice() ? "LONG" : "SHORT";
-                    Flux<Strategy> strategyFlux = strategyRepo.findByCandleStickAndSymbolStringAndPositionSideAndStatus(candleStick, symbolString, positionSide, "ACTIVE");
+                    maintainWatchList();
+                    String positionSide = value.getCurrentPrice() >= value.getOpenPrice() ? "LONG" : "SHORT";
+                    if (!ACTIVE_WATCH_LIST.containsKey(key.concat(".").concat(positionSide))) {
+                        return Collections.EMPTY_LIST;
+                    }
+                    Flux<Strategy> strategyFlux = strategyRepo.findAllById(ACTIVE_WATCH_LIST.get(key.concat(".").concat(positionSide)));
                     Flux<Order> orderAckFlux = strategyFlux.publishOn(Schedulers.boundedElastic()).mapNotNull(
-                            (Strategy strategy) ->
+                            (Strategy s) ->
                             {
                                 try {
+                                    Strategy strategy = strategyRepo.findById(s.getId()).block();
+                                    assert strategy != null;
+                                    logger.info("<============| START PROCESS WITH STRATEGY {} | POSITION {}", strategy.toNotiString(), strategy.getPositionSide());
                                     boolean isNewCandle = isNewCandle(strategy, value);
                                     if (isNewCandle) {
                                         orderPlacerService.updateCandle(strategy, value);
@@ -85,7 +116,7 @@ public class OrderPlacerApplication {
                                             }
                                         }
 
-                                        if (isNewCandle && latestOrder.getOrderStatus().equals(OrderStatus.SUBMIT)) {
+                                        if (isNewCandle && order.getOrderStatus().equals(OrderStatus.SUBMIT)) {
                                             strategy.setLatestOrder(null);
                                             strategyRepo.save(strategy).block();
                                             return orderPlacerService.handleCancelOrder(latestOrder, strategy);
@@ -97,17 +128,9 @@ public class OrderPlacerApplication {
                                 return null;
                             }
                     );
-                    logProcessTime(startProcessTime);
-                    return orderAckFlux.mapNotNull(order -> orderRepo.save(order).block()).toIterable();
+                    return orderAckFlux.filter(order -> !order.getOrderStatus().equals(OrderStatus.SYS_CREATED)).mapNotNull(order -> orderRepo.save(order).block()).toIterable();
                 }
         );
-    }
-
-    private void logProcessTime(long startTime) {
-        long doneProcessTime = System.currentTimeMillis();
-        if (doneProcessTime - startTime > 10) {
-            logger.warn("LONG PROCESS : {} ms", doneProcessTime - startTime);
-        }
     }
 
     public Order decorateNotification(Order order, Strategy strategy) {
