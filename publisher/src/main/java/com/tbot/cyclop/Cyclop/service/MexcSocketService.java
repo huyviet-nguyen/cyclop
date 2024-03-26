@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.publisher.Sinks;
 import reactor.core.scheduler.Schedulers;
 
 import java.time.Duration;
@@ -22,24 +23,27 @@ public class MexcSocketService extends PlatformSocketService {
 
     private final Logger logger = LoggerFactory.getLogger(MexcSocketService.class);
 
+    private final Sinks.Many<String> triggerSink = Sinks.many().multicast().directBestEffort();
+
+
     @Value("${wss.mexc.url}")
     private String mexcWebSocketUri;
 
     @Value("${wss.mexc.initMessageTemplate}")
     private String initMessageTemplate;
 
+    @Value("${wss.mexc.unsubMessageTemplate}")
+    private String unsubMessageTemplate;
+
     @Value("${wss.mexc.pingInterval}")
     private String pingInterval;
 
     @Value("${wss.mexc.pingMessage}")
-    private String pingMessage;
-    private final SymbolRepo symbolRepo;
-    private final ObjectMapper objectMapper = new ObjectMapper();
-
+    private String pingMessage;private final ObjectMapper objectMapper = new ObjectMapper();
     private static final String topicTemplate = "\"spot@public.kline.v3.api@symbol@Min1\",\"spot@public.kline.v3.api@symbol@Min5\",\"spot@public.kline.v3.api@symbol@Min15\",\"spot@public.kline.v3.api@symbol@Min30\",\"spot@public.kline.v3.api@symbol@Min60\"";
 
-    public MexcSocketService(SymbolRepo symbolRepo) {
-        this.symbolRepo = symbolRepo;
+    public MexcSocketService() {
+        triggerSink.asFlux().subscribe();
     }
 
 
@@ -55,35 +59,8 @@ public class MexcSocketService extends PlatformSocketService {
 
 
     @Override
-    Flux<Flux<String>> getMessageNestedFlux() {
-        return symbolRepo.findAllByPlatform("MEXC")
-                .map(Symbol::getSymbol)
-                .distinct()
-                .flatMap(symbol -> {
-                    String replacedString = topicTemplate.replaceAll("symbol", symbol).replaceAll("_", "");
-                    return Mono.just(replacedString);
-                })
-                .buffer(4)
-                .map(data -> {
-                    String symbolListString = String.join(",", data);
-                    String initialMessage = initMessageTemplate.replace("%params", symbolListString);
-                    return Flux.concat(
-                            Mono.just(initialMessage),
-                            Flux.interval(Duration.ofSeconds(Integer.parseInt(pingInterval))).map(v -> pingMessage));
-                });
-    }
-
-    @Override
     Flux<String> getMessageFlux() {
-        List<String> intervalList = List.of("1", "5", "15", "30", "60");
-        Flux<String> messageFlux = symbolRepo.findAllByPlatform("MEXC")
-                .map(Symbol::getSymbol)
-                .distinct()
-                .flatMap(
-                        symbol -> Flux.fromIterable(intervalList).map(
-                                interval -> initMessageTemplate.replace("%symbol", symbol).replace("%interval", interval)
-                        )
-                ).delayElements(Duration.ofMillis(50));
+        Flux<String> messageFlux = triggerSink.asFlux();
         Flux<String> pingFlux = Flux.interval(Duration.ofSeconds(Integer.parseInt(pingInterval))).map(v -> pingMessage);
         return Flux.merge(messageFlux.subscribeOn(Schedulers.parallel()), pingFlux.subscribeOn(Schedulers.parallel()));
     }
@@ -94,8 +71,13 @@ public class MexcSocketService extends PlatformSocketService {
     }
 
     @Override
-    boolean useMultipleConnection() {
-        return false;
+    public void subscribe(String symbol, int interval) {
+        triggerSink.tryEmitNext(initMessageTemplate.replace("%symbol", symbol).replace("%interval", String.valueOf(interval)));
+    }
+
+    @Override
+    public void unsubscribe(String symbol, int interval) {
+        triggerSink.tryEmitNext(unsubMessageTemplate.replace("%symbol", symbol).replace("%interval", String.valueOf(interval)));
     }
 
     @Override

@@ -54,11 +54,6 @@ public class BybitSocketService extends PlatformSocketService {
     }
 
     @Override
-    Flux<Flux<String>> getMessageNestedFlux() {
-        return null;
-    }
-
-    @Override
     Flux<String> getMessageFlux() {
         return symbolRepo.findAllByPlatform("BYBIT")
                 .map(Symbol::getSymbol)
@@ -88,8 +83,13 @@ public class BybitSocketService extends PlatformSocketService {
     }
 
     @Override
-    boolean useMultipleConnection() {
-        return false;
+    public void subscribe(String symbol, int interval) {
+
+    }
+
+    @Override
+    public void unsubscribe(String symbol, int interval) {
+
     }
 
     @Override
