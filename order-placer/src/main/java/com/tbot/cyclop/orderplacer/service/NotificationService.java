@@ -29,7 +29,7 @@ public class NotificationService {
 
     private static final String OPEN_ORDER_NOTIFICATION_TEMPLATE =
             """
-                    *Coin:* %s| OPEN %s
+                    %s| OPEN %s
                     *Bot*     : %s
                     *Strategy*:
                     %s
@@ -39,20 +39,22 @@ public class NotificationService {
 
     private static final String TAKE_PROFIT_ORDER_NOTIFICATION_TEMPLATE =
             """
-                    *Coin:* %s| TAKE PROFIT
+                    %s - %s| WIN
                     *Bot*     : %s
                     *Strategy*:
                     %s
-                    *Price*   : %s
-                    *Profit*: %s
+                    *Buy*   : %s
+                    *Sell* : %s
+                    *Win*: %s
                     """;
     private static final String STOP_LOSS_ORDER_NOTIFICATION_TEMPLATE =
             """
-                    *Coin:* %s| STOP LOSS
+                    %s - %s| LOOSE
                     *Bot*     : %s
                     *Strategy*:
                     %s
-                    *Price*   : %s
+                    *Buy*   : %s
+                    *Sell* : %s
                     *Loss*: %s
                     """;
 
@@ -75,15 +77,19 @@ public class NotificationService {
                     order.getVolume() * order.getOpenOrderPrice());
             case STOPPED_LOSS -> String.format(STOP_LOSS_ORDER_NOTIFICATION_TEMPLATE,
                     order.getSymbol().replace("_", " "),
+                    strategy.getPositionSide(),
                     strategy.getBot().getName(),
                     strategy.toNotiString(),
                     order.getOpenOrderPrice(),
+                    order.getStopLossPrice(),
                     order.getProfit());
             case TOOK_PROFIT -> String.format(TAKE_PROFIT_ORDER_NOTIFICATION_TEMPLATE,
                     order.getSymbol().replace("_", " "),
+                    strategy.getPositionSide(),
                     strategy.getBot().getName(),
                     strategy.toNotiString(),
                     order.getOpenOrderPrice(),
+                    order.getCurrentTakeProfitPrice(),
                     order.getProfit());
             default -> "";
         };
