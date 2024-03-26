@@ -43,26 +43,6 @@ public class OrderPlacerApplication {
     public long STRATEGY_REFRESH_RATE;
     private final Logger logger = LoggerFactory.getLogger(OrderPlacerApplication.class);
 
-    private final Map<String, Set<String>> ACTIVE_WATCH_LIST = new HashMap<>();
-
-    private long WATCH_LIST_UPDATED_ON;
-
-    @PostConstruct
-    public void initWatchList() {
-        ACTIVE_WATCH_LIST.clear();
-        strategyRepo.findAllByStatus("ACTIVE").subscribe(strategy -> {
-            String watch = String.join(".", strategy.getPlatform(), strategy.getSymbolString().replace("_", ""), strategy.getCandleStick().replace("M", ""), strategy.getPositionSide());
-            ACTIVE_WATCH_LIST.computeIfAbsent(watch, k -> new HashSet<>());
-            ACTIVE_WATCH_LIST.get(watch).add(strategy.getId());
-        });
-        WATCH_LIST_UPDATED_ON = System.currentTimeMillis();
-    }
-
-    private void maintainWatchList() {
-        if (System.currentTimeMillis() - WATCH_LIST_UPDATED_ON > STRATEGY_REFRESH_RATE) {
-            initWatchList();
-        }
-    }
 
     @Bean
     public Function<KStream<String, KlineData>, KStream<String, Order>> process() {
@@ -70,12 +50,9 @@ public class OrderPlacerApplication {
                 (key, value) ->
                 {
                     logger.debug("LAG : {}", System.currentTimeMillis() - value.getTimestamp());
-                    maintainWatchList();
                     String positionSide = value.getCurrentPrice() >= value.getOpenPrice() ? "LONG" : "SHORT";
-                    if (!ACTIVE_WATCH_LIST.containsKey(key.concat(".").concat(positionSide))) {
-                        return Collections.EMPTY_LIST;
-                    }
-                    Flux<Strategy> strategyFlux = strategyRepo.findAllById(ACTIVE_WATCH_LIST.get(key.concat(".").concat(positionSide)));
+                    String symbolString = value.getSymbol().replace("USDT", "_USDT");
+                    Flux<Strategy> strategyFlux = strategyRepo.findByCandleStickAndSymbolStringAndPositionSideAndStatus("M".concat(value.getInterval()), symbolString, positionSide, "ACTIVE");
                     Flux<Order> orderAckFlux = strategyFlux.publishOn(Schedulers.boundedElastic()).mapNotNull(
                             (Strategy s) ->
                             {
