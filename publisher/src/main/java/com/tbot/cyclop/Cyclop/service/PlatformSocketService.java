@@ -47,9 +47,7 @@ public abstract class PlatformSocketService {
                         }
                         sink.next(next);
                     })
-                    .doOnError(error -> {
-                        getLogger().error(String.format("WebSocket error: %s", error.getMessage()));
-                    })
+                    .doOnError(error -> getLogger().error(String.format("WebSocket error: %s", error.getMessage())))
                     .then();
             return Mono.zip(inbound, outbound).then();
         }).retry().subscribe());

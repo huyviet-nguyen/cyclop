@@ -3,19 +3,15 @@ package com.tbot.cyclop.Cyclop.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tbot.cyclop.Cyclop.dto.KlineData;
 import com.tbot.cyclop.Cyclop.dto.MexcKline;
-import com.tbot.cyclop.Cyclop.model.Symbol;
-import com.tbot.cyclop.Cyclop.repo.SymbolRepo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
 import reactor.core.scheduler.Schedulers;
 
 import java.time.Duration;
-import java.util.List;
 import java.util.function.Predicate;
 
 @Component
@@ -39,8 +35,8 @@ public class MexcSocketService extends PlatformSocketService {
     private String pingInterval;
 
     @Value("${wss.mexc.pingMessage}")
-    private String pingMessage;private final ObjectMapper objectMapper = new ObjectMapper();
-    private static final String topicTemplate = "\"spot@public.kline.v3.api@symbol@Min1\",\"spot@public.kline.v3.api@symbol@Min5\",\"spot@public.kline.v3.api@symbol@Min15\",\"spot@public.kline.v3.api@symbol@Min30\",\"spot@public.kline.v3.api@symbol@Min60\"";
+    private String pingMessage;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public MexcSocketService() {
         triggerSink.asFlux().subscribe();

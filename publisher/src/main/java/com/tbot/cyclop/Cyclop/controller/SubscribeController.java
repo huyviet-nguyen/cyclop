@@ -37,7 +37,7 @@ public class SubscribeController {
 
 
     @PostMapping("/listen")
-    public ResponseEntity<?> subscribe(@RequestParam("platform") String platform, @RequestHeader("Authorization") String authHeader, @RequestBody List<String> listSubscribe, @RequestParam("action") String action) throws NoSuchMethodException {
+    public ResponseEntity<?> subscribe(@RequestParam("platform") String platform, @RequestHeader("Authorization") String authHeader, @RequestBody List<String> listSubscribe, @RequestParam("action") String action) {
         String decodedAuth = new String(Base64.getDecoder().decode(authHeader.replace("Basic ", "")));
         if (!decodedAuth.equals(String.join(":", apiKey, apiPassword))) {
             return ResponseEntity.badRequest().build();

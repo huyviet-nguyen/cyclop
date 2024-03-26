@@ -1,10 +1,8 @@
 package com.tbot.cyclop.Cyclop.runner;
 
 import com.tbot.cyclop.Cyclop.dto.KlineData;
-import com.tbot.cyclop.Cyclop.repo.StrategyRepo;
 import com.tbot.cyclop.Cyclop.service.BybitSocketService;
 import com.tbot.cyclop.Cyclop.service.MexcSocketService;
-import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
