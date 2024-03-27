@@ -110,7 +110,7 @@ public class NotificationService {
             return;
         }
         telegramNotiPayload.setText(content);
-        telegramNotiPayload.setChatId(Optional.ofNullable(user.getTelegramId()).orElse(DEFAULT_CHANNEL_ID));
+        telegramNotiPayload.setChatId(Optional.ofNullable(bot.getTelegramId()).orElse(DEFAULT_CHANNEL_ID));
         telegramNotiPayload.setDisableNotification(false);
         WebClient client = WebClient.builder()
                 .baseUrl(getUrl(botInfo.getApiToken()))

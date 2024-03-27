@@ -75,11 +75,8 @@ public class BybitSocketService extends PlatformSocketService {
 
 
     @Override
-    Predicate<Object> filterCriteria() {
-        return data -> {
-            KlineData klineData = (KlineData) data;
-            return klineData.getCurrentPrice() != 0;
-        };
+    Predicate<KlineData> filterCriteria() {
+        return data -> data.getCurrentPrice() != 0;
     }
 
     @Override

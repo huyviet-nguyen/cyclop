@@ -62,7 +62,7 @@ public class MexcSocketService extends PlatformSocketService {
     }
 
     @Override
-    Predicate<Object> filterCriteria() {
+    Predicate<KlineData> filterCriteria() {
         return a -> true;
     }
 

@@ -20,7 +20,7 @@ public abstract class PlatformSocketService {
 
     abstract Flux<String> getMessageFlux();
 
-    abstract Predicate<Object> filterCriteria();
+    abstract Predicate<KlineData> filterCriteria();
 
     public abstract void subscribe(String symbol, int interval);
 
