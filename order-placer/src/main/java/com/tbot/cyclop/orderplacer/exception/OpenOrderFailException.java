@@ -13,4 +13,8 @@ public class OpenOrderFailException extends RuntimeException {
         super(String.format("FAILED TO PLACE ORDER FOR %s AT PRICE %s, EXCEPTION HAPPENED",
                 ackHistory.getSymbol(), ackHistory.getEntryPrice()));
     }
+
+    public OpenOrderFailException(String message) {
+        super(message);
+    }
 }

@@ -97,7 +97,7 @@ public class MexcService implements PlatformService {
                         .retrieve()
                         .bodyToMono(MexcOrderResponse.class).block();
                 if (response == null || response.getData() == 0 || !response.isSuccess()) {
-                    throw new OpenOrderFailException(newOrder);
+                    throw new OpenOrderFailException(response != null ? response.getMessage() : "");
                 }
                 newOrder.setPlatformOrderId(String.valueOf(response.getData()));
                 logger.info("SUBMIT ORDER {} ON {} SYMBOL {}", newOrder.getPlatformOrderId(), newOrder.getPlatform(), newOrder.getSymbol());
