@@ -46,12 +46,14 @@ public class OrderPlacerService {
     public void updateCandle(Strategy strategy, KlineData klineData) {
         if (strategy.getLastOpenPrice() == 0) {
             strategy.setLastOpenPrice(klineData.getOpenPrice());
+            strategy.setCandleOpenAt(System.currentTimeMillis());
             strategyRepo.save(strategy).block();
         } else {
             if (klineData.getOpenPrice() != strategy.getLastOpenPrice()) {
                 double lastOpenPrice = strategy.getLastOpenPrice();
                 double lastPump = calculateChangePercent(lastOpenPrice, klineData.getOpenPrice());
                 strategy.setLastPump(lastPump);
+                strategy.setCandleOpenAt(System.currentTimeMillis());
                 strategy.setLastOpenPrice(klineData.getOpenPrice());
                 strategyRepo.save(strategy).block();
                 logger.info("UPDATE CANDLE PRICE FOR {}: {} -> {}", strategy.getSymbolString(), lastOpenPrice, klineData.getOpenPrice());

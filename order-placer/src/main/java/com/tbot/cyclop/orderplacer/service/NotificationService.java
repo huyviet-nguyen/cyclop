@@ -33,8 +33,10 @@ public class NotificationService {
                     *Bot*     : %s
                     *Strategy*:
                     %s
-                    *Price*   : %s
+                    *Open Price* : %s$
+                    *Price*   : %s$
                     *Amount*: %s$
+                    *Candle Time* : %s
                     """;
 
     private static final String TAKE_PROFIT_ORDER_NOTIFICATION_TEMPLATE =
@@ -43,9 +45,10 @@ public class NotificationService {
                     *Bot*     : %s
                     *Strategy*:
                     %s
-                    *Buy*   : %s
-                    *Sell* : %s
-                    *Win*: %s
+                    *Buy*   : %s$
+                    *Sell* : %s$
+                    *Win*: %s$
+                    *Candle Time* : %s
                     """;
     private static final String STOP_LOSS_ORDER_NOTIFICATION_TEMPLATE =
             """
@@ -53,9 +56,10 @@ public class NotificationService {
                     *Bot*     : %s
                     *Strategy*:
                     %s
-                    *Buy*   : %s
-                    *Sell* : %s
-                    *Loss*: %s
+                    *Buy*   : %s$
+                    *Sell* : %s$
+                    *Loss*: %s$
+                    *Candle Time* : %s
                     """;
 
     public NotificationService(TelegramBotInfoRepo infoRepo) {
@@ -73,8 +77,10 @@ public class NotificationService {
                     strategy.getPositionSide(),
                     strategy.getBot().getName(),
                     strategy.toNotiString(),
+                    order.getCandleOpenPrice(),
                     order.getOpenOrderPrice(),
-                    order.getVolume() * order.getOpenOrderPrice());
+                    order.getVolume() * order.getOpenOrderPrice(),
+                    strategy.getCandleOpenAt());
             case STOPPED_LOSS -> String.format(STOP_LOSS_ORDER_NOTIFICATION_TEMPLATE,
                     order.getSymbol().replace("_", " "),
                     strategy.getPositionSide(),
@@ -82,7 +88,8 @@ public class NotificationService {
                     strategy.toNotiString(),
                     order.getOpenOrderPrice(),
                     order.getStopLossPrice(),
-                    order.getProfit());
+                    order.getProfit(),
+                    strategy.getCandleOpenAt());
             case TOOK_PROFIT -> String.format(TAKE_PROFIT_ORDER_NOTIFICATION_TEMPLATE,
                     order.getSymbol().replace("_", " "),
                     strategy.getPositionSide(),
@@ -90,7 +97,8 @@ public class NotificationService {
                     strategy.toNotiString(),
                     order.getOpenOrderPrice(),
                     order.getCurrentTakeProfitPrice(),
-                    order.getProfit());
+                    order.getProfit(),
+                    strategy.getCandleOpenAt());
             default -> "";
         };
     }
