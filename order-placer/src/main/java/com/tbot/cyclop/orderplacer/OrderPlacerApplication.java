@@ -69,8 +69,10 @@ public class OrderPlacerApplication {
                                     }
                                     Order latestOrder = strategy.getLatestOrder();
                                     if (latestOrder == null) {
-                                        Order submitOrder = submitOrder(value, strategy);
-                                        if (submitOrder != null) return submitOrder;
+                                        if (canSubmit(strategy, value)) {
+                                            Order submitOrder = submitOrder(value, strategy);
+                                            if (submitOrder != null) return submitOrder;
+                                        }
                                     } else {
                                         OrderStatus oldStatus = latestOrder.getOrderStatus();
                                         Order order = orderPlacerService.handleSyncStatus(value, latestOrder, strategy);
