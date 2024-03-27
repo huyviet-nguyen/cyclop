@@ -55,22 +55,7 @@ public class BybitSocketService extends PlatformSocketService {
 
     @Override
     Flux<String> getMessageFlux() {
-        return symbolRepo.findAllByPlatform("BYBIT")
-                .map(Symbol::getSymbol)
-                .distinct()
-                .flatMap(symbol -> {
-                    String replacedString = topicTemplate.replaceAll("symbol", symbol);
-                    return Mono.just(replacedString);
-                })
-                .collectList()
-                .flatMapMany(symbolList -> {
-                    String joined = String.join(",", symbolList);
-                    String initialMessage = initMessageTemplate.replace("%params", joined);
-                    return Flux.concat(
-                            Mono.just(String.format(initialMessage)),
-                            Flux.interval(Duration.ofSeconds(Integer.parseInt(pingInterval))).map(v -> pingMessage)
-                    );
-                });
+        return Flux.empty();
     }
 
 
