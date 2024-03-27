@@ -43,7 +43,6 @@ public abstract class PlatformSocketService {
                         String message = String.format("Response from %s: %s", getSocketUrl(), next.substring(0, Math.min(199, next.length())).concat("..."));
                         if (message.contains("rs.error") || message.contains("fail")) {
                             getLogger().error(message);
-                            sink.error(new RuntimeException(message));
                         }
                         sink.next(next);
                     })
@@ -56,6 +55,7 @@ public abstract class PlatformSocketService {
     public Flux<KlineData> startWebsocket() {
         return runWebSocketListener(getMessageFlux()).flatMap(this::fromStringSourceMessage).filter(filterCriteria());
     }
+
     abstract Flux<KlineData> fromStringSourceMessage(String string);
 
     abstract String normalizeJsonMessage(String rawMessage);

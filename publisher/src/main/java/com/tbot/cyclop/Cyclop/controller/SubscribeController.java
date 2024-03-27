@@ -1,10 +1,8 @@
 package com.tbot.cyclop.Cyclop.controller;
 
-import com.tbot.cyclop.Cyclop.repo.StrategyRepo;
 import com.tbot.cyclop.Cyclop.service.BybitSocketService;
 import com.tbot.cyclop.Cyclop.service.MexcSocketService;
 import com.tbot.cyclop.Cyclop.service.PlatformSocketService;
-import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
@@ -26,13 +24,10 @@ public class SubscribeController {
     private final MexcSocketService mexcSocketService;
     private final BybitSocketService bybitSocketService;
     private final Map<String, HashMap<String, Set<String>>> activeMap;
-    private final StrategyRepo strategyRepo;
-
-    public SubscribeController(MexcSocketService mexcSocketService, BybitSocketService bybitSocketService, @Qualifier("activeMap") Map<String, HashMap<String, Set<String>>> activeMap, StrategyRepo strategyRepo) {
+    public SubscribeController(MexcSocketService mexcSocketService, BybitSocketService bybitSocketService, @Qualifier("activeMap") Map<String, HashMap<String, Set<String>>> activeMap) {
         this.mexcSocketService = mexcSocketService;
         this.bybitSocketService = bybitSocketService;
         this.activeMap = activeMap;
-        this.strategyRepo = strategyRepo;
     }
 
 
@@ -86,26 +81,5 @@ public class SubscribeController {
             case "unsub" -> PlatformSocketService.class.getDeclaredMethod("unsubscribe", String.class, int.class);
             default -> throw new IllegalStateException("Unexpected action: " + action.toLowerCase());
         };
-    }
-
-    @PostConstruct
-    public void init() {
-        strategyRepo.findAllByStatus("ACTIVE").subscribe(strategy -> {
-            String platform = strategy.getPlatform().toLowerCase();
-            String symbol = strategy.getSymbolString();
-            int interval = Integer.parseInt(strategy.getCandleStick().replace("M", ""));
-            PlatformSocketService service = switch (platform.toLowerCase()) {
-                case "mexc" -> mexcSocketService;
-                case "bybit" -> bybitSocketService;
-                default -> throw new IllegalStateException("Unexpected value: " + platform.toLowerCase());
-            };
-            service.subscribe(symbol, interval);
-            activeMap.get(platform).get(String.valueOf(interval)).add(symbol);
-            try {
-                Thread.sleep(50);
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-        });
     }
 }

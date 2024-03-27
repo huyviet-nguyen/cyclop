@@ -40,8 +40,7 @@ public class MarketObserveCommandLineRunner implements CommandLineRunner {
     @Value("${kafka.mexc.output.error}")
     private String errorTopic;
     private final Logger logger = LoggerFactory.getLogger(MarketObserveCommandLineRunner.class);
-
-    private final ConcurrentMap<String, Integer> concurrentHashMap = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, Long> concurrentHashMap = new ConcurrentHashMap<>();
 
     public MarketObserveCommandLineRunner(MexcSocketService mexcService, BybitSocketService bybitService, KafkaSender<String, KlineData> producerTemplate, KafkaSender<String, String> errorSender) {
         this.mexcService = mexcService;
@@ -73,18 +72,13 @@ public class MarketObserveCommandLineRunner implements CommandLineRunner {
 
     private Flux<KlineData> getFilteredFlux(Flux<KlineData> unfilteredFlux) {
         return unfilteredFlux.mapNotNull(klineData -> {
-            if (!concurrentHashMap.containsKey(klineData.getKafkaKey())) {
-                concurrentHashMap.put(klineData.getKafkaKey(), 0);
+            concurrentHashMap.computeIfAbsent(klineData.getKafkaKey(), v -> 0L);
+            if ((System.currentTimeMillis() - concurrentHashMap.get(klineData.getKafkaKey())) < 1000) {
                 return null;
-            }
-            if (concurrentHashMap.get(klineData.getKafkaKey()) == 4) {
-                concurrentHashMap.put(klineData.getKafkaKey(), 0);
-                return klineData;
             } else {
-                concurrentHashMap.put(klineData.getKafkaKey(), concurrentHashMap.get(klineData.getKafkaKey()) + 1);
-                return null;
+                concurrentHashMap.put(klineData.getKafkaKey(), System.currentTimeMillis());
+                return klineData;
             }
-
         });
     }
 

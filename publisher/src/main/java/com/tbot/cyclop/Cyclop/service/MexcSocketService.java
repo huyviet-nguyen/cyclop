@@ -69,6 +69,7 @@ public class MexcSocketService extends PlatformSocketService {
     @Override
     public void subscribe(String symbol, int interval) {
         triggerSink.tryEmitNext(initMessageTemplate.replace("%symbol", symbol).replace("%interval", String.valueOf(interval)));
+        logger.info("START LISTEN {} | {}", symbol, interval);
     }
 
     @Override
