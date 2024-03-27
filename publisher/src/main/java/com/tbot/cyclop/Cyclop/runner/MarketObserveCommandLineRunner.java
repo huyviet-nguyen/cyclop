@@ -77,7 +77,7 @@ public class MarketObserveCommandLineRunner implements CommandLineRunner {
                 concurrentHashMap.put(klineData.getKafkaKey(), 0);
                 return null;
             }
-            if (concurrentHashMap.get(klineData.getKafkaKey()) == 8) {
+            if (concurrentHashMap.get(klineData.getKafkaKey()) == 4) {
                 concurrentHashMap.put(klineData.getKafkaKey(), 0);
                 return klineData;
             } else {
