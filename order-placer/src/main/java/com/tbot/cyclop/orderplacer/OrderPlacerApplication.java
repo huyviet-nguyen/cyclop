@@ -5,7 +5,6 @@ import com.tbot.cyclop.Cyclop.model.*;
 import com.tbot.cyclop.orderplacer.repo.*;
 import com.tbot.cyclop.orderplacer.service.OrderPlacerService;
 import com.tbot.cyclop.orderplacer.service.NotificationService;
-import jakarta.annotation.PostConstruct;
 import org.apache.kafka.streams.kstream.KStream;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -14,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
 import reactor.core.publisher.Flux;
 import reactor.core.scheduler.Schedulers;
@@ -21,10 +21,13 @@ import reactor.core.scheduler.Schedulers;
 import java.util.*;
 import java.util.function.Function;
 
+import static com.tbot.cyclop.orderplacer.util.PercentageUtil.calculateChangePercent;
+import static com.tbot.cyclop.orderplacer.util.PercentageUtil.calculateNewValue;
 import static com.tbot.cyclop.orderplacer.util.TradingUtil.*;
 
 
 @SpringBootApplication
+@EnableCaching
 public class OrderPlacerApplication {
 
     @Autowired
@@ -41,32 +44,46 @@ public class OrderPlacerApplication {
 
     @Value("${bot.strategy.refreshRate}")
     public long STRATEGY_REFRESH_RATE;
-    private final Logger logger = LoggerFactory.getLogger(OrderPlacerApplication.class);
+    private final HashMap<String, Double> candlePriceMap = new HashMap<>();
 
+    private final HashMap<String, Double> candlePumpMap = new HashMap<>();
+
+    private final Logger logger = LoggerFactory.getLogger(OrderPlacerApplication.class);
 
     @Bean
     public Function<KStream<String, KlineData>, KStream<String, Order>> process() {
         return stringKlineDataKStream -> stringKlineDataKStream.flatMapValues(
                 (key, value) ->
                 {
-                    logger.debug("LAG : {}", System.currentTimeMillis() - value.getTimestamp());
+                    logger.info("LAG : {}", System.currentTimeMillis() - value.getTimestamp());
                     String positionSide = value.getCurrentPrice() >= value.getOpenPrice() ? "LONG" : "SHORT";
                     String symbolString = value.getSymbol().replace("USDT", "_USDT");
                     Flux<Strategy> strategyFlux = strategyRepo.findByCandleStickAndSymbolStringAndPositionSideAndStatus("M".concat(value.getInterval()), symbolString, positionSide, "ACTIVE");
                     Flux<Order> orderAckFlux = strategyFlux.publishOn(Schedulers.boundedElastic()).mapNotNull(
-                            (Strategy s) ->
+                            (Strategy strategy) ->
                             {
                                 try {
-                                    Strategy strategy = strategyRepo.findById(s.getId()).block();
                                     assert strategy != null;
                                     logger.info("<============| START PROCESS WITH | SYMBOL: {} | STRATEGY {}  | POSITION {}", strategy.getSymbolString(), strategy.toNotiString(), strategy.getPositionSide());
-                                    boolean isNewCandle = isNewCandle(strategy, value);
+                                    String mapKey = value.getSymbol().concat(".").concat(value.getInterval());
+                                    candlePriceMap.computeIfAbsent(mapKey, v -> value.getOpenPrice());
+                                    candlePumpMap.computeIfAbsent(mapKey, v -> (double) 0L);
+
+                                    //handle update candle open
+                                    double openPrice = candlePriceMap.get(mapKey);
+                                    boolean isNewCandle = value.getOpenPrice() != openPrice;
                                     if (isNewCandle) {
-                                        orderPlacerService.updateCandle(strategy, value);
+                                        candlePumpMap.put(mapKey, calculateChangePercent(candlePriceMap.get(mapKey), value.getOpenPrice()));
+                                        candlePriceMap.put(key, value.getOpenPrice());
                                     }
-                                    if (canIgnore(strategy, value)) {
+                                    // handle ignore
+                                    double changePercent = calculateChangePercent(value.getOpenPrice(), value.getCurrentPrice());
+                                    double ignorePercent = calculateNewValue(candlePriceMap.get(mapKey), strategy.getIgnore());
+                                    if (Math.abs(changePercent) < ignorePercent) {
                                         return null;
                                     }
+
+
                                     Order latestOrder = strategy.getLatestOrder();
                                     if (latestOrder == null) {
                                         if (canSubmit(strategy, value)) {
@@ -116,7 +133,7 @@ public class OrderPlacerApplication {
     }
 
     @Nullable
-    private Order submitOrder(KlineData value, Strategy strategy) throws Exception {
+    protected Order submitOrder(KlineData value, Strategy strategy) throws Exception {
         Order submitOrder = orderPlacerService.handleSubmitOrder(strategy, value);
         if (submitOrder.getOrderStatus().equals(OrderStatus.SUBMIT)) {
             Order newOrder = orderRepo.save(submitOrder).block();

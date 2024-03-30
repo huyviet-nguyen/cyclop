@@ -7,7 +7,7 @@ import reactor.core.publisher.Flux;
 
 @Repository
 public interface StrategyRepo extends ReactiveMongoRepository<Strategy, String> {
-    Flux<Strategy> findAllByStatus(String status);
+    Flux<Strategy> findAllByStatusAndPlatform(String status, String platform);
 
 }
 

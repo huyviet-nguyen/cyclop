@@ -3,6 +3,7 @@ package com.tbot.cyclop.Cyclop.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tbot.cyclop.Cyclop.dto.KlineData;
 import com.tbot.cyclop.Cyclop.dto.MexcKline;
+import com.tbot.cyclop.Cyclop.repo.StrategyRepo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -19,7 +20,7 @@ public class MexcSocketService extends PlatformSocketService {
 
     private final Logger logger = LoggerFactory.getLogger(MexcSocketService.class);
 
-    private final Sinks.Many<String> triggerSink = Sinks.many().multicast().directBestEffort();
+    private final Sinks.Many<String> triggerSink = Sinks.many().multicast().onBackpressureBuffer(2000);
 
 
     @Value("${wss.mexc.url}")
@@ -36,9 +37,12 @@ public class MexcSocketService extends PlatformSocketService {
 
     @Value("${wss.mexc.pingMessage}")
     private String pingMessage;
+
+    private final StrategyRepo strategyRepo;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public MexcSocketService() {
+    public MexcSocketService(StrategyRepo strategyRepo) {
+        this.strategyRepo = strategyRepo;
         triggerSink.asFlux().subscribe();
     }
 
@@ -56,9 +60,11 @@ public class MexcSocketService extends PlatformSocketService {
 
     @Override
     Flux<String> getMessageFlux() {
+        Flux<String> initialMessage = strategyRepo.findAllByStatusAndPlatform("ACTIVE", "MEXC")
+                .map(strategy -> initMessageTemplate.replace("%symbol", strategy.getSymbolString()).replace("%interval", strategy.getCandleStick().replace("M", "")));
         Flux<String> messageFlux = triggerSink.asFlux();
         Flux<String> pingFlux = Flux.interval(Duration.ofSeconds(Integer.parseInt(pingInterval))).map(v -> pingMessage);
-        return Flux.merge(messageFlux.subscribeOn(Schedulers.parallel()), pingFlux.subscribeOn(Schedulers.parallel()));
+        return Flux.merge(initialMessage, messageFlux.subscribeOn(Schedulers.parallel()), pingFlux.subscribeOn(Schedulers.parallel()));
     }
 
     @Override

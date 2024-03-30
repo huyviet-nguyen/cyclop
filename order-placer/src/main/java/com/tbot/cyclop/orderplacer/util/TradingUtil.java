@@ -23,13 +23,6 @@ public class TradingUtil {
 
     private static final ObjectMapper mapper = new ObjectMapper();
 
-    public static boolean canIgnore(Strategy strategy, KlineData klineData) {
-        double lastPump = strategy.getLastPump();
-        double ignorePercent = calculateNewValue(lastPump, strategy.getIgnore());
-        double changePercent = calculateChangePercent(klineData.getOpenPrice(), klineData.getCurrentPrice());
-        return Math.abs(changePercent) < Math.abs(ignorePercent);
-    }
-
     public static boolean canSubmit(Strategy strategy, KlineData klineData) {
         double changePercent = calculateChangePercent(klineData.getOpenPrice(), klineData.getCurrentPrice());
         boolean matchSide = (changePercent >= 0 && strategy.getPositionSide().equals("LONG")) || (changePercent < 0 && strategy.getPositionSide().equals("SHORT"));
@@ -63,11 +56,6 @@ public class TradingUtil {
         return calculateNewValue(klineData.getOpenOrderPrice(), stopLossPercent);
     }
 
-    public static boolean isNewCandle(Strategy strategy, KlineData klineData) {
-        if (strategy.getLastOpenPrice() == 0) return true;
-        double lastOpenPrice = strategy.getLastOpenPrice();
-        return lastOpenPrice != klineData.getOpenPrice();
-    }
 
     public static double calculateReducedTakeProfitPrice(Strategy strategy, KlineData klineData, Order latestOrder) {
         double lastTakeProfitPercent = latestOrder.getCurrentTakeProfitPercent();

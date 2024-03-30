@@ -3,14 +3,12 @@ package com.tbot.cyclop.orderplacer.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.tbot.cyclop.Cyclop.dto.KlineData;
 import com.tbot.cyclop.Cyclop.model.*;
-import com.tbot.cyclop.orderplacer.repo.StrategyRepo;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 
@@ -24,42 +22,19 @@ public class OrderPlacerService {
 
     private final BybitService bybitService;
 
-    private final StrategyRepo strategyRepo;
-
     private final Logger logger = LoggerFactory.getLogger(OrderPlacerService.class);
 
     private final HashMap<String, PlatformService> serviceMap = new HashMap<>();
 
-    public OrderPlacerService(MexcService mexcService, BybitService bybitService, StrategyRepo strategyRepo) {
+    public OrderPlacerService(MexcService mexcService, BybitService bybitService) {
         this.mexcService = mexcService;
         this.bybitService = bybitService;
-        this.strategyRepo = strategyRepo;
     }
 
     @PostConstruct
     void initServiceMap() {
         serviceMap.put("MEXC", mexcService);
         serviceMap.put("BYBIT", bybitService);
-    }
-
-    @Transactional
-    public void updateCandle(Strategy strategy, KlineData klineData) {
-        if (strategy.getLastOpenPrice() == 0) {
-            strategy.setLastOpenPrice(klineData.getOpenPrice());
-            strategy.setCandleOpenAt(System.currentTimeMillis());
-            strategyRepo.save(strategy).block();
-        } else {
-            if (klineData.getOpenPrice() != strategy.getLastOpenPrice()) {
-                double lastOpenPrice = strategy.getLastOpenPrice();
-                double lastPump = calculateChangePercent(lastOpenPrice, klineData.getOpenPrice());
-                strategy.setLastPump(lastPump);
-                strategy.setCandleOpenAt(System.currentTimeMillis());
-                strategy.setLastOpenPrice(klineData.getOpenPrice());
-                strategyRepo.save(strategy).block();
-                logger.info("UPDATE CANDLE PRICE FOR {}: {} -> {}", strategy.getSymbolString(), lastOpenPrice, klineData.getOpenPrice());
-            }
-        }
-
     }
 
     public Order handleCancelOrder(Order order, Strategy strategy) throws JsonProcessingException {

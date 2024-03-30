@@ -16,14 +16,16 @@ public class KlineData {
     @JsonProperty("currentPrice")
     private double currentPrice;
     @JsonProperty("timestamp")
-    private long timestamp;
+    private long candleTimestamp;
     @JsonProperty("sourcePlatform")
     private String sourcePlatform;
     @JsonProperty("interval")
     private String interval;
+    @JsonProperty("ts")
+    private long timestamp = System.currentTimeMillis();
 
     @JsonIgnore
     public String getKafkaKey() {
-        return String.join(".",sourcePlatform,symbol,interval);
+        return String.join(".", sourcePlatform, symbol, interval);
     }
 }

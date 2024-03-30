@@ -71,13 +71,18 @@ public class MarketObserveCommandLineRunner implements CommandLineRunner {
     }
 
     private Flux<KlineData> getFilteredFlux(Flux<KlineData> unfilteredFlux) {
-        return unfilteredFlux.mapNotNull(klineData -> {
-            concurrentHashMap.computeIfAbsent(klineData.getKafkaKey(), v -> 0L);
-            if ((System.currentTimeMillis() - concurrentHashMap.get(klineData.getKafkaKey())) < 1000) {
-                return null;
+        return unfilteredFlux.filter(klineData -> {
+            concurrentHashMap.computeIfAbsent(klineData.getKafkaKey(), v -> System.currentTimeMillis());
+            long interval = switch (klineData.getInterval()) {
+                case "1" -> 8000;
+                case "5" -> 20000;
+                default -> 30000;
+            };
+            if ((System.currentTimeMillis() - concurrentHashMap.get(klineData.getKafkaKey())) < interval) {
+                return false;
             } else {
                 concurrentHashMap.put(klineData.getKafkaKey(), System.currentTimeMillis());
-                return klineData;
+                return true;
             }
         });
     }
@@ -85,18 +90,20 @@ public class MarketObserveCommandLineRunner implements CommandLineRunner {
     private void publish(Flux<KlineData> tokenPairDataFlux) {
         Flux<KlineData> filteredFlux = getFilteredFlux(tokenPairDataFlux);
         Flux<SenderRecord<String, KlineData, KlineData>> pub = filteredFlux
-                .map(i -> SenderRecord.create(outputTopic, null, i.getTimestamp(), i.getKafkaKey(), i, i));
-        producerTemplate.send(pub).doOnEach(signal -> {
-            KlineData i = Optional.ofNullable(signal.get()).map(SenderResult::correlationMetadata).orElse(null);
-            if (i != null) {
-                String message = String.format("PUBLISHED %s | M%s | %s | OPEN PRICE : %s | CURRENT PRICE : %s", i.getSymbol(), i.getInterval(), i.getSourcePlatform(), i.getOpenPrice(), i.getCurrentPrice());
-                logger.info(message);
-            }
-        }).publishOn(Schedulers.boundedElastic()).doOnError(error -> {
-            logger.error(error.getMessage());
-            SenderRecord<String, String, String> senderRecord = SenderRecord.create(errorTopic, null, Instant.now().toEpochMilli(), Instant.now().toString(), error.getMessage(), error.getMessage());
-            errorSender.send(Mono.just(senderRecord)).subscribe();
-        }).subscribe();
+                .map(i -> SenderRecord.create(outputTopic, null, i.getCandleTimestamp(), i.getKafkaKey(), i, i));
+        producerTemplate.send(pub)
+                .doOnEach(signal -> {
+                    KlineData i = Optional.ofNullable(signal.get()).map(SenderResult::correlationMetadata).orElse(null);
+                    if (i != null) {
+                        String message = String.format("PUBLISHED %s | M%s | %s | OPEN PRICE : %s | CURRENT PRICE : %s", i.getSymbol(), i.getInterval(), i.getSourcePlatform(), i.getOpenPrice(), i.getCurrentPrice());
+                        logger.info(message);
+                    }
+                }).publishOn(Schedulers.boundedElastic()).doOnError(error -> {
+                    logger.error(error.getMessage());
+                    SenderRecord<String, String, String> senderRecord = SenderRecord.create(errorTopic, null, Instant.now().toEpochMilli(), Instant.now().toString(), error.getMessage(), error.getMessage());
+                    errorSender.send(Mono.just(senderRecord)).subscribe();
+                })
+                .subscribe();
     }
 
 }

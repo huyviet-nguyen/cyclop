@@ -36,7 +36,6 @@ public class NotificationService {
                     *Open Price* : %s$
                     *Price*   : %s$
                     *Amount*: %s$
-                    *Candle Time* : %s
                     """;
 
     private static final String TAKE_PROFIT_ORDER_NOTIFICATION_TEMPLATE =
@@ -48,7 +47,6 @@ public class NotificationService {
                     *Buy*   : %s$
                     *Sell* : %s$
                     *Win*: %s$
-                    *Candle Time* : %s
                     """;
     private static final String STOP_LOSS_ORDER_NOTIFICATION_TEMPLATE =
             """
@@ -59,7 +57,6 @@ public class NotificationService {
                     *Buy*   : %s$
                     *Sell* : %s$
                     *Loss*: %s$
-                    *Candle Time* : %s
                     """;
 
     public NotificationService(TelegramBotInfoRepo infoRepo) {
@@ -79,8 +76,7 @@ public class NotificationService {
                     strategy.toNotiString(),
                     order.getCandleOpenPrice(),
                     order.getOpenOrderPrice(),
-                    order.getVolume() * order.getOpenOrderPrice(),
-                    strategy.getCandleOpenAt());
+                    order.getVolume() * order.getOpenOrderPrice());
             case STOPPED_LOSS -> String.format(STOP_LOSS_ORDER_NOTIFICATION_TEMPLATE,
                     order.getSymbol().replace("_", " "),
                     strategy.getPositionSide(),
@@ -88,8 +84,7 @@ public class NotificationService {
                     strategy.toNotiString(),
                     order.getOpenOrderPrice(),
                     order.getStopLossPrice(),
-                    order.getProfit(),
-                    strategy.getCandleOpenAt());
+                    order.getProfit());
             case TOOK_PROFIT -> String.format(TAKE_PROFIT_ORDER_NOTIFICATION_TEMPLATE,
                     order.getSymbol().replace("_", " "),
                     strategy.getPositionSide(),
@@ -97,8 +92,7 @@ public class NotificationService {
                     strategy.toNotiString(),
                     order.getOpenOrderPrice(),
                     order.getCurrentTakeProfitPrice(),
-                    order.getProfit(),
-                    strategy.getCandleOpenAt());
+                    order.getProfit());
             default -> "";
         };
     }

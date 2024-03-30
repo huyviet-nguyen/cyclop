@@ -35,9 +35,6 @@ public class Strategy implements Serializable {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private String symbolString;
-    private double lastOpenPrice;
-    private double lastPump;
-    private long candleOpenAt;
 
     public String toNotiString() {
         String template = "SIDE: %s | %s | OC: %s | EXT: %s | TP: %s | SL: %s";

@@ -8,7 +8,7 @@ import lombok.Setter;
 
 @Getter
 @Setter
-@JsonIgnoreProperties(ignoreUnknown = false)
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class MexcKline {
     private String symbol;
     private DetailData data;
@@ -47,7 +47,7 @@ public class MexcKline {
         klineData.setSourcePlatform("MEXC");
         klineData.setOpenPrice(this.getData().getO());
         klineData.setCurrentPrice(this.getData().getC());
-        klineData.setTimestamp(this.getTs());
+        klineData.setCandleTimestamp(this.getTs());
         klineData.setInterval(this.getData().getNumInterval());
         klineData.setSymbol(getSymbol().replace("_", ""));
         return klineData;

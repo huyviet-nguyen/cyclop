@@ -11,7 +11,6 @@ import com.tbot.cyclop.Cyclop.model.*;
 import com.tbot.cyclop.orderplacer.exception.OpenOrderFailException;
 import com.tbot.cyclop.orderplacer.exception.ReduceTakeProfitFailException;
 import com.tbot.cyclop.orderplacer.util.TradingUtil;
-import jakarta.annotation.PostConstruct;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -282,9 +281,7 @@ public class MexcService implements PlatformService {
                 .retrieve()
                 .bodyToMono(MexcStopOrderListResponse.class).block();
         assert mexcOrderHistoryListResponse != null;
-        return mexcOrderHistoryListResponse.getData().stream().filter(a -> {
-            return a.getSymbol().equals(symbol) && a.getVol() == vol && a.getTakeProfitPrice() == takeProfit && a.getStopLossPrice() == stopLoss;
-        }).findFirst().orElse(null);
+        return mexcOrderHistoryListResponse.getData().stream().filter(a -> a.getSymbol().equals(symbol) && a.getVol() == vol && a.getTakeProfitPrice() == takeProfit && a.getStopLossPrice() == stopLoss).findFirst().orElse(null);
     }
 
 //    @PostConstruct

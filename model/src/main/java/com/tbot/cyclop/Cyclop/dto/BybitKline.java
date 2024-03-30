@@ -29,7 +29,7 @@ public class BybitKline {
 
     public KlineData toDto() {
         KlineData pairData = new KlineData();
-        pairData.setTimestamp(timestamp);
+        pairData.setCandleTimestamp(timestamp);
         pairData.setSymbol(getSymbol());
         pairData.setOpenPrice(Double.parseDouble(this.getData().getFirst().getOpen()));
         pairData.setCurrentPrice(Double.parseDouble(this.getData().getFirst().getClose()));

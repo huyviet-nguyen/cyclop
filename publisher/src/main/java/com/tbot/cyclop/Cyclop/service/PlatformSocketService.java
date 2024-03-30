@@ -7,6 +7,7 @@ import org.springframework.web.reactive.socket.client.ReactorNettyWebSocketClien
 import org.springframework.web.reactive.socket.client.WebSocketClient;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 import reactor.netty.http.client.HttpClient;
 import reactor.netty.http.client.WebsocketClientSpec;
 
@@ -37,6 +38,7 @@ public abstract class PlatformSocketService {
         return Flux.create(sink -> client.execute(URI.create(getSocketUrl()), session -> {
             Mono<Void> outbound = session.send(messageFlux.map(session::textMessage));
             Mono<Void> inbound = session.receive()
+                    .subscribeOn(Schedulers.parallel())
                     .map(WebSocketMessage::getPayloadAsText)
                     .map(this::normalizeJsonMessage)
                     .doOnNext(next -> {
