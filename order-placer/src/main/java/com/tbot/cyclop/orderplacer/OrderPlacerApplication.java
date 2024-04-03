@@ -13,6 +13,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
 import reactor.core.publisher.Flux;
@@ -37,6 +39,9 @@ public class OrderPlacerApplication {
     public OrderRepo orderRepo;
 
     @Autowired
+    private CacheManager cacheManager;
+
+    @Autowired
     public NotificationService notificationService;
 
     @Autowired
@@ -44,8 +49,10 @@ public class OrderPlacerApplication {
 
     @Value("${bot.strategy.refreshRate}")
     public long STRATEGY_REFRESH_RATE;
-    private final HashMap<String, Double> candlePriceMap = new HashMap<>();
 
+    private static final String STRATEGY_CACHE_NAME = "strategyCache";
+    private volatile long lastClearCache = System.currentTimeMillis();
+    private final HashMap<String, Double> candlePriceMap = new HashMap<>();
     private final HashMap<String, Double> candlePumpMap = new HashMap<>();
 
     private final Logger logger = LoggerFactory.getLogger(OrderPlacerApplication.class);
@@ -58,6 +65,7 @@ public class OrderPlacerApplication {
                     logger.info("LAG : {}", System.currentTimeMillis() - value.getTimestamp());
                     String positionSide = value.getCurrentPrice() >= value.getOpenPrice() ? "LONG" : "SHORT";
                     String symbolString = value.getSymbol().replace("USDT", "_USDT");
+                    maintainCache();
                     Flux<Strategy> strategyFlux = strategyRepo.findByCandleStickAndSymbolStringAndPositionSideAndStatus("M".concat(value.getInterval()), symbolString, positionSide, "ACTIVE");
                     Flux<Order> orderAckFlux = strategyFlux.publishOn(Schedulers.boundedElastic()).mapNotNull(
                             (Strategy strategy) ->
@@ -144,6 +152,13 @@ public class OrderPlacerApplication {
         return null;
     }
 
+    private void maintainCache() {
+        if (System.currentTimeMillis() - lastClearCache > 120000) {
+            evictCache(STRATEGY_CACHE_NAME);
+            lastClearCache = System.currentTimeMillis();
+        }
+    }
+
     public Order decorateNotification(Order order, Strategy strategy) {
         try {
             if (order != null) {
@@ -153,6 +168,13 @@ public class OrderPlacerApplication {
             logger.error("CANNOT SEND NOTIFICATION");
         }
         return order;
+    }
+
+    public void evictCache(String cacheName) {
+        Cache cache = cacheManager.getCache(cacheName);
+        if (cache != null) {
+            cache.clear();
+        }
     }
 
     public static void main(String[] args) {

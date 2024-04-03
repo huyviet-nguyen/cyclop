@@ -21,6 +21,6 @@ spec:
             - name: app.runMexc
               value: "true"
             - name: app.runBybit
-              value: "true"
+              value: "false"
             - name: spring.cloud.stream.kafka.binder.configuration.topic.creation.default-partition-count
               value: "9"

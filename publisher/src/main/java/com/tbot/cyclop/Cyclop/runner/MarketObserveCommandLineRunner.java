@@ -74,7 +74,7 @@ public class MarketObserveCommandLineRunner implements CommandLineRunner {
         return unfilteredFlux.filter(klineData -> {
             concurrentHashMap.computeIfAbsent(klineData.getKafkaKey(), v -> System.currentTimeMillis());
             long interval = switch (klineData.getInterval()) {
-                case "1" -> 8000;
+                case "1" -> 3500;
                 case "5" -> 20000;
                 default -> 30000;
             };

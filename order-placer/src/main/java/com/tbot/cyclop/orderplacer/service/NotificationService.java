@@ -11,7 +11,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.util.UriBuilder;
+import reactor.core.publisher.Mono;
 
+import java.time.Duration;
 import java.util.*;
 
 
@@ -26,37 +28,23 @@ public class NotificationService {
 
     private static final String DEFAULT_CHANNEL_ID = "-1002026702728";
 
-
     private static final String OPEN_ORDER_NOTIFICATION_TEMPLATE =
             """
-                    %s| OPEN %s
-                    *Bot*     : %s
-                    *Strategy*:
-                    %s
+                    %s| Open%s
+                    *Bot* : %s
+                    *Strategy*:%s
                     *Open Price* : %s$
-                    *Price*   : %s$
-                    *Amount*: %s$
+                    *Status*: Completed
+                    *Price*   : %s$ ,*amount*: %s$
                     """;
-
-    private static final String TAKE_PROFIT_ORDER_NOTIFICATION_TEMPLATE =
+    private static final String CLOSE_ORDER_NOTIFICATION_TEMPLATE =
             """
-                    %s - %s| WIN
-                    *Bot*     : %s
-                    *Strategy*:
-                    %s
-                    *Buy*   : %s$
-                    *Sell* : %s$
-                    *Win*: %s$
-                    """;
-    private static final String STOP_LOSS_ORDER_NOTIFICATION_TEMPLATE =
-            """
-                    %s - %s| LOOSE
-                    *Bot*     : %s
-                    *Strategy*:
-                    %s
-                    *Buy*   : %s$
-                    *Sell* : %s$
-                    *Loss*: %s$
+                    %s| Close%s
+                    *Bot* : %s
+                    *Strategy*:%s
+                    *Open Price* : %s$
+                    *Status*: Completed
+                    *Price*   : %s$ ,*amount*: %s$
                     """;
 
     public NotificationService(TelegramBotInfoRepo infoRepo) {
@@ -77,22 +65,14 @@ public class NotificationService {
                     order.getCandleOpenPrice(),
                     order.getOpenOrderPrice(),
                     order.getVolume() * order.getOpenOrderPrice());
-            case STOPPED_LOSS -> String.format(STOP_LOSS_ORDER_NOTIFICATION_TEMPLATE,
+            case STOPPED_LOSS, TOOK_PROFIT -> String.format(CLOSE_ORDER_NOTIFICATION_TEMPLATE,
                     order.getSymbol().replace("_", " "),
                     strategy.getPositionSide(),
                     strategy.getBot().getName(),
                     strategy.toNotiString(),
+                    order.getCandleOpenPrice(),
                     order.getOpenOrderPrice(),
-                    order.getStopLossPrice(),
-                    order.getProfit());
-            case TOOK_PROFIT -> String.format(TAKE_PROFIT_ORDER_NOTIFICATION_TEMPLATE,
-                    order.getSymbol().replace("_", " "),
-                    strategy.getPositionSide(),
-                    strategy.getBot().getName(),
-                    strategy.toNotiString(),
-                    order.getOpenOrderPrice(),
-                    order.getCurrentTakeProfitPrice(),
-                    order.getProfit());
+                    order.getVolume() * order.getOpenOrderPrice());
             default -> "";
         };
     }
@@ -123,6 +103,8 @@ public class NotificationService {
                 .body(BodyInserters.fromValue(objectMapper.writeValueAsString(telegramNotiPayload)))
                 .retrieve()
                 .bodyToMono(String.class)
+                .timeout(Duration.ofSeconds(1))  // Add timeout here
+                .onErrorResume(Exception.class, ex -> Mono.just(null)) // Return null on timeout
                 .doOnError(e -> logger.error(e.getLocalizedMessage())).block();
 
         logger.info("SENT NOTIFICATION TO " + user.getName() + " at " + user.getTelegramId());

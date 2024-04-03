@@ -23,6 +23,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.Instant;
 
 import static com.tbot.cyclop.orderplacer.util.GenericHttpUtil.calculateHmacSHA256;
@@ -44,7 +45,7 @@ public class MexcService implements PlatformService {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    private static final int LEVERAGE = 2;
+    private static final int LEVERAGE = 10;
 
     @Override // TESTED
     public double getBalance(String decryptedApiKey, String decryptedApiSecret) {
@@ -132,7 +133,10 @@ public class MexcService implements PlatformService {
                     .header("X-Mxc-Sign", headerHash)
                     .header("Authorization", webToken)
                     .retrieve()
-                    .bodyToMono(String.class).block();
+                    .bodyToMono(String.class)
+                    .timeout(Duration.ofSeconds(1))  // Add timeout here
+                    .onErrorResume(Exception.class, ex -> Mono.just(null)) // Return null on timeout
+                    .block();
             response = objectMapper.readValue(stringResponse, MexcChangeOrderResponse.class);
             logger.info("REDUCED TAKE PROFIT FOR ORDER {}", orderWithUpdatedProfit.getPlatformOrderId());
             if (response == null || !response.isSuccess()) {
@@ -170,8 +174,10 @@ public class MexcService implements PlatformService {
             if (historyResponse != null && historyResponse.getPositionId() != 0) {
                 if (historyResponse.getProfit() > 0) {
                     order.setOrderStatus(OrderStatus.TOOK_PROFIT);
+                    order.setProfit(historyResponse.getProfit());
                 } else if (historyResponse.getProfit() < 0) {
                     order.setOrderStatus(OrderStatus.STOPPED_LOSS);
+                    order.setProfit(historyResponse.getProfit());
                 } else {
                     order.setOrderStatus(OrderStatus.CLOSED_UNKNOWN);
                 }
@@ -199,7 +205,10 @@ public class MexcService implements PlatformService {
                     .header("Authorization", decryptWebToken)
                     .body(BodyInserters.fromValue(payload))
                     .retrieve()
-                    .bodyToMono(String.class).block();
+                    .bodyToMono(String.class)
+                    .timeout(Duration.ofSeconds(1))  // Add timeout here
+                    .onErrorResume(Exception.class, ex -> Mono.just(null)) // Return null on timeout
+                    .block();
             logger.info("CANCEL ORDER : {}", responseString);
             order.setOrderStatus(OrderStatus.CANCELED);
         } catch (Exception e) {
@@ -222,7 +231,13 @@ public class MexcService implements PlatformService {
                     .header("X-Mxc-Sign", headerHash)
                     .header("Authorization", decryptedWebToken)
                     .retrieve()
-                    .bodyToMono(MexcOrderHistoryListResponse.class).block();
+                    .bodyToMono(MexcOrderHistoryListResponse.class)
+                    .timeout(Duration.ofSeconds(1))  // Add timeout here
+                    .onErrorResume(Exception.class, ex -> Mono.just(null)) // Return null on timeout
+                    .block();
+            if (mexcOrderHistoryListResponse == null){
+                return null;
+            }
 
             return mexcOrderHistoryListResponse.getData().stream().filter(a -> a.getPositionId() == positionId).findFirst().orElse(null);
         } catch (Exception e) {
@@ -243,7 +258,9 @@ public class MexcService implements PlatformService {
                 .header("X-Mxc-Sign", headerHash)
                 .header("Authorization", decryptedWebToken)
                 .retrieve()
-                .bodyToMono(MexcOrderHistoryListResponse.class).block();
+                .bodyToMono(MexcOrderHistoryListResponse.class).timeout(Duration.ofSeconds(1))  // Add timeout here
+                .onErrorResume(Exception.class, ex -> Mono.just(null)) // Return null on timeout
+                .block();
 
         return mexcOrderHistoryListResponse.getData().stream().filter(a -> a.getPositionId() == positionId).findFirst().orElse(null);
     }
@@ -261,7 +278,10 @@ public class MexcService implements PlatformService {
                 .header("X-Mxc-Sign", headerHash)
                 .header("Authorization", decryptedWebToken)
                 .retrieve()
-                .bodyToMono(MexcStopOrderListResponse.class).block();
+                .bodyToMono(MexcStopOrderListResponse.class)
+                .timeout(Duration.ofSeconds(1))  // Add timeout here
+                .onErrorResume(Exception.class, ex -> Mono.just(null)) // Return null on timeout
+                .block();
         assert mexcOrderHistoryListResponse != null;
         return mexcOrderHistoryListResponse.getData().stream().filter(a -> a.getOrderId().equals(mexcOrderId)).findFirst().orElse(null);
     }
@@ -279,8 +299,13 @@ public class MexcService implements PlatformService {
                 .header("X-Mxc-Sign", headerHash)
                 .header("Authorization", decryptedWebToken)
                 .retrieve()
-                .bodyToMono(MexcStopOrderListResponse.class).block();
-        assert mexcOrderHistoryListResponse != null;
+                .bodyToMono(MexcStopOrderListResponse.class)
+                .timeout(Duration.ofSeconds(1))  // Add timeout here
+                .onErrorResume(Exception.class, ex -> Mono.just(null)) // Return null on timeout
+                .block();
+        if (mexcOrderHistoryListResponse == null) {
+            return null;
+        }
         return mexcOrderHistoryListResponse.getData().stream().filter(a -> a.getSymbol().equals(symbol) && a.getVol() == vol && a.getTakeProfitPrice() == takeProfit && a.getStopLossPrice() == stopLoss).findFirst().orElse(null);
     }
 
@@ -356,7 +381,10 @@ public class MexcService implements PlatformService {
                 .uri(apiUrl)
                 .retrieve()
                 .bodyToMono(String.class);
-        String response = responseMono.block();
+        String response = responseMono
+                .timeout(Duration.ofSeconds(1))  // Add timeout here
+                .onErrorResume(Exception.class, ex -> Mono.just(null)) // Return null on timeout
+                .block();
         if (response != null) {
             double cont;
             double cs = parseCs(response);
