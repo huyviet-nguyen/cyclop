@@ -2,6 +2,7 @@ package com.tbot.cyclop.orderplacer;
 
 import com.tbot.cyclop.Cyclop.dto.KlineData;
 import com.tbot.cyclop.Cyclop.model.*;
+import com.tbot.cyclop.orderplacer.exception.OpenOrderFailException;
 import com.tbot.cyclop.orderplacer.repo.*;
 import com.tbot.cyclop.orderplacer.service.OrderPlacerService;
 import com.tbot.cyclop.orderplacer.service.NotificationService;
@@ -57,6 +58,9 @@ public class OrderPlacerApplication {
 
     private final Logger logger = LoggerFactory.getLogger(OrderPlacerApplication.class);
 
+    private final HashMap<String, Integer> botWin = new HashMap<>();
+    private final HashMap<String, Integer> botLose = new HashMap<>();
+
     @Bean
     public Function<KStream<String, KlineData>, KStream<String, Order>> process() {
         return stringKlineDataKStream -> stringKlineDataKStream.flatMapValues(
@@ -74,19 +78,15 @@ public class OrderPlacerApplication {
                                     assert strategy != null;
                                     logger.info("<============| START PROCESS WITH | SYMBOL: {} | STRATEGY {}  | POSITION {}", strategy.getSymbolString(), strategy.toNotiString(), strategy.getPositionSide());
                                     String mapKey = value.getSymbol().concat(".").concat(value.getInterval());
-                                    candlePriceMap.computeIfAbsent(mapKey, v -> value.getOpenPrice());
-                                    candlePumpMap.computeIfAbsent(mapKey, v -> (double) 0L);
-
-                                    //handle update candle open
-                                    double openPrice = candlePriceMap.get(mapKey);
+                                    double openPrice = candlePriceMap.get(mapKey) == null ? 0 : candlePriceMap.get(mapKey);
                                     boolean isNewCandle = value.getOpenPrice() != openPrice;
                                     if (isNewCandle) {
+                                        candlePriceMap.put(mapKey, value.getOpenPrice());
                                         candlePumpMap.put(mapKey, calculateChangePercent(candlePriceMap.get(mapKey), value.getOpenPrice()));
-                                        candlePriceMap.put(key, value.getOpenPrice());
                                     }
                                     // handle ignore
                                     double changePercent = calculateChangePercent(value.getOpenPrice(), value.getCurrentPrice());
-                                    double ignorePercent = calculateNewValue(candlePriceMap.get(mapKey), strategy.getIgnore());
+                                    double ignorePercent = calculateNewValue(candlePumpMap.get(mapKey), strategy.getIgnore());
                                     if (Math.abs(changePercent) < ignorePercent) {
                                         return null;
                                     }
@@ -102,6 +102,13 @@ public class OrderPlacerApplication {
                                         OrderStatus oldStatus = latestOrder.getOrderStatus();
                                         Order order = orderPlacerService.handleSyncStatus(value, latestOrder, strategy);
                                         if (!order.getOrderStatus().equals(oldStatus)) {
+                                            botWin.computeIfAbsent(strategy.getBot().getId(), a -> 0);
+                                            botLose.computeIfAbsent(strategy.getBot().getId(), a -> 0);
+                                            if (order.getProfit() > 0) {
+                                                botWin.put(strategy.getBot().getId(), botWin.get(strategy.getBot().getId()) + 1);
+                                            } else {
+                                                botLose.put(strategy.getBot().getId(), botLose.get(strategy.getBot().getId()) + 1);
+                                            }
                                             return decorateNotification(order, strategy);
                                         }
                                         if (isNewCandle && latestOrder.getOrderStatus().equals(OrderStatus.OPEN)) {
@@ -142,12 +149,16 @@ public class OrderPlacerApplication {
 
     @Nullable
     protected Order submitOrder(KlineData value, Strategy strategy) throws Exception {
-        Order submitOrder = orderPlacerService.handleSubmitOrder(strategy, value);
-        if (submitOrder.getOrderStatus().equals(OrderStatus.SUBMIT)) {
-            Order newOrder = orderRepo.save(submitOrder).block();
-            strategy.setLatestOrder(newOrder);
-            strategyRepo.save(strategy).block();
-            return submitOrder;
+        try {
+            Order submitOrder = orderPlacerService.handleSubmitOrder(strategy, value);
+            if (submitOrder.getOrderStatus().equals(OrderStatus.SUBMIT)) {
+                Order newOrder = orderRepo.save(submitOrder).block();
+                strategy.setLatestOrder(newOrder);
+                strategyRepo.save(strategy).block();
+                return submitOrder;
+            }
+        } catch (OpenOrderFailException e) {
+            notificationService.sendErrorNotification(strategy, value, e.getMessage());
         }
         return null;
     }
@@ -163,9 +174,15 @@ public class OrderPlacerApplication {
         try {
             if (order != null) {
                 notificationService.sendNotification(order, strategy);
+                if (order.getOrderStatus().equals(OrderStatus.TOOK_PROFIT) || order.getOrderStatus().equals(OrderStatus.STOPPED_LOSS)) {
+                    int win = botWin.get(strategy.getBot().getId());
+                    int loose = botLose.get(strategy.getBot().getId());
+                    notificationService.sendReportNotification(order, strategy, win, loose);
+                }
             }
         } catch (Exception e) {
-            logger.error("CANNOT SEND NOTIFICATION");
+            logger.error("CANNOT SEND NOTIFICATION:");
+            System.out.println(e.getMessage());
         }
         return order;
     }

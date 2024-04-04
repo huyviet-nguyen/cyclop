@@ -134,7 +134,7 @@ public class MexcService implements PlatformService {
                     .header("Authorization", webToken)
                     .retrieve()
                     .bodyToMono(String.class)
-                    .timeout(Duration.ofSeconds(1))  // Add timeout here
+                    .timeout(Duration.ofSeconds(2))  // Add timeout here
                     .onErrorResume(Exception.class, ex -> Mono.just(null)) // Return null on timeout
                     .block();
             response = objectMapper.readValue(stringResponse, MexcChangeOrderResponse.class);
@@ -206,7 +206,7 @@ public class MexcService implements PlatformService {
                     .body(BodyInserters.fromValue(payload))
                     .retrieve()
                     .bodyToMono(String.class)
-                    .timeout(Duration.ofSeconds(1))  // Add timeout here
+                    .timeout(Duration.ofSeconds(2))  // Add timeout here
                     .onErrorResume(Exception.class, ex -> Mono.just(null)) // Return null on timeout
                     .block();
             logger.info("CANCEL ORDER : {}", responseString);
@@ -232,7 +232,7 @@ public class MexcService implements PlatformService {
                     .header("Authorization", decryptedWebToken)
                     .retrieve()
                     .bodyToMono(MexcOrderHistoryListResponse.class)
-                    .timeout(Duration.ofSeconds(1))  // Add timeout here
+                    .timeout(Duration.ofSeconds(2))  // Add timeout here
                     .onErrorResume(Exception.class, ex -> Mono.just(null)) // Return null on timeout
                     .block();
             if (mexcOrderHistoryListResponse == null){
@@ -258,8 +258,7 @@ public class MexcService implements PlatformService {
                 .header("X-Mxc-Sign", headerHash)
                 .header("Authorization", decryptedWebToken)
                 .retrieve()
-                .bodyToMono(MexcOrderHistoryListResponse.class).timeout(Duration.ofSeconds(1))  // Add timeout here
-                .onErrorResume(Exception.class, ex -> Mono.just(null)) // Return null on timeout
+                .bodyToMono(MexcOrderHistoryListResponse.class).timeout(Duration.ofSeconds(2))  // Add timeout here
                 .block();
 
         return mexcOrderHistoryListResponse.getData().stream().filter(a -> a.getPositionId() == positionId).findFirst().orElse(null);
@@ -279,7 +278,7 @@ public class MexcService implements PlatformService {
                 .header("Authorization", decryptedWebToken)
                 .retrieve()
                 .bodyToMono(MexcStopOrderListResponse.class)
-                .timeout(Duration.ofSeconds(1))  // Add timeout here
+                .timeout(Duration.ofSeconds(2))  // Add timeout here
                 .onErrorResume(Exception.class, ex -> Mono.just(null)) // Return null on timeout
                 .block();
         assert mexcOrderHistoryListResponse != null;
@@ -300,7 +299,7 @@ public class MexcService implements PlatformService {
                 .header("Authorization", decryptedWebToken)
                 .retrieve()
                 .bodyToMono(MexcStopOrderListResponse.class)
-                .timeout(Duration.ofSeconds(1))  // Add timeout here
+                .timeout(Duration.ofSeconds(2))  // Add timeout here
                 .onErrorResume(Exception.class, ex -> Mono.just(null)) // Return null on timeout
                 .block();
         if (mexcOrderHistoryListResponse == null) {
@@ -382,7 +381,7 @@ public class MexcService implements PlatformService {
                 .retrieve()
                 .bodyToMono(String.class);
         String response = responseMono
-                .timeout(Duration.ofSeconds(1))  // Add timeout here
+                .timeout(Duration.ofSeconds(2))  // Add timeout here
                 .onErrorResume(Exception.class, ex -> Mono.just(null)) // Return null on timeout
                 .block();
         if (response != null) {
@@ -436,7 +435,7 @@ public class MexcService implements PlatformService {
         String secretKey = decryptSecretKey(bot.getSecretKey());
         double balance = getBalance(apiKey, secretKey);
         double cont = getContractSize(sysOrder.getSymbol(), sysOrder.getEntryPrice());
-        int volume = getVolume(balance, strategy.getAmount(), cont);
+        int volume = getVolume(balance, strategy.getRealAmount(), cont);
         mexcOrder.setVol(volume);
         sysOrder.setVolume(volume);
         //update price to match decimal

@@ -18,7 +18,7 @@ public class Strategy implements Serializable {
     private double takeProfit;
     private double stopLoss;
     private double reduceTakeProfit;
-    private double amount;
+    private double realAmount;
     private double ignore;
     private String platform;
     private String status;

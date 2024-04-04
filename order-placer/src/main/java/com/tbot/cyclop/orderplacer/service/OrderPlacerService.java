@@ -65,7 +65,6 @@ public class OrderPlacerService {
 
     public Order handleReduceTakeProfit(Strategy strategy, KlineData klineData, Order latestOrder) throws JsonProcessingException, InterruptedException {
         PlatformService service = getService(klineData.getSourcePlatform());
-        service.syncStatus(latestOrder, strategy);
         double newTakeProfitPrice = calculateReducedTakeProfitPrice(strategy, klineData, latestOrder);
         latestOrder.setCurrentTakeProfitPrice(newTakeProfitPrice);
         service.reduceProfit(latestOrder, strategy, klineData);
