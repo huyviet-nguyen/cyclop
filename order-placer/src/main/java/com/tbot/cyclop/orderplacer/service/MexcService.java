@@ -135,7 +135,7 @@ public class MexcService implements PlatformService {
                     .retrieve()
                     .bodyToMono(String.class)
                     .timeout(Duration.ofSeconds(2))  // Add timeout here
-                    .onErrorResume(Exception.class, ex -> Mono.just(null)) // Return null on timeout
+                    .onErrorResume(Exception.class, ex -> Mono.empty()) // Return null on timeout
                     .block();
             response = objectMapper.readValue(stringResponse, MexcChangeOrderResponse.class);
             logger.info("REDUCED TAKE PROFIT FOR ORDER {}", orderWithUpdatedProfit.getPlatformOrderId());
@@ -207,7 +207,7 @@ public class MexcService implements PlatformService {
                     .retrieve()
                     .bodyToMono(String.class)
                     .timeout(Duration.ofSeconds(2))  // Add timeout here
-                    .onErrorResume(Exception.class, ex -> Mono.just(null)) // Return null on timeout
+                    .onErrorResume(Exception.class, ex -> Mono.empty()) // Return null on timeout
                     .block();
             logger.info("CANCEL ORDER : {}", responseString);
             order.setOrderStatus(OrderStatus.CANCELED);
@@ -233,7 +233,7 @@ public class MexcService implements PlatformService {
                     .retrieve()
                     .bodyToMono(MexcOrderHistoryListResponse.class)
                     .timeout(Duration.ofSeconds(2))  // Add timeout here
-                    .onErrorResume(Exception.class, ex -> Mono.just(null)) // Return null on timeout
+                    .onErrorResume(Exception.class, ex -> Mono.empty()) // Return null on timeout
                     .block();
             if (mexcOrderHistoryListResponse == null){
                 return null;
@@ -279,7 +279,7 @@ public class MexcService implements PlatformService {
                 .retrieve()
                 .bodyToMono(MexcStopOrderListResponse.class)
                 .timeout(Duration.ofSeconds(2))  // Add timeout here
-                .onErrorResume(Exception.class, ex -> Mono.just(null)) // Return null on timeout
+                .onErrorResume(Exception.class, ex -> Mono.empty()) // Return null on timeout
                 .block();
         assert mexcOrderHistoryListResponse != null;
         return mexcOrderHistoryListResponse.getData().stream().filter(a -> a.getOrderId().equals(mexcOrderId)).findFirst().orElse(null);
@@ -300,7 +300,7 @@ public class MexcService implements PlatformService {
                 .retrieve()
                 .bodyToMono(MexcStopOrderListResponse.class)
                 .timeout(Duration.ofSeconds(2))  // Add timeout here
-                .onErrorResume(Exception.class, ex -> Mono.just(null)) // Return null on timeout
+                .onErrorResume(Exception.class, ex -> Mono.empty()) // Return null on timeout
                 .block();
         if (mexcOrderHistoryListResponse == null) {
             return null;
@@ -382,7 +382,7 @@ public class MexcService implements PlatformService {
                 .bodyToMono(String.class);
         String response = responseMono
                 .timeout(Duration.ofSeconds(2))  // Add timeout here
-                .onErrorResume(Exception.class, ex -> Mono.just(null)) // Return null on timeout
+                .onErrorResume(Exception.class, ex -> Mono.empty()) // Return null on timeout
                 .block();
         if (response != null) {
             double cont;

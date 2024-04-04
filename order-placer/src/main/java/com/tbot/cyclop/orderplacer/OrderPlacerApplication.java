@@ -66,7 +66,10 @@ public class OrderPlacerApplication {
         return stringKlineDataKStream -> stringKlineDataKStream.flatMapValues(
                 (key, value) ->
                 {
-                    logger.info("LAG : {}", System.currentTimeMillis() - value.getTimestamp());
+                    long lag = System.currentTimeMillis() - value.getTimestamp();
+                    if (lag > 10000) {
+                        logger.warn("HIGH LAG : {} -> IGNORED!", lag);
+                    }
                     String positionSide = value.getCurrentPrice() >= value.getOpenPrice() ? "LONG" : "SHORT";
                     String symbolString = value.getSymbol().replace("USDT", "_USDT");
                     maintainCache();

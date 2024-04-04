@@ -138,9 +138,6 @@ public class NotificationService {
             return;
         }
         String content = getReportNotificationContent(order, strategy, win, loose);
-        if (content.isEmpty()) {
-            return;
-        }
         try{
             sendNotification(botInfo.getApiToken(), bot.getTelegramId(), content);
         } catch (Exception e){

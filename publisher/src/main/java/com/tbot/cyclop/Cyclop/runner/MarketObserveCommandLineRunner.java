@@ -103,6 +103,7 @@ public class MarketObserveCommandLineRunner implements CommandLineRunner {
                     SenderRecord<String, String, String> senderRecord = SenderRecord.create(errorTopic, null, Instant.now().toEpochMilli(), Instant.now().toString(), error.getMessage(), error.getMessage());
                     errorSender.send(Mono.just(senderRecord)).subscribe();
                 })
+                .doOnComplete(() -> System.exit(0))
                 .subscribe();
     }
 
