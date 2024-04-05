@@ -48,6 +48,9 @@ public class OrderPlacerApplication {
     @Autowired
     public OrderPlacerService orderPlacerService;
 
+    @Autowired
+    public BotRepo botRepo;
+
     @Value("${bot.strategy.refreshRate}")
     public long STRATEGY_REFRESH_RATE;
 
@@ -55,11 +58,7 @@ public class OrderPlacerApplication {
     private volatile long lastClearCache = System.currentTimeMillis();
     private final HashMap<String, Double> candlePriceMap = new HashMap<>();
     private final HashMap<String, Double> candlePumpMap = new HashMap<>();
-
     private final Logger logger = LoggerFactory.getLogger(OrderPlacerApplication.class);
-
-    private final HashMap<String, Integer> botWin = new HashMap<>();
-    private final HashMap<String, Integer> botLose = new HashMap<>();
 
     @Bean
     public Function<KStream<String, KlineData>, KStream<String, Order>> process() {
@@ -69,12 +68,15 @@ public class OrderPlacerApplication {
                     long lag = System.currentTimeMillis() - value.getTimestamp();
                     if (lag > 10000) {
                         logger.warn("HIGH LAG : {} -> IGNORED!", lag);
+                        return new ArrayList<>();
                     }
                     String positionSide = value.getCurrentPrice() >= value.getOpenPrice() ? "LONG" : "SHORT";
                     String symbolString = value.getSymbol().replace("USDT", "_USDT");
                     maintainCache();
                     Flux<Strategy> strategyFlux = strategyRepo.findByCandleStickAndSymbolStringAndPositionSideAndStatus("M".concat(value.getInterval()), symbolString, positionSide, "ACTIVE");
-                    Flux<Order> orderAckFlux = strategyFlux.publishOn(Schedulers.boundedElastic()).mapNotNull(
+                    Flux<Order> orderAckFlux = strategyFlux
+                            .filter(strategy -> strategy.getBot().getStatus().equals("RUNNING"))
+                            .publishOn(Schedulers.boundedElastic()).mapNotNull(
                             (Strategy strategy) ->
                             {
                                 try {
@@ -105,19 +107,17 @@ public class OrderPlacerApplication {
                                         OrderStatus oldStatus = latestOrder.getOrderStatus();
                                         Order order = orderPlacerService.handleSyncStatus(value, latestOrder, strategy);
                                         if (!order.getOrderStatus().equals(oldStatus)) {
-                                            botWin.computeIfAbsent(strategy.getBot().getId(), a -> 0);
-                                            botLose.computeIfAbsent(strategy.getBot().getId(), a -> 0);
-                                            if (order.getProfit() > 0) {
-                                                botWin.put(strategy.getBot().getId(), botWin.get(strategy.getBot().getId()) + 1);
-                                            } else {
-                                                botLose.put(strategy.getBot().getId(), botLose.get(strategy.getBot().getId()) + 1);
+                                            switch (order.getOrderStatus()) {
+                                                case OrderStatus.TOOK_PROFIT -> strategy.getBot().win();
+                                                case OrderStatus.STOPPED_LOSS -> strategy.getBot().lose();
                                             }
+                                            botRepo.save(strategy.getBot()).block();
                                             return decorateNotification(order, strategy);
                                         }
-                                        if (isNewCandle && latestOrder.getOrderStatus().equals(OrderStatus.OPEN)) {
+                                        if (isNewCandle && order.getOrderStatus().equals(OrderStatus.OPEN)) {
                                             return orderPlacerService.handleReduceTakeProfit(strategy, value, latestOrder);
                                         }
-                                        switch (latestOrder.getOrderStatus()) {
+                                        switch (order.getOrderStatus()) {
                                             case SYS_CREATED, TOOK_PROFIT, STOPPED_LOSS, MISSED, CLOSED_UNKNOWN -> {
                                                 if (canSubmit(strategy, value)) {
                                                     Order submitOrder = submitOrder(value, strategy);
@@ -178,8 +178,8 @@ public class OrderPlacerApplication {
             if (order != null) {
                 notificationService.sendNotification(order, strategy);
                 if (order.getOrderStatus().equals(OrderStatus.TOOK_PROFIT) || order.getOrderStatus().equals(OrderStatus.STOPPED_LOSS)) {
-                    int win = botWin.get(strategy.getBot().getId());
-                    int loose = botLose.get(strategy.getBot().getId());
+                    int win = strategy.getBot().getWinCount();
+                    int loose = strategy.getBot().getLoseCount();
                     notificationService.sendReportNotification(order, strategy, win, loose);
                 }
             }

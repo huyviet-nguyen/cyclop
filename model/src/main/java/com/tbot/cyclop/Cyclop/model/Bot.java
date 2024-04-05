@@ -17,7 +17,8 @@ public class Bot {
     private String platform;
     private String note;
     private String status;
-    private String user;
+    @DocumentReference
+    private User user;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private Balance futuresBalance;
@@ -27,5 +28,15 @@ public class Bot {
     private String webToken;
     private String telegramId;
     private FingerprintSysInfo fingerprintSysInfo;
+    private int winCount;
+    private int loseCount;
+
+    public void win() {
+        winCount++;
+    }
+
+    public void lose() {
+        loseCount++;
+    }
 }
 

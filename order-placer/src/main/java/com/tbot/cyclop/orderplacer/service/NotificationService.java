@@ -85,7 +85,7 @@ public class NotificationService {
         return String.format("https://api.telegram.org/bot%s/sendMessage", token);
     }
 
-    private String getReportNotificationContent(Order order, Strategy strategy, int win, int loose) {
+    private String getReportNotificationContent(Order order, Strategy strategy, int win, int lose) {
         double pnl;
         double sellPrice;
         if (order.getOrderStatus().equals(OrderStatus.TOOK_PROFIT)) {
@@ -95,11 +95,11 @@ public class NotificationService {
             pnl = calculateChangePercent(order.getOpenOrderPrice(), order.getStopLossPrice());
             sellPrice = order.getStopLossPrice();
         }
-        String overall = win >= loose ? "WIN" : "LOOSE";
+        String overall = win >= lose ? "WIN" : "LOSE";
         return String.format(REPORT_NOTIFICATION_TEMPLATE,
                 order.getSymbol().replace("_", "\\_"), strategy.getPositionSide(), overall,
                 strategy.getBot().getName(),
-                win, loose,
+                win, lose,
                 strategy.getExtendOrderChangePercent(),
                 strategy.getCandleStick(), strategy.getOrderChange(), strategy.getTakeProfit(),
                 sellPrice, order.getVolume(),
