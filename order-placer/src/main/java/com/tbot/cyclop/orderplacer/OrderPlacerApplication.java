@@ -118,6 +118,7 @@ public class OrderPlacerApplication {
                                                     return decorateNotification(order, strategy);
                                                 }
                                                 if (isNewCandle && order.getOrderStatus().equals(OrderStatus.OPEN)) {
+                                                    logger.info("REDUCE TP ORDER {}", order.getPlatformOrderId());
                                                     return orderPlacerService.handleReduceTakeProfit(strategy, value, latestOrder);
                                                 }
                                                 switch (order.getOrderStatus()) {
@@ -129,7 +130,7 @@ public class OrderPlacerApplication {
                                                     }
                                                 }
 
-                                                if (isNewCandle && order.getOrderStatus().equals(OrderStatus.SUBMIT)) {
+                                                if (order.getCandleOpenPrice() != value.getOpenPrice() && order.getOrderStatus().equals(OrderStatus.SUBMIT)) {
                                                     strategy.setLatestOrder(null);
                                                     strategyRepo.save(strategy).block();
                                                     return orderPlacerService.handleCancelOrder(latestOrder, strategy);

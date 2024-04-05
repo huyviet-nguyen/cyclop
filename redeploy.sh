@@ -18,4 +18,7 @@ kubectl exec -it "$kafka_pod" -- sh -c '/usr/bin/kafka-topics --create --if-not-
 sleep 10;
 cd .. ;
 cd apps;
-kubectl apply -f .;
+kubectl apply -f order-placer-deployment.yaml;
+sleep 50;
+kubectl apply -f publisher-service.yml;
+kubectl apply -f publisher-deployment.yaml;
