@@ -21,8 +21,7 @@ public class KlineData {
     private String sourcePlatform;
     @JsonProperty("interval")
     private String interval;
-    @JsonProperty("ts")
-    private long timestamp = System.currentTimeMillis();
+
 
     @JsonIgnore
     public String getKafkaKey() {

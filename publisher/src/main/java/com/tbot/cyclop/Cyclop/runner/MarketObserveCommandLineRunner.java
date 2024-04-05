@@ -95,6 +95,10 @@ public class MarketObserveCommandLineRunner implements CommandLineRunner {
                 .doOnEach(signal -> {
                     KlineData i = Optional.ofNullable(signal.get()).map(SenderResult::correlationMetadata).orElse(null);
                     if (i != null) {
+                        long lag = System.currentTimeMillis() - i.getCandleTimestamp();
+                        if (lag > 1000) {
+                            logger.warn("HIGH LAG ON {} : {}", i.getKafkaKey(), lag);
+                        }
                         String message = String.format("PUBLISHED %s | M%s | %s | OPEN PRICE : %s | CURRENT PRICE : %s", i.getSymbol(), i.getInterval(), i.getSourcePlatform(), i.getOpenPrice(), i.getCurrentPrice());
                         logger.info(message);
                     }
