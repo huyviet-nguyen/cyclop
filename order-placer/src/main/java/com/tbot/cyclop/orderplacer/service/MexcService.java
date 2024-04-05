@@ -182,6 +182,9 @@ public class MexcService implements PlatformService {
                     order.setOrderStatus(OrderStatus.CLOSED_UNKNOWN);
                 }
             }
+        } else {
+            order.setOrderStatus(OrderStatus.MISSED);
+            strategy.setLatestOrder(null);
         }
         logger.info("ORDER {} STATUS : {}", order.getPlatform(), order.getOrderStatus());
     }
@@ -235,7 +238,7 @@ public class MexcService implements PlatformService {
                     .timeout(Duration.ofSeconds(2))  // Add timeout here
                     .onErrorResume(Exception.class, ex -> Mono.empty()) // Return null on timeout
                     .block();
-            if (mexcOrderHistoryListResponse == null){
+            if (mexcOrderHistoryListResponse == null) {
                 return null;
             }
 

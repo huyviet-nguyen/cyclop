@@ -86,8 +86,8 @@ public class OrderPlacerApplication {
                                             double openPrice = candlePriceMap.get(mapKey) == null ? 0 : candlePriceMap.get(mapKey);
                                             boolean isNewCandle = value.getOpenPrice() != openPrice;
                                             if (isNewCandle) {
-                                                candlePriceMap.put(mapKey, value.getOpenPrice());
                                                 candlePumpMap.put(mapKey, calculateChangePercent(candlePriceMap.get(mapKey), value.getOpenPrice()));
+                                                candlePriceMap.put(mapKey, value.getOpenPrice());
                                                 logger.info("NEW CANDLE STARTED | OPEN PRICE {} | LAST PUMP {}", candlePriceMap.get(mapKey), candlePumpMap.get(mapKey));
                                             }
                                             double changePercent = calculateChangePercent(value.getOpenPrice(), value.getCurrentPrice());
