@@ -30,7 +30,6 @@ import static com.tbot.cyclop.orderplacer.util.TradingUtil.*;
 
 
 @SpringBootApplication
-@EnableCaching
 public class OrderPlacerApplication {
 
     @Autowired
@@ -38,9 +37,6 @@ public class OrderPlacerApplication {
 
     @Autowired
     public OrderRepo orderRepo;
-
-    @Autowired
-    private CacheManager cacheManager;
 
     @Autowired
     public NotificationService notificationService;
@@ -54,8 +50,6 @@ public class OrderPlacerApplication {
     @Value("${bot.strategy.refreshRate}")
     public long STRATEGY_REFRESH_RATE;
 
-    private static final String STRATEGY_CACHE_NAME = "strategyCache";
-    private volatile long lastClearCache = System.currentTimeMillis();
     private final HashMap<String, Double> candlePriceMap = new HashMap<>();
     private final HashMap<String, Double> candlePumpMap = new HashMap<>();
     private final Logger logger = LoggerFactory.getLogger(OrderPlacerApplication.class);
@@ -72,7 +66,6 @@ public class OrderPlacerApplication {
                     }
                     String positionSide = value.getCurrentPrice() >= value.getOpenPrice() ? "LONG" : "SHORT";
                     String symbolString = value.getSymbol().replace("USDT", "_USDT");
-                    maintainCache();
                     Flux<Strategy> strategyFlux = strategyRepo.findByCandleStickAndSymbolStringAndPositionSideAndStatus("M".concat(value.getInterval()), symbolString, positionSide, "ACTIVE");
                     Flux<Order> orderAckFlux = strategyFlux
                             .filter(strategy -> strategy.getBot().getStatus().equals("RUNNING"))
@@ -86,7 +79,7 @@ public class OrderPlacerApplication {
                                             double openPrice = candlePriceMap.get(mapKey) == null ? 0 : candlePriceMap.get(mapKey);
                                             boolean isNewCandle = value.getOpenPrice() != openPrice;
                                             if (isNewCandle) {
-                                                candlePumpMap.put(mapKey, calculateChangePercent(candlePriceMap.get(mapKey), value.getOpenPrice()));
+                                                candlePumpMap.put(mapKey, calculateChangePercent(openPrice, value.getOpenPrice()));
                                                 candlePriceMap.put(mapKey, value.getOpenPrice());
                                                 logger.info("NEW CANDLE STARTED | OPEN PRICE {} | LAST PUMP {}", candlePriceMap.get(mapKey), candlePumpMap.get(mapKey));
                                             }
@@ -107,34 +100,75 @@ public class OrderPlacerApplication {
                                                 logger.info("STRATEGY {} | LAST ORDER ID {} | STATUS {}", strategy.toNotiString(), latestOrder.getId(), latestOrder.getOrderStatus());
                                                 OrderStatus oldStatus = latestOrder.getOrderStatus();
                                                 Order order = orderPlacerService.handleSyncStatus(value, latestOrder, strategy);
+                                                OrderStatus newStatus = order.getOrderStatus();
+                                                boolean statusChanged = !oldStatus.equals(order.getOrderStatus());
+                                                boolean orderMatchCandle = value.getOpenPrice() == order.getCandleOpenPrice();
                                                 logger.info("STRATEGY {} | LAST ORDER ID {} | STATUS AFTER SYNCED {}", strategy.toNotiString(), order.getId(), order.getOrderStatus());
-                                                if (!order.getOrderStatus().equals(oldStatus)) {
-                                                    switch (order.getOrderStatus()) {
-                                                        case OrderStatus.TOOK_PROFIT -> strategy.getBot().win();
-                                                        case OrderStatus.STOPPED_LOSS -> strategy.getBot().lose();
-                                                    }
-                                                    botRepo.save(strategy.getBot()).block();
-                                                    evictCache(STRATEGY_CACHE_NAME);
-                                                    return decorateNotification(order, strategy);
-                                                }
-                                                if (isNewCandle && order.getOrderStatus().equals(OrderStatus.OPEN)) {
-                                                    logger.info("REDUCE TP ORDER {}", order.getPlatformOrderId());
-                                                    return orderPlacerService.handleReduceTakeProfit(strategy, value, latestOrder);
-                                                }
-                                                switch (order.getOrderStatus()) {
-                                                    case SYS_CREATED, TOOK_PROFIT, STOPPED_LOSS, MISSED, CLOSED_UNKNOWN -> {
-                                                        if (canSubmit(strategy, value)) {
-                                                            Order submitOrder = submitOrder(value, strategy);
-                                                            if (submitOrder != null) return submitOrder;
-                                                        }
-                                                    }
-                                                }
-
-                                                if (order.getCandleOpenPrice() != value.getOpenPrice() && order.getOrderStatus().equals(OrderStatus.SUBMIT)) {
+                                                if (newStatus.equals(OrderStatus.SUBMIT) && !orderMatchCandle) {
                                                     strategy.setLatestOrder(null);
                                                     strategyRepo.save(strategy).block();
-                                                    return orderPlacerService.handleCancelOrder(latestOrder, strategy);
+                                                    return orderPlacerService.handleCancelOrder(order, strategy);
                                                 }
+                                                if (newStatus.equals(OrderStatus.OPEN) && statusChanged) {
+                                                    decorateNotification(order, strategy);
+                                                }
+
+                                                if (newStatus.equals(OrderStatus.STOPPED_LOSS) || newStatus.equals(OrderStatus.TOOK_PROFIT) || newStatus.equals(OrderStatus.CANCELED)) {
+                                                    switch (newStatus) {
+                                                        case STOPPED_LOSS: {
+                                                            decorateNotification(order, strategy);
+                                                            strategy.getBot().lose();
+                                                            botRepo.save(strategy.getBot()).block();
+                                                            break;
+                                                        }
+                                                        case TOOK_PROFIT: {
+                                                            decorateNotification(order, strategy);
+                                                            strategy.getBot().win();
+                                                            botRepo.save(strategy.getBot()).block();
+                                                            break;
+                                                        }
+                                                        case CANCELED: {
+                                                            break;
+                                                        }
+
+                                                    }
+                                                    strategy.setLatestOrder(null);
+                                                    strategyRepo.save(strategy).block();
+                                                    return null;
+                                                }
+                                                if (newStatus.equals(OrderStatus.OPEN) && !orderMatchCandle) {
+                                                    return orderPlacerService.handleReduceTakeProfit(strategy, value, order);
+                                                }
+//                                                if ((order.getCandleOpenPrice() != value.getOpenPrice() && order.getOrderStatus().equals(OrderStatus.SUBMIT)) || order.getOrderStatus().equals(OrderStatus.CANCELED)) {
+//                                                    strategy.setLatestOrder(null);
+//                                                    strategyRepo.save(strategy).block();
+//                                                    orderPlacerService.handleCancelOrder(latestOrder, strategy);
+//                                                    return null;
+//                                                }
+//                                                if (!order.getOrderStatus().equals(oldStatus) && order.getOrderStatus().equals(OrderStatus.OPEN)) {
+//                                                    decorateNotification(order, strategy);
+//                                                }
+//                                                if (!order.getOrderStatus().equals(oldStatus) && (order.getOrderStatus().equals(OrderStatus.TOOK_PROFIT) || order.getOrderStatus().equals(OrderStatus.STOPPED_LOSS))) {
+//                                                    switch (order.getOrderStatus()) {
+//                                                        case OrderStatus.TOOK_PROFIT -> strategy.getBot().win();
+//                                                        case OrderStatus.STOPPED_LOSS -> strategy.getBot().lose();
+//                                                    }
+//                                                    botRepo.save(strategy.getBot()).block();
+//                                                    return decorateNotification(order, strategy);
+//                                                }
+//                                                if (order.getCandleOpenPrice() != value.getOpenPrice() && order.getOrderStatus().equals(OrderStatus.OPEN)) {
+//                                                    logger.info("REDUCE TP ORDER {}", order.getPlatformOrderId());
+//                                                    return orderPlacerService.handleReduceTakeProfit(strategy, value, latestOrder);
+//                                                }
+//                                                switch (order.getOrderStatus()) {
+//                                                    case SYS_CREATED, TOOK_PROFIT, STOPPED_LOSS, MISSED, CLOSED_UNKNOWN -> {
+//                                                        if (canSubmit(strategy, value)) {
+//                                                            orderPlacerService.handleCancelOrder(order, strategy);
+//                                                            Order submitOrder = submitOrder(value, strategy);
+//                                                            if (submitOrder != null) return submitOrder;
+//                                                        }
+//                                                    }
+//                                                }
                                             }
                                         } catch (Exception e) {
                                             logger.error(e.getMessage());
@@ -170,13 +204,6 @@ public class OrderPlacerApplication {
         return null;
     }
 
-    private void maintainCache() {
-        if (System.currentTimeMillis() - lastClearCache > 120000) {
-            evictCache(STRATEGY_CACHE_NAME);
-            lastClearCache = System.currentTimeMillis();
-        }
-    }
-
     public Order decorateNotification(Order order, Strategy strategy) {
         try {
             if (order != null) {
@@ -192,13 +219,6 @@ public class OrderPlacerApplication {
             System.out.println(e.getMessage());
         }
         return order;
-    }
-
-    public void evictCache(String cacheName) {
-        Cache cache = cacheManager.getCache(cacheName);
-        if (cache != null) {
-            cache.clear();
-        }
     }
 
     public static void main(String[] args) {

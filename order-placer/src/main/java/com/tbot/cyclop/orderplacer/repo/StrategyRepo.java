@@ -8,7 +8,6 @@ import reactor.core.publisher.Flux;
 
 @Repository
 public interface StrategyRepo extends ReactiveMongoRepository<Strategy, String> {
-    @Cacheable(cacheNames = "strategyCache", key = "{#candleStick, #symbolString, #positionSide, #status}")
     Flux<Strategy> findByCandleStickAndSymbolStringAndPositionSideAndStatus(String candleStick, String symbolString, String positionSide, String status);
 
 }

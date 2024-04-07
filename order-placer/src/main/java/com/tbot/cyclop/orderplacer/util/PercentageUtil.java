@@ -24,7 +24,7 @@ public class PercentageUtil {
     // Method to calculate the percentage change from the initial value to the final value
     public static double calculateChangePercent(double initialValue, double finalValue) {
         if (initialValue == 0) {
-            throw new IllegalArgumentException("Cannot calculate change percent with zero as the initial value.");
+            return 0;
         }
         return ((finalValue - initialValue) / initialValue) * 100;
     }
