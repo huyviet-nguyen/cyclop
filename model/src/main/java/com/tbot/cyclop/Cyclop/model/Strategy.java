@@ -30,8 +30,8 @@ public class Strategy implements Serializable {
     private User user;
     @DocumentReference
     private Bot bot;
-    @DocumentReference
-    private Order latestOrder;
+    //    @DocumentReference
+//    private Order latestOrder;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private String symbolString;

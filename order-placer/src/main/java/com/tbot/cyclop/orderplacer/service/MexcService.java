@@ -177,23 +177,15 @@ public class MexcService implements PlatformService {
             historyResponse = getHistoryOrder(Long.parseLong(openedOrder.getPositionId()), strategy.getSymbolString(), decryptedWebToken);
         } catch (Exception ignored) {
         }
-        if (planOrderResponse == null || planOrderResponse.getState() == 2 || planOrderResponse.getState() == 4 || planOrderResponse.getState() == 5){
-            order.setOrderStatus(OrderStatus.CANCELED);
+        if (planOrderResponse == null || planOrderResponse.getState() == 2 || planOrderResponse.getState() == 4 || planOrderResponse.getState() == 5) {
+            order.setOrderStatus(OrderStatus.IGNORED);
         } else {
-            if (openedOrder != null) {
-                order.setPositionId(Long.parseLong(openedOrder.getPositionId()));
+            if (openedOrder != null && !openedOrder.getPositionId().equals("0")) {
                 order.setOrderStatus(OrderStatus.OPEN);
-                if (historyResponse != null && historyResponse.getPositionId() != 0) {
-                    if (historyResponse.getProfit() > 0) {
-                        order.setOrderStatus(OrderStatus.TOOK_PROFIT);
-                        order.setProfit(historyResponse.getProfit());
-                    } else if (historyResponse.getProfit() < 0) {
-                        order.setOrderStatus(OrderStatus.STOPPED_LOSS);
-                        order.setProfit(historyResponse.getProfit());
-                    } else {
-                        order.setOrderStatus(OrderStatus.CANCELED);
-                    }
-                }
+            }
+            if (openedOrder != null && !openedOrder.getPositionId().equals("0") && historyResponse != null && historyResponse.getProfit() != 0) {
+                order.setOrderStatus(OrderStatus.CLOSED);
+                order.setProfit(historyResponse.getProfit());
             }
         }
         logger.info("ORDER {} STATUS : {}", order.getPlatform(), order.getOrderStatus());
@@ -223,7 +215,7 @@ public class MexcService implements PlatformService {
                     .onErrorResume(Exception.class, ex -> Mono.empty()) // Return null on timeout
                     .block();
             logger.info("CANCEL ORDER : {}", responseString);
-            order.setOrderStatus(OrderStatus.CANCELED);
+            order.setOrderStatus(OrderStatus.IGNORED);
         } catch (Exception e) {
             logger.error("CANNOT CANCEL ORDER : {}", order.getPlatformOrderId());
         }

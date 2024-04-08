@@ -14,9 +14,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.cache.Cache;
-import org.springframework.cache.CacheManager;
-import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
 import reactor.core.publisher.Flux;
 import reactor.core.scheduler.Schedulers;
@@ -35,8 +32,6 @@ public class OrderPlacerApplication {
     @Autowired
     public StrategyRepo strategyRepo;
 
-    @Autowired
-    public OrderRepo orderRepo;
 
     @Autowired
     public NotificationService notificationService;
@@ -54,13 +49,15 @@ public class OrderPlacerApplication {
     private final HashMap<String, Double> candlePumpMap = new HashMap<>();
     private final Logger logger = LoggerFactory.getLogger(OrderPlacerApplication.class);
 
+    private final HashMap<String, Order> orderCache = new HashMap<>();
+
     @Bean
     public Function<KStream<String, KlineData>, KStream<String, Order>> process() {
         return stringKlineDataKStream -> stringKlineDataKStream.flatMapValues(
                 (key, value) ->
                 {
                     long lag = System.currentTimeMillis() - value.getCandleTimestamp();
-                    if (lag > 10000) {
+                    if (lag > 3000) {
                         logger.warn("HIGH LAG : {} -> IGNORED!", lag);
                         return new ArrayList<>();
                     }
@@ -89,7 +86,7 @@ public class OrderPlacerApplication {
                                                 logger.info("STRATEGY {} | IGNORED | {} < {}% OF LAST PUMP {}", strategy.toNotiString(), Math.abs(changePercent), ignorePercent, candlePumpMap.get(mapKey));
                                                 return null;
                                             }
-                                            Order latestOrder = strategy.getLatestOrder();
+                                            Order latestOrder = orderCache.get(strategy.getId());
                                             if (latestOrder == null) {
                                                 if (canSubmit(strategy, value)) {
                                                     logger.info("ORDER CAN BE SUBMIT | CURRENT CHANGE {} | OC {} | EXTEND {}", changePercent, strategy.getOrderChange(), strategy.getExtendOrderChangePercent());
@@ -104,71 +101,39 @@ public class OrderPlacerApplication {
                                                 boolean statusChanged = !oldStatus.equals(order.getOrderStatus());
                                                 boolean orderMatchCandle = value.getOpenPrice() == order.getCandleOpenPrice();
                                                 logger.info("STRATEGY {} | LAST ORDER ID {} | STATUS AFTER SYNCED {}", strategy.toNotiString(), order.getId(), order.getOrderStatus());
-                                                if (newStatus.equals(OrderStatus.SUBMIT) && !orderMatchCandle) {
-                                                    strategy.setLatestOrder(null);
-                                                    strategyRepo.save(strategy).block();
-                                                    return orderPlacerService.handleCancelOrder(order, strategy);
-                                                }
-                                                if (newStatus.equals(OrderStatus.OPEN) && statusChanged) {
-                                                    decorateNotification(order, strategy);
-                                                }
-
-                                                if (newStatus.equals(OrderStatus.STOPPED_LOSS) || newStatus.equals(OrderStatus.TOOK_PROFIT) || newStatus.equals(OrderStatus.CANCELED)) {
-                                                    switch (newStatus) {
-                                                        case STOPPED_LOSS: {
-                                                            decorateNotification(order, strategy);
-                                                            strategy.getBot().lose();
-                                                            botRepo.save(strategy.getBot()).block();
-                                                            break;
-                                                        }
-                                                        case TOOK_PROFIT: {
-                                                            decorateNotification(order, strategy);
-                                                            strategy.getBot().win();
-                                                            botRepo.save(strategy.getBot()).block();
-                                                            break;
-                                                        }
-                                                        case CANCELED: {
-                                                            break;
-                                                        }
-
+                                                if (!statusChanged) {
+                                                    if (newStatus.equals(OrderStatus.SUBMIT) && !orderMatchCandle) {
+                                                        orderCache.put(strategy.getId(), null);
+                                                        orderPlacerService.handleCancelOrder(order, strategy);
+                                                        return null;
                                                     }
-                                                    strategy.setLatestOrder(null);
-                                                    strategyRepo.save(strategy).block();
-                                                    return null;
+                                                    if (newStatus.equals(OrderStatus.OPEN) && !orderMatchCandle) {
+                                                        orderPlacerService.handleReduceTakeProfit(strategy, value, order);
+                                                        return null;
+                                                    }
+                                                } else {
+                                                    switch (newStatus) {
+                                                        case OrderStatus.OPEN -> {
+                                                            decorateNotification(order,strategy);
+                                                            return order;
+                                                        }
+                                                        case OrderStatus.CLOSED -> {
+                                                            if (order.getProfit() > 0) {
+                                                                strategy.getBot().win();
+                                                            } else if (order.getProfit() < 0) {
+                                                                strategy.getBot().lose();
+                                                            }
+                                                            botRepo.save(strategy.getBot()).block();
+                                                            orderCache.put(strategy.getId(), null);
+                                                            decorateNotification(order,strategy);
+                                                            return order;
+                                                        }
+                                                        case OrderStatus.IGNORED -> {
+                                                            orderCache.put(strategy.getId(), null);
+                                                            return null;
+                                                        }
+                                                    }
                                                 }
-                                                if (newStatus.equals(OrderStatus.OPEN) && !orderMatchCandle) {
-                                                    return orderPlacerService.handleReduceTakeProfit(strategy, value, order);
-                                                }
-//                                                if ((order.getCandleOpenPrice() != value.getOpenPrice() && order.getOrderStatus().equals(OrderStatus.SUBMIT)) || order.getOrderStatus().equals(OrderStatus.CANCELED)) {
-//                                                    strategy.setLatestOrder(null);
-//                                                    strategyRepo.save(strategy).block();
-//                                                    orderPlacerService.handleCancelOrder(latestOrder, strategy);
-//                                                    return null;
-//                                                }
-//                                                if (!order.getOrderStatus().equals(oldStatus) && order.getOrderStatus().equals(OrderStatus.OPEN)) {
-//                                                    decorateNotification(order, strategy);
-//                                                }
-//                                                if (!order.getOrderStatus().equals(oldStatus) && (order.getOrderStatus().equals(OrderStatus.TOOK_PROFIT) || order.getOrderStatus().equals(OrderStatus.STOPPED_LOSS))) {
-//                                                    switch (order.getOrderStatus()) {
-//                                                        case OrderStatus.TOOK_PROFIT -> strategy.getBot().win();
-//                                                        case OrderStatus.STOPPED_LOSS -> strategy.getBot().lose();
-//                                                    }
-//                                                    botRepo.save(strategy.getBot()).block();
-//                                                    return decorateNotification(order, strategy);
-//                                                }
-//                                                if (order.getCandleOpenPrice() != value.getOpenPrice() && order.getOrderStatus().equals(OrderStatus.OPEN)) {
-//                                                    logger.info("REDUCE TP ORDER {}", order.getPlatformOrderId());
-//                                                    return orderPlacerService.handleReduceTakeProfit(strategy, value, latestOrder);
-//                                                }
-//                                                switch (order.getOrderStatus()) {
-//                                                    case SYS_CREATED, TOOK_PROFIT, STOPPED_LOSS, MISSED, CLOSED_UNKNOWN -> {
-//                                                        if (canSubmit(strategy, value)) {
-//                                                            orderPlacerService.handleCancelOrder(order, strategy);
-//                                                            Order submitOrder = submitOrder(value, strategy);
-//                                                            if (submitOrder != null) return submitOrder;
-//                                                        }
-//                                                    }
-//                                                }
                                             }
                                         } catch (Exception e) {
                                             logger.error(e.getMessage());
@@ -176,14 +141,7 @@ public class OrderPlacerApplication {
                                         return null;
                                     }
                             );
-                    return orderAckFlux.filter(order -> !order.getOrderStatus().equals(OrderStatus.SYS_CREATED)).mapNotNull(order -> {
-                        if (order.getOrderStatus().equals(OrderStatus.CANCELED)) {
-                            orderRepo.delete(order).block();
-                            return null;
-                        } else {
-                            return orderRepo.save(order).block();
-                        }
-                    }).toIterable();
+                    return orderAckFlux.toIterable();
                 }
         );
     }
@@ -193,9 +151,7 @@ public class OrderPlacerApplication {
         try {
             Order submitOrder = orderPlacerService.handleSubmitOrder(strategy, value);
             if (submitOrder.getOrderStatus().equals(OrderStatus.SUBMIT)) {
-                Order newOrder = orderRepo.save(submitOrder).block();
-                strategy.setLatestOrder(newOrder);
-                strategyRepo.save(strategy).block();
+                orderCache.put(strategy.getId(), submitOrder);
                 return submitOrder;
             }
         } catch (OpenOrderFailException e) {
@@ -204,11 +160,11 @@ public class OrderPlacerApplication {
         return null;
     }
 
-    public Order decorateNotification(Order order, Strategy strategy) {
+    public void decorateNotification(Order order, Strategy strategy) {
         try {
             if (order != null) {
                 notificationService.sendNotification(order, strategy);
-                if (order.getOrderStatus().equals(OrderStatus.TOOK_PROFIT) || order.getOrderStatus().equals(OrderStatus.STOPPED_LOSS)) {
+                if (order.getOrderStatus().equals(OrderStatus.CLOSED)) {
                     int win = strategy.getBot().getWinCount();
                     int loose = strategy.getBot().getLoseCount();
                     notificationService.sendReportNotification(order, strategy, win, loose);
@@ -218,7 +174,6 @@ public class OrderPlacerApplication {
             logger.error("CANNOT SEND NOTIFICATION:");
             System.out.println(e.getMessage());
         }
-        return order;
     }
 
     public static void main(String[] args) {

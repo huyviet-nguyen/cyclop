@@ -63,12 +63,11 @@ public class OrderPlacerService {
         return latestOrder;
     }
 
-    public Order handleReduceTakeProfit(Strategy strategy, KlineData klineData, Order latestOrder) throws JsonProcessingException, InterruptedException {
+    public void handleReduceTakeProfit(Strategy strategy, KlineData klineData, Order latestOrder) throws JsonProcessingException, InterruptedException {
         PlatformService service = getService(klineData.getSourcePlatform());
         double newTakeProfitPrice = calculateReducedTakeProfitPrice(strategy, klineData, latestOrder);
         latestOrder.setCurrentTakeProfitPrice(newTakeProfitPrice);
         service.reduceProfit(latestOrder, strategy, klineData);
-        return latestOrder;
     }
 
     private Order createOrderAck(KlineData klineData, Strategy strategy) {

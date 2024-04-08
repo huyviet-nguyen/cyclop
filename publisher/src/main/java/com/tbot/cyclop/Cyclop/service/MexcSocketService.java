@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tbot.cyclop.Cyclop.dto.KlineData;
 import com.tbot.cyclop.Cyclop.dto.MexcKline;
 import com.tbot.cyclop.Cyclop.repo.StrategyRepo;
+import com.tbot.cyclop.Cyclop.repo.SymbolRepo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -13,6 +14,7 @@ import reactor.core.publisher.Sinks;
 import reactor.core.scheduler.Schedulers;
 
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.function.Predicate;
 
 @Component
@@ -37,12 +39,13 @@ public class MexcSocketService extends PlatformSocketService {
 
     @Value("${wss.mexc.pingMessage}")
     private String pingMessage;
-
-    private final StrategyRepo strategyRepo;
+    private final SymbolRepo symbolRepo;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public MexcSocketService(StrategyRepo strategyRepo) {
-        this.strategyRepo = strategyRepo;
+    private static final String[] SUPPORTED_INTERVAL = new String[]{"1", "5", "15", "30", "60"};
+
+    public MexcSocketService(SymbolRepo symbolRepo) {
+        this.symbolRepo = symbolRepo;
         triggerSink.asFlux().subscribe();
     }
 
@@ -60,8 +63,13 @@ public class MexcSocketService extends PlatformSocketService {
 
     @Override
     Flux<String> getMessageFlux() {
-        Flux<String> initialMessage = strategyRepo.findAllByStatusAndPlatform("ACTIVE", "MEXC")
-                .map(strategy -> initMessageTemplate.replace("%symbol", strategy.getSymbolString()).replace("%interval", strategy.getCandleStick().replace("M", "")));
+//        Flux<String> initialMessage = strategyRepo.findAllByStatusAndPlatform("ACTIVE", "MEXC")
+//                .map(strategy -> initMessageTemplate.replace("%symbol", strategy.getSymbolString()).replace("%interval", strategy.getCandleStick().replace("M", "")));
+        Flux<String> initialMessage = symbolRepo.findAllByPlatform("MEXC")
+                .flatMap(symbol -> Flux.fromIterable(Arrays.stream(SUPPORTED_INTERVAL).toList())
+                        .map(interval -> initMessageTemplate.replace("%symbol", symbol.getSymbol()).replace("%interval", interval))
+                );
+
         Flux<String> messageFlux = triggerSink.asFlux();
         Flux<String> pingFlux = Flux.interval(Duration.ofSeconds(Integer.parseInt(pingInterval))).map(v -> pingMessage);
         return Flux.merge(initialMessage, messageFlux.subscribeOn(Schedulers.parallel()), pingFlux.subscribeOn(Schedulers.parallel()));

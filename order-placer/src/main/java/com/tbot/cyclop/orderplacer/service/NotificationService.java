@@ -70,11 +70,11 @@ public class NotificationService {
                     Detail :%s
                     """;
 
-    private String getErrorNotificationContent(Strategy strategy, KlineData klineData, String errorMessage){
+    private String getErrorNotificationContent(Strategy strategy, KlineData klineData, String errorMessage) {
         return String.format(ERROR_TEMPLATE,
                 strategy.getBot().getName(),
-                strategy.getSymbolString().replace("_","\\_"), strategy.getPositionSide(),
-                klineData.getCurrentPrice(),errorMessage);
+                strategy.getSymbolString().replace("_", "\\_"), strategy.getPositionSide(),
+                klineData.getCurrentPrice(), errorMessage);
     }
 
     public NotificationService(TelegramBotInfoRepo infoRepo) {
@@ -88,14 +88,14 @@ public class NotificationService {
     private String getReportNotificationContent(Order order, Strategy strategy, int win, int lose) {
         double pnl;
         double sellPrice;
-        if (order.getOrderStatus().equals(OrderStatus.TOOK_PROFIT)) {
+        if (order.getProfit() > 0) {
             pnl = calculateChangePercent(order.getOpenOrderPrice(), order.getCurrentTakeProfitPrice());
             sellPrice = order.getCurrentTakeProfitPrice();
         } else {
             pnl = calculateChangePercent(order.getOpenOrderPrice(), order.getStopLossPrice());
             sellPrice = order.getStopLossPrice();
         }
-        String overall = win >= lose ? "WIN" : "LOSE";
+        String overall = order.getProfit() > 0 ? "WIN" : "LOSE";
         return String.format(REPORT_NOTIFICATION_TEMPLATE,
                 order.getSymbol().replace("_", "\\_"), strategy.getPositionSide(), overall,
                 strategy.getBot().getName(),
@@ -117,7 +117,7 @@ public class NotificationService {
                     order.getCandleOpenPrice(),
                     order.getOpenOrderPrice(),
                     order.getVolume() * order.getOpenOrderPrice());
-            case STOPPED_LOSS, TOOK_PROFIT -> String.format(CLOSE_ORDER_NOTIFICATION_TEMPLATE,
+            case CLOSED -> String.format(CLOSE_ORDER_NOTIFICATION_TEMPLATE,
                     order.getSymbol().replace("_", "\\_"),
                     strategy.getPositionSide(),
                     strategy.getBot().getName(),
@@ -138,9 +138,9 @@ public class NotificationService {
             return;
         }
         String content = getReportNotificationContent(order, strategy, win, loose);
-        try{
+        try {
             sendNotification(botInfo.getApiToken(), bot.getTelegramId(), content);
-        } catch (Exception e){
+        } catch (Exception e) {
             logger.error("Cannot send noti for" + order.getId());
         }
         logger.info("SENT NOTIFICATION TO " + user.getName() + " at " + user.getTelegramId());
@@ -158,9 +158,9 @@ public class NotificationService {
         if (content.isEmpty()) {
             return;
         }
-        try{
+        try {
             sendNotification(botInfo.getApiToken(), bot.getTelegramId(), content);
-        } catch (Exception e){
+        } catch (Exception e) {
             logger.error("Cannot send noti for" + order.getId());
         }
         logger.info("SENT NOTIFICATION TO " + user.getName() + " at " + user.getTelegramId());
@@ -184,15 +184,15 @@ public class NotificationService {
     }
 
 
-    public void sendErrorNotification(Strategy strategy,KlineData klineData, String message) {
+    public void sendErrorNotification(Strategy strategy, KlineData klineData, String message) {
         TelegramBotInfo botInfo = infoRepo.findAll().blockFirst();
         Bot bot = strategy.getBot();
         User user = strategy.getUser();
         String content = getErrorNotificationContent(strategy, klineData, message);
-        try{
+        try {
             assert botInfo != null;
             sendNotification(botInfo.getApiToken(), bot.getTelegramId(), content);
-        } catch (Exception ignored){
+        } catch (Exception ignored) {
         }
         logger.info("SENT NOTIFICATION TO " + user.getName() + " at " + user.getTelegramId());
     }
