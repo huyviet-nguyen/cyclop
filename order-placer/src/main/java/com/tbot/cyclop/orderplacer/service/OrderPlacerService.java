@@ -75,7 +75,7 @@ public class OrderPlacerService {
         ack.setPlatform(strategy.getPlatform());
         ack.setSymbol(strategy.getSymbol().getSymbol());
         ack.setEntryPrice(klineData.getCurrentPrice());
-        double openOrderPrice = strategy.getPositionSide().equals("LONG") ? addPercentage(klineData.getOpenPrice(), strategy.getOrderChange()) : deductPercentage(klineData.getOpenPrice(), strategy.getOrderChange());
+        double openOrderPrice = strategy.getPositionSide().equals("SHORT") ? addPercentage(klineData.getOpenPrice(), strategy.getOrderChange()) : deductPercentage(klineData.getOpenPrice(), strategy.getOrderChange());
         ack.setOpenOrderPrice(openOrderPrice);
         ack.setTimestamp(System.currentTimeMillis());
         ack.setCandleOpenPrice(klineData.getOpenPrice());
