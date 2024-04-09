@@ -61,7 +61,7 @@ public class OrderPlacerApplication {
                         logger.warn("HIGH LAG : {} -> IGNORED!", lag);
                         return new ArrayList<>();
                     }
-                    String positionSide = value.getCurrentPrice() >= value.getOpenPrice() ? "LONG" : "SHORT";
+                    String positionSide = value.getCurrentPrice() < value.getOpenPrice() ? "LONG" : "SHORT";
                     String symbolString = value.getSymbol().replace("USDT", "_USDT");
                     Flux<Strategy> strategyFlux = strategyRepo.findByCandleStickAndSymbolStringAndPositionSideAndStatus("M".concat(value.getInterval()), symbolString, positionSide, "ACTIVE");
                     Flux<Order> orderAckFlux = strategyFlux
@@ -114,7 +114,7 @@ public class OrderPlacerApplication {
                                                 } else {
                                                     switch (newStatus) {
                                                         case OrderStatus.OPEN -> {
-                                                            decorateNotification(order,strategy);
+                                                            decorateNotification(order, strategy);
                                                             return order;
                                                         }
                                                         case OrderStatus.CLOSED -> {
@@ -125,7 +125,7 @@ public class OrderPlacerApplication {
                                                             }
                                                             botRepo.save(strategy.getBot()).block();
                                                             orderCache.put(strategy.getId(), null);
-                                                            decorateNotification(order,strategy);
+                                                            decorateNotification(order, strategy);
                                                             return order;
                                                         }
                                                         case OrderStatus.IGNORED -> {
