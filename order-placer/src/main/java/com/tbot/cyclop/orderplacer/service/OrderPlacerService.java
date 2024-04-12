@@ -65,7 +65,7 @@ public class OrderPlacerService {
 
     public void handleReduceTakeProfit(Strategy strategy, KlineData klineData, Order latestOrder) throws JsonProcessingException, InterruptedException {
         PlatformService service = getService(klineData.getSourcePlatform());
-        double newTakeProfitPrice = calculateReducedTakeProfitPrice(strategy, klineData, latestOrder);
+        double newTakeProfitPrice = calculateReducedTakeProfitPrice(strategy, latestOrder);
         latestOrder.setCurrentTakeProfitPrice(newTakeProfitPrice);
         service.reduceProfit(latestOrder, strategy, klineData);
     }
@@ -82,6 +82,7 @@ public class OrderPlacerService {
         ack.setCreatedAt(LocalDateTime.now());
         ack.setUpdatedAt(LocalDateTime.now());
         ack.setOrderStatus(OrderStatus.SYS_CREATED);
+        ack.setCurrentActualTakeProfit(strategy.getTakeProfit());
         return ack;
     }
 

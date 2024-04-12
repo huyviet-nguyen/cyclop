@@ -33,10 +33,7 @@ public class Order {
     private String platformOrderId;
     private double profit;
     private long positionId;
-
-    public double getCurrentTakeProfitPercent() {
-        return Math.abs(((currentTakeProfitPrice - openOrderPrice) / openOrderPrice) * 100);
-    }
+    private double currentActualTakeProfit;
 
     public String toCancelPayload() {
         String template = "[{\"symbol\":\"%s\",\"orderId\":\"%s\"}]";

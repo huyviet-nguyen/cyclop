@@ -15,7 +15,7 @@ import org.springframework.web.util.UriBuilder;
 
 import java.util.*;
 
-import static com.tbot.cyclop.orderplacer.util.PercentageUtil.calculateChangePercent;
+import static com.tbot.cyclop.orderplacer.util.PercentageUtil.*;
 
 
 @Component
@@ -102,8 +102,8 @@ public class NotificationService {
                 win, lose,
                 strategy.getExtendOrderChangePercent(),
                 strategy.getCandleStick(), strategy.getOrderChange(), strategy.getTakeProfit(),
-                sellPrice, order.getVolume(),
-                order.getOpenOrderPrice(), order.getVolume(),
+                sellPrice, roundToSameDecimal(0.01,order.getVolume() * order.getOpenOrderPrice() / strategy.getSymbol().getCs()),
+                order.getOpenOrderPrice(), roundToSameDecimal(0.01,order.getVolume() * order.getOpenOrderPrice() / strategy.getSymbol().getCs()),
                 order.getProfit(), pnl);
     }
 
@@ -116,7 +116,7 @@ public class NotificationService {
                     strategy.toNotiString(),
                     order.getCandleOpenPrice(),
                     order.getOpenOrderPrice(),
-                    order.getVolume() * order.getOpenOrderPrice());
+                    roundToSameDecimal(0.01,order.getVolume() * order.getOpenOrderPrice() / strategy.getSymbol().getCs()));
             case CLOSED -> String.format(CLOSE_ORDER_NOTIFICATION_TEMPLATE,
                     order.getSymbol().replace("_", "\\_"),
                     strategy.getPositionSide(),
@@ -124,7 +124,7 @@ public class NotificationService {
                     strategy.toNotiString(),
                     order.getCandleOpenPrice(),
                     order.getOpenOrderPrice(),
-                    order.getVolume() * order.getOpenOrderPrice());
+                    roundToSameDecimal(0.01,order.getVolume() * order.getOpenOrderPrice() / strategy.getSymbol().getCs()));
             default -> "";
         };
     }

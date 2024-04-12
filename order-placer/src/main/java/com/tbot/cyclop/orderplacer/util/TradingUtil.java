@@ -30,43 +30,37 @@ public class TradingUtil {
         return matchSide && matchPrice;
     }
 
-    public static double calculateTakeProfitProportion(Strategy strategy) {
-        if (strategy.getPositionSide().equals("LONG")) {
-            return ONE_HUNDRED_PERCENT + calculateNewValue(strategy.getOrderChange(), strategy.getTakeProfit());
-        } else {
-            return ONE_HUNDRED_PERCENT - calculateNewValue(strategy.getOrderChange(), strategy.getTakeProfit());
-        }
-    }
-
     public static double calculateTakeProfitPrice(Strategy strategy, Order klineData) {
-        double takeProfitPercent = calculateTakeProfitProportion(strategy);
-        return calculateNewValue(klineData.getOpenOrderPrice(), takeProfitPercent);
-    }
-
-    public static double calculateStopLossProportion(Strategy strategy) {
-        if (strategy.getPositionSide().equals("SHORT")) {
-            return ONE_HUNDRED_PERCENT + calculateNewValue(strategy.getOrderChange(), strategy.getStopLoss());
+        double openPriceToOcOffset = Math.abs(klineData.getOpenOrderPrice() - klineData.getCandleOpenPrice());
+        double takeProfitPriceOffset = calculateNewValue(openPriceToOcOffset, strategy.getTakeProfit());
+        if (strategy.getPositionSide().equals("LONG")) {
+            return klineData.getOpenOrderPrice() + takeProfitPriceOffset;
         } else {
-            return ONE_HUNDRED_PERCENT - calculateNewValue(strategy.getOrderChange(), strategy.getStopLoss());
+            return klineData.getOpenOrderPrice() - takeProfitPriceOffset;
         }
+
     }
 
     public static double calculateStopLossPrice(Strategy strategy, Order klineData) {
-        double stopLossPercent = calculateStopLossProportion(strategy);
-        return calculateNewValue(klineData.getOpenOrderPrice(), stopLossPercent);
+        double openPriceToOcOffset = Math.abs(klineData.getOpenOrderPrice() - klineData.getCandleOpenPrice());
+        double stopLossPriceOffset = calculateNewValue(openPriceToOcOffset, strategy.getStopLoss());
+        if (strategy.getPositionSide().equals("LONG")) {
+            return klineData.getOpenOrderPrice() - stopLossPriceOffset;
+        } else {
+            return klineData.getOpenOrderPrice() + stopLossPriceOffset;
+        }
     }
 
 
-    public static double calculateReducedTakeProfitPrice(Strategy strategy, KlineData klineData, Order latestOrder) {
-        double lastTakeProfitPercent = latestOrder.getCurrentTakeProfitPercent();
-        double newTakeProfitPercent = deductPercentage(lastTakeProfitPercent, strategy.getReduceTakeProfit());
-        double newTakeProfitPrice;
+    public static double calculateReducedTakeProfitPrice(Strategy strategy, Order latestOrder) {
+        double openPriceToOcOffset = Math.abs(latestOrder.getOpenOrderPrice() - latestOrder.getCandleOpenPrice());
+        latestOrder.setCurrentActualTakeProfit(deductPercentage(latestOrder.getCurrentActualTakeProfit(), strategy.getReduceTakeProfit()));
+        double takeProfitPriceOffset = calculateNewValue(openPriceToOcOffset, latestOrder.getCurrentActualTakeProfit());
         if (strategy.getPositionSide().equals("LONG")) {
-            newTakeProfitPrice = calculateNewValue(klineData.getCurrentPrice(), ONE_HUNDRED_PERCENT + newTakeProfitPercent);
+            return latestOrder.getOpenOrderPrice() + takeProfitPriceOffset;
         } else {
-            newTakeProfitPrice = calculateNewValue(klineData.getCurrentPrice(), ONE_HUNDRED_PERCENT - newTakeProfitPercent);
+            return latestOrder.getOpenOrderPrice() - takeProfitPriceOffset;
         }
-        return newTakeProfitPrice;
     }
 
     public static byte[] generateRandomBytes(int length) {
@@ -143,13 +137,8 @@ public class TradingUtil {
         return result.toString().toLowerCase();
     }
 
-    public static int getVolume(double balance, double strategyAmount, double cont) {
-        if (strategyAmount < 0 || strategyAmount > 100) {
-            throw new IllegalArgumentException("Percentage must be between 0 and 100.");
-        }
-        double equityFraction = strategyAmount / 100.0;
-        double portfolioPortion = balance * equityFraction;
-        double result = (portfolioPortion * 10) / cont;
+    public static int getVolume(double strategyAmount, double cont) {
+        double result = (strategyAmount * 10) / cont;
         return (int) result;
     }
 

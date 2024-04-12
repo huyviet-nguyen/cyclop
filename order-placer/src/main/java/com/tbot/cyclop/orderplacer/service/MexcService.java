@@ -430,12 +430,8 @@ public class MexcService implements PlatformService {
         mexcOrder.setCHash(getMexcCHashs());
         mexcOrder.setMToken(sysInfo.getMtoken());
         mexcOrder.setMHash(sysInfo.getMhash());
-        Bot bot = strategy.getBot();
-        String apiKey = decryptSecretKey(bot.getApiKey());
-        String secretKey = decryptSecretKey(bot.getSecretKey());
-        double balance = getBalance(apiKey, secretKey);
-        double cont = getContractSize(sysOrder.getSymbol(), sysOrder.getEntryPrice());
-        int volume = getVolume(balance, strategy.getRealAmount(), cont);
+        double cont = strategy.getSymbol().getCs();
+        int volume = getVolume(strategy.getRealAmount(), cont);
         mexcOrder.setVol(volume);
         sysOrder.setVolume(volume);
         //update price to match decimal

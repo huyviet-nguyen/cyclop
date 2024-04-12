@@ -23,7 +23,7 @@ public class MexcOpenOrderRequest {
     private int triggerType; // 1=open long | 2 = open short
 
     @JsonProperty("openType")
-    private int openType = 1; // Default value 1 for ISOLATED
+    private int openType = 2; // Default value 1 for ISOLATED
 
     @JsonProperty("orderType")
     private int orderType = 5;
