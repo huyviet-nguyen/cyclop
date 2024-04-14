@@ -10,12 +10,15 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.publisher.Sinks;
 import reactor.core.scheduler.Schedulers;
 import reactor.kafka.sender.KafkaSender;
 import reactor.kafka.sender.SenderRecord;
 import reactor.kafka.sender.SenderResult;
 
+import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -41,6 +44,9 @@ public class MarketObserveCommandLineRunner implements CommandLineRunner {
     private String errorTopic;
     private final Logger logger = LoggerFactory.getLogger(MarketObserveCommandLineRunner.class);
     private final ConcurrentMap<String, Long> concurrentHashMap = new ConcurrentHashMap<>();
+
+    private final Sinks.Many<Boolean> stopper = Sinks.many().unicast().onBackpressureBuffer();
+
 
     public MarketObserveCommandLineRunner(MexcSocketService mexcService, BybitSocketService bybitService, KafkaSender<String, KlineData> producerTemplate, KafkaSender<String, String> errorSender) {
         this.mexcService = mexcService;
@@ -75,8 +81,9 @@ public class MarketObserveCommandLineRunner implements CommandLineRunner {
             concurrentHashMap.computeIfAbsent(klineData.getKafkaKey(), v -> System.currentTimeMillis());
             long interval = switch (klineData.getInterval()) {
                 case "1" -> 5000;
-                case "5" -> 5000;
-                default -> 7000;
+                case "5" -> 10000;
+                case "15" -> 20000;
+                default -> 60000;
             };
             if ((System.currentTimeMillis() - concurrentHashMap.get(klineData.getKafkaKey())) < interval) {
                 return false;
@@ -92,6 +99,7 @@ public class MarketObserveCommandLineRunner implements CommandLineRunner {
         Flux<SenderRecord<String, KlineData, KlineData>> pub = filteredFlux
                 .map(i -> SenderRecord.create(outputTopic, null, i.getCandleTimestamp(), i.getKafkaKey(), i, i));
         producerTemplate.send(pub)
+                .subscribeOn(Schedulers.parallel())
                 .doOnEach(signal -> {
                     KlineData i = Optional.ofNullable(signal.get()).map(SenderResult::correlationMetadata).orElse(null);
                     if (i != null) {
@@ -101,6 +109,7 @@ public class MarketObserveCommandLineRunner implements CommandLineRunner {
                         }
                         String message = String.format("PUBLISHED %s | M%s | %s | OPEN PRICE : %s | CURRENT PRICE : %s", i.getSymbol(), i.getInterval(), i.getSourcePlatform(), i.getOpenPrice(), i.getCurrentPrice());
                         logger.info(message);
+                        stopper.tryEmitNext(true);
                     }
                 }).publishOn(Schedulers.boundedElastic()).doOnError(error -> {
                     logger.error(error.getMessage());
@@ -109,6 +118,15 @@ public class MarketObserveCommandLineRunner implements CommandLineRunner {
                 })
                 .doOnComplete(() -> System.exit(0))
                 .subscribe();
+
+        stopper.asFlux()
+                .subscribeOn(Schedulers.parallel())
+                .bufferTimeout(5000, Duration.ofMillis(5000))
+                .filter(List::isEmpty)
+                .doOnNext(list -> {
+                    logger.error("No emission for 5 seconds. Shutting down the application.");
+                    System.exit(0);
+                }).subscribe();
     }
 
 }

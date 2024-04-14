@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: orderplacer
 spec:
-  replicas: 40
+  replicas: 45
   selector:
     matchLabels:
       app: orderplacer

@@ -57,7 +57,7 @@ public class OrderPlacerApplication {
                 (key, value) ->
                 {
                     long lag = System.currentTimeMillis() - value.getCandleTimestamp();
-                    if (lag > 3000) {
+                    if (lag > 5000) {
                         logger.warn("HIGH LAG : {} -> IGNORED!", lag);
                         return new ArrayList<>();
                     }
