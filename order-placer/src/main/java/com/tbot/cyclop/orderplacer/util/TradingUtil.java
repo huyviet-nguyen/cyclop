@@ -19,10 +19,9 @@ import static com.tbot.cyclop.orderplacer.util.PercentageUtil.calculateNewValue;
 
 public class TradingUtil {
 
-    private static final double ONE_HUNDRED_PERCENT = 100;
-
     private static final ObjectMapper mapper = new ObjectMapper();
 
+    //checked
     public static boolean canSubmit(Strategy strategy, KlineData klineData) {
         double changePercent = calculateChangePercent(klineData.getOpenPrice(), klineData.getCurrentPrice());
         boolean matchSide = (changePercent <= 0 && strategy.getPositionSide().equals("LONG")) || (changePercent > 0 && strategy.getPositionSide().equals("SHORT"));
@@ -30,13 +29,13 @@ public class TradingUtil {
         return matchSide && matchPrice;
     }
 
-    public static double calculateTakeProfitPrice(Strategy strategy, Order klineData) {
-        double openPriceToOcOffset = Math.abs(klineData.getOpenOrderPrice() - klineData.getCandleOpenPrice());
+    public static double calculateTakeProfitPrice(Strategy strategy, Order order) {
+        double openPriceToOcOffset = Math.abs(order.getOpenOrderPrice() - order.getCandleOpenPrice());
         double takeProfitPriceOffset = calculateNewValue(openPriceToOcOffset, strategy.getTakeProfit());
         if (strategy.getPositionSide().equals("LONG")) {
-            return klineData.getOpenOrderPrice() + takeProfitPriceOffset;
+            return order.getOpenOrderPrice() + takeProfitPriceOffset;
         } else {
-            return klineData.getOpenOrderPrice() - takeProfitPriceOffset;
+            return order.getOpenOrderPrice() - takeProfitPriceOffset;
         }
 
     }
@@ -137,8 +136,13 @@ public class TradingUtil {
         return result.toString().toLowerCase();
     }
 
-    public static int getVolume(double strategyAmount, double cont) {
-        double result = (strategyAmount * 10) / cont;
+    public static int getVolume(double balance, double strategyAmount, double cont) {
+        if (strategyAmount < 0 || strategyAmount > 100) {
+            throw new IllegalArgumentException("Percentage must be between 0 and 100.");
+        }
+        double equityFraction = strategyAmount / 100.0;
+        double portfolioPortion = balance * equityFraction;
+        double result = (portfolioPortion * 10) / cont;
         return (int) result;
     }
 

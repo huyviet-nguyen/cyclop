@@ -10,7 +10,6 @@ import com.tbot.cyclop.Cyclop.dto.res.*;
 import com.tbot.cyclop.Cyclop.model.*;
 import com.tbot.cyclop.orderplacer.exception.OpenOrderFailException;
 import com.tbot.cyclop.orderplacer.exception.ReduceTakeProfitFailException;
-import com.tbot.cyclop.orderplacer.util.TradingUtil;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -430,8 +429,12 @@ public class MexcService implements PlatformService {
         mexcOrder.setCHash(getMexcCHashs());
         mexcOrder.setMToken(sysInfo.getMtoken());
         mexcOrder.setMHash(sysInfo.getMhash());
+        Bot bot = strategy.getBot();
+        String apiKey = decryptSecretKey(bot.getApiKey());
+        String secretKey = decryptSecretKey(bot.getSecretKey());
+        double balance = getBalance(apiKey, secretKey);
         double cont = strategy.getSymbol().getCs();
-        int volume = getVolume(strategy.getRealAmount(), cont);
+        int volume = getVolume(balance, strategy.getRealAmount(), cont);
         mexcOrder.setVol(volume);
         sysOrder.setVolume(volume);
         //update price to match decimal

@@ -16,6 +16,9 @@ public class MexcOpenOrderRequest {
     @JsonProperty("triggerPrice")
     private String triggerPrice;
 
+    @JsonProperty("price")
+    private String price;
+
     @JsonProperty("side")
     private int side; // 1=open long | 3 = open short
 
@@ -26,7 +29,7 @@ public class MexcOpenOrderRequest {
     private int openType = 2; // Default value 1 for ISOLATED
 
     @JsonProperty("orderType")
-    private int orderType = 5;
+    private int orderType = 1;
 
     @JsonProperty("positionMode")
     private int positionMode = 1;
@@ -73,5 +76,11 @@ public class MexcOpenOrderRequest {
 
     @JsonProperty("executeCycle")
     private int executeCycle = 3;
+
+
+    public void setTriggerPrice(String triggerPrice) {
+        this.triggerPrice = triggerPrice;
+        this.price = triggerPrice;
+    }
 
 }
