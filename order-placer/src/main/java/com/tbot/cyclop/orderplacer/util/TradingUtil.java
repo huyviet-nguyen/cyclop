@@ -31,7 +31,7 @@ public class TradingUtil {
 
     public static double calculateTakeProfitPrice(Strategy strategy, Order order) {
         double openPriceToOcOffset = Math.abs(order.getOpenOrderPrice() - order.getCandleOpenPrice());
-        double takeProfitPriceOffset = calculateNewValue(openPriceToOcOffset, strategy.getTakeProfit());
+        double takeProfitPriceOffset = Math.abs(calculateNewValue(openPriceToOcOffset, strategy.getTakeProfit()));
         if (strategy.getPositionSide().equals("LONG")) {
             return order.getOpenOrderPrice() + takeProfitPriceOffset;
         } else {
@@ -42,7 +42,7 @@ public class TradingUtil {
 
     public static double calculateStopLossPrice(Strategy strategy, Order klineData) {
         double openPriceToOcOffset = Math.abs(klineData.getOpenOrderPrice() - klineData.getCandleOpenPrice());
-        double stopLossPriceOffset = calculateNewValue(openPriceToOcOffset, strategy.getStopLoss());
+        double stopLossPriceOffset = Math.abs(calculateNewValue(openPriceToOcOffset, strategy.getStopLoss()));
         if (strategy.getPositionSide().equals("LONG")) {
             return klineData.getOpenOrderPrice() - stopLossPriceOffset;
         } else {
@@ -54,7 +54,7 @@ public class TradingUtil {
     public static double calculateReducedTakeProfitPrice(Strategy strategy, Order latestOrder) {
         double openPriceToOcOffset = Math.abs(latestOrder.getOpenOrderPrice() - latestOrder.getCandleOpenPrice());
         latestOrder.setCurrentActualTakeProfit(deductPercentage(latestOrder.getCurrentActualTakeProfit(), strategy.getReduceTakeProfit()));
-        double takeProfitPriceOffset = calculateNewValue(openPriceToOcOffset, latestOrder.getCurrentActualTakeProfit());
+        double takeProfitPriceOffset = Math.abs(calculateNewValue(openPriceToOcOffset, latestOrder.getCurrentActualTakeProfit()));
         if (strategy.getPositionSide().equals("LONG")) {
             return latestOrder.getOpenOrderPrice() + takeProfitPriceOffset;
         } else {

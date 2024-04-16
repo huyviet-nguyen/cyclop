@@ -102,7 +102,7 @@ public class OrderPlacerApplication {
                                                 boolean orderMatchCandle = value.getOpenPrice() == order.getCandleOpenPrice();
                                                 logger.info("STRATEGY {} | LAST ORDER ID {} | STATUS AFTER SYNCED {}", strategy.toNotiString(), order.getId(), order.getOrderStatus());
                                                 if (!statusChanged) {
-                                                    if (newStatus.equals(OrderStatus.SUBMIT) && !orderMatchCandle) {
+                                                    if (!newStatus.equals(OrderStatus.OPEN) && !orderMatchCandle) {
                                                         orderCache.put(strategy.getId(), null);
                                                         orderPlacerService.handleCancelOrder(order, strategy);
                                                         return null;
