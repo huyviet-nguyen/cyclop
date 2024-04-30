@@ -77,6 +77,9 @@ public class MexcOpenOrderRequest {
     @JsonProperty("executeCycle")
     private int executeCycle = 3;
 
+    @JsonProperty("externalOid")
+    private String externalOid;
+
 
     public void setTriggerPrice(String triggerPrice) {
         this.triggerPrice = triggerPrice;

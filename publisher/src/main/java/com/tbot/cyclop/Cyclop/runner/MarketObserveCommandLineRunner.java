@@ -83,7 +83,7 @@ public class MarketObserveCommandLineRunner implements CommandLineRunner {
                 case "1" -> 5000;
                 case "5" -> 10000;
                 case "15" -> 20000;
-                default -> 100000;
+                default -> 1000000;
             };
             if ((System.currentTimeMillis() - concurrentHashMap.get(klineData.getKafkaKey())) < interval) {
                 return false;

@@ -104,6 +104,12 @@ public class MexcOrderHistoryListResponse {
         @JsonProperty("showProfitRateShare")
         private int showProfitRateShare;
 
+        @JsonProperty("stopLossPrice")
+        private double stopLossPrice;
+
+        @JsonProperty("takeProfitPrice")
+        private double takeProfitPrice;
+
         // Additional fields can be added as needed
     }
 }

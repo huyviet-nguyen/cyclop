@@ -14,7 +14,7 @@ kubectl apply -f kafka-service.yaml;
 sleep 50
 # update partition
 kafka_pod=$(kubectl get pods -l app=kafka -o jsonpath='{.items[0].metadata.name}')
-kubectl exec -it "$kafka_pod" -- sh -c '/usr/bin/kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --replication-factor 1 --partitions 45 --topic kline --config retention.ms=10000 && /usr/bin/kafka-topics --describe --bootstrap-server kafka:9092 --topic kline '
+kubectl exec -it "$kafka_pod" -- sh -c '/usr/bin/kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --replication-factor 1 --partitions 30 --topic kline --config retention.ms=10000 && /usr/bin/kafka-topics --describe --bootstrap-server kafka:9092 --topic kline '
 sleep 10;
 cd .. ;
 cd apps;

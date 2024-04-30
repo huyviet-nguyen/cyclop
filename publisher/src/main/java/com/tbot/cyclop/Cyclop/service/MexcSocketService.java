@@ -42,7 +42,7 @@ public class MexcSocketService extends PlatformSocketService {
     private final SymbolRepo symbolRepo;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    private static final String[] SUPPORTED_INTERVAL = new String[]{"1", "5", "15", "30", "60"};
+    private static final String[] SUPPORTED_INTERVAL = new String[]{"1", "5", "15"};
 
     public MexcSocketService(SymbolRepo symbolRepo) {
         this.symbolRepo = symbolRepo;
