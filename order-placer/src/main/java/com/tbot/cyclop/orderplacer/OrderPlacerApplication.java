@@ -97,15 +97,15 @@ public class OrderPlacerApplication {
                                                 OrderStatus oldStatus = latestOrder.getOrderStatus();
                                                 Order order = orderPlacerService.handleSyncStatus(value, latestOrder, strategy);
                                                 OrderStatus newStatus = order.getOrderStatus();
-                                                boolean statusChanged = !oldStatus.equals(order.getOrderStatus());
                                                 boolean orderMatchCandle = value.getOpenPrice() == order.getCandleOpenPrice();
+                                                if (newStatus.equals(OrderStatus.SUBMIT) && !orderMatchCandle) {
+                                                    orderCache.put(strategy.getId(), null);
+                                                    orderPlacerService.handleCancelOrder(order, strategy);
+                                                    return null;
+                                                }
+                                                boolean statusChanged = !oldStatus.equals(order.getOrderStatus());
                                                 logger.info("STRATEGY {} | LAST ORDER ID {} | STATUS AFTER SYNCED {}", strategy.toNotiString(), order.getPlatformOrderId(), order.getOrderStatus());
                                                 if (!statusChanged) {
-                                                    if (!newStatus.equals(OrderStatus.OPEN) && !orderMatchCandle) {
-                                                        orderCache.put(strategy.getId(), null);
-                                                        orderPlacerService.handleCancelOrder(order, strategy);
-                                                        return null;
-                                                    }
                                                     if (newStatus.equals(OrderStatus.OPEN) && !orderMatchCandle) {
                                                         orderPlacerService.handleReduceTakeProfit(strategy, value, order);
                                                         return null;
