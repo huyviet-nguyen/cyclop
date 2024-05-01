@@ -90,6 +90,7 @@ public class MexcService implements PlatformService {
 
 
         if (openOrderRequest.getVol() > 0) {
+            logger.info(objectMapper.writeValueAsString(openOrderRequest));
             try {
                 MexcOrderResponse response = webClient.post()
                         .uri(path)
@@ -459,7 +460,7 @@ public class MexcService implements PlatformService {
         double pu = strategy.getSymbol().getPu();
         MexcOpenOrderRequest mexcOrder = new MexcOpenOrderRequest();
         String side = strategy.getPositionSide().equals("LONG") ? "1" : "3";
-        String triggerType = strategy.getPositionSide().equals("LONG") ? "1" : "2";
+        String triggerType = strategy.getPositionSide().equals("LONG") ? "2" : "1";
         byte[] key = generateRandomBytes(32);
         mexcOrder.setSide(Integer.parseInt(side));
         mexcOrder.setTriggerType(Integer.parseInt(triggerType));
