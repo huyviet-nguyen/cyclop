@@ -207,12 +207,15 @@ public class MexcService implements PlatformService {
                         order.setOrderStatus(OrderStatus.CLOSED);
                         order.setProfit(position.getCloseProfitLoss());
                         return;
+                    } else {
+                        order.setOrderStatus(OrderStatus.IGNORED);
                     }
                 }
             }
 
         } catch (Exception e) {
             logger.error("CANNOT SYNC STATUS FOR ORDER {}", order.getPlatformOrderId());
+            logger.error(e.getMessage());
             order.setOrderStatus(OrderStatus.IGNORED);
         }
 
@@ -315,7 +318,7 @@ public class MexcService implements PlatformService {
     private MexcStopOrderListResponse getStopOrderListOrder(String decryptedWebToken, String symbol) {
         long timestamp = System.currentTimeMillis();
 
-        String path = mexcOrderBaseUrl.concat("api/v1/private/stoporder/list/orders?is_finished=1&page_num=1&page_size=40&symbol=").concat(symbol);
+        String path = mexcOrderBaseUrl.concat("api/v1/private/stoporder/list/orders?is_finished=1&page_num=1&page_size=20&symbol=").concat(symbol);
         String headerHash = getMexcSign("", timestamp, decryptedWebToken);
 
         return webClient.get()
@@ -476,7 +479,7 @@ public class MexcService implements PlatformService {
         String apiKey = decryptSecretKey(bot.getApiKey());
         String secretKey = decryptSecretKey(bot.getSecretKey());
         double balance = getBalance(apiKey, secretKey);
-        double cont = strategy.getSymbol().getCs();
+        double cont = strategy.getSymbol().getCs() * sysOrder.getOpenOrderPrice();
         int volume = getVolume(balance, strategy.getRealAmount(), cont);
         mexcOrder.setVol(volume);
         sysOrder.setVolume(volume);
