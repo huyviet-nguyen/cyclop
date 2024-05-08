@@ -42,6 +42,9 @@ public class OrderPlacerApplication {
     @Autowired
     public BotRepo botRepo;
 
+    @Autowired
+    public OrderRepo orderRepo;
+
     @Value("${bot.strategy.refreshRate}")
     public long STRATEGY_REFRESH_RATE;
 
@@ -57,7 +60,7 @@ public class OrderPlacerApplication {
                 (key, value) ->
                 {
                     long lag = System.currentTimeMillis() - value.getCandleTimestamp();
-                    if (lag > 5000) {
+                    if (lag > 2500) {
                         logger.warn("HIGH LAG : {} -> IGNORED!", lag);
                         return new ArrayList<>();
                     }
@@ -98,19 +101,24 @@ public class OrderPlacerApplication {
                                                 Order order = orderPlacerService.handleSyncStatus(value, latestOrder, strategy);
                                                 OrderStatus newStatus = order.getOrderStatus();
                                                 boolean orderMatchCandle = value.getOpenPrice() == order.getCandleOpenPrice();
-                                                if (newStatus.equals(OrderStatus.SUBMIT) && !orderMatchCandle) {
-                                                    orderCache.put(strategy.getId(), null);
-                                                    orderPlacerService.handleCancelOrder(order, strategy);
-                                                    return null;
-                                                }
-                                                boolean statusChanged = !oldStatus.equals(order.getOrderStatus());
-                                                logger.info("STRATEGY {} | LAST ORDER ID {} | STATUS AFTER SYNCED {}", strategy.toNotiString(), order.getPlatformOrderId(), order.getOrderStatus());
-                                                if (!statusChanged) {
-                                                    if (newStatus.equals(OrderStatus.OPEN) && !orderMatchCandle) {
-                                                        orderPlacerService.handleReduceTakeProfit(strategy, value, order);
+                                                if (!orderMatchCandle){
+                                                    if (newStatus.equals(OrderStatus.SUBMIT)) {
+                                                        orderCache.put(strategy.getId(), null);
+                                                        orderPlacerService.handleCancelOrder(order, strategy);
                                                         return null;
                                                     }
-                                                } else {
+                                                    if (newStatus.equals(OrderStatus.OPEN)) {
+                                                        double beforeReduced = order.getCurrentActualTakeProfit();
+                                                        orderPlacerService.handleReduceTakeProfit(strategy, value, order);
+                                                        logger.info("REDUCED TAKE PROFIT FOR ORDER {} FROM {} TO {}", order.getPlatformOrderId(), beforeReduced, order.getCurrentActualTakeProfit());
+                                                        return null;
+                                                    }
+                                                }
+
+                                                boolean statusChanged = !oldStatus.equals(order.getOrderStatus());
+                                                logger.info("STRATEGY {} | LAST ORDER ID {} | STATUS AFTER SYNCED {}", strategy.toNotiString(), order.getPlatformOrderId(), order.getOrderStatus());
+
+                                                if (statusChanged) {
                                                     switch (newStatus) {
                                                         case OrderStatus.OPEN -> {
                                                             decorateNotification(order, strategy);
@@ -130,6 +138,7 @@ public class OrderPlacerApplication {
                                                         case OrderStatus.IGNORED -> {
                                                             orderCache.put(strategy.getId(), null);
                                                             orderPlacerService.handleCancelOrder(order, strategy);
+                                                            orderRepo.save(order).block();
                                                             return null;
                                                         }
                                                     }
@@ -137,6 +146,8 @@ public class OrderPlacerApplication {
                                             }
                                         } catch (Exception e) {
                                             logger.error(e.getMessage());
+                                            e.printStackTrace();
+                                            notificationService.sendErrorNotification(strategy, value, e.getMessage());
                                         }
                                         return null;
                                     }
@@ -156,6 +167,7 @@ public class OrderPlacerApplication {
             }
         } catch (OpenOrderFailException e) {
             logger.error(e.getMessage());
+            e.printStackTrace();
             notificationService.sendErrorNotification(strategy, value, e.getMessage());
         }
         return null;

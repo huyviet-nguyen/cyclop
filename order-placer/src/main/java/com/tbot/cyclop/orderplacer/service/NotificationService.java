@@ -103,7 +103,7 @@ public class NotificationService {
                 strategy.getExtendOrderChangePercent(),
                 strategy.getCandleStick(), strategy.getOrderChange(), strategy.getTakeProfit(),
                 sellPrice, strategy.getRealAmount(),
-                order.getOpenOrderPrice(), strategy.getRealAmount(),
+                order.getOpenOrderPrice(), order.getOpenOrderPrice() * order.getVolume(),
                 order.getProfit(), pnl);
     }
 
@@ -116,7 +116,7 @@ public class NotificationService {
                     strategy.toNotiString(),
                     order.getCandleOpenPrice(),
                     order.getOpenOrderPrice(),
-                    strategy.getRealAmount());
+                    order.getVolume() * order.getOpenOrderPrice());
             case CLOSED -> String.format(CLOSE_ORDER_NOTIFICATION_TEMPLATE,
                     order.getSymbol().replace("_", "\\_"),
                     strategy.getPositionSide(),
@@ -124,12 +124,12 @@ public class NotificationService {
                     strategy.toNotiString(),
                     order.getCandleOpenPrice(),
                     order.getOpenOrderPrice(),
-                    strategy.getRealAmount());
+                    order.getVolume() * order.getOpenOrderPrice());
             default -> "";
         };
     }
 
-    public void sendReportNotification(Order order, Strategy strategy, int win, int loose) throws JsonProcessingException {
+    public void sendReportNotification(Order order, Strategy strategy, int win, int loose) {
         TelegramBotInfo botInfo = infoRepo.findAll().blockFirst();
         Bot bot = strategy.getBot();
         User user = strategy.getUser();
@@ -146,7 +146,7 @@ public class NotificationService {
         logger.info("SENT NOTIFICATION TO " + user.getName() + " at " + user.getTelegramId());
     }
 
-    public void sendNotification(Order order, Strategy strategy) throws JsonProcessingException {
+    public void sendNotification(Order order, Strategy strategy) {
         TelegramBotInfo botInfo = infoRepo.findAll().blockFirst();
         Bot bot = strategy.getBot();
         User user = strategy.getUser();

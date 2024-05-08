@@ -8,7 +8,7 @@ import java.time.LocalDateTime;
 
 @Getter
 @Setter
-@Document(collection = "order_ack")
+@Document(collection = "missed_order")
 @AllArgsConstructor
 @NoArgsConstructor
 public class Order {
@@ -32,7 +32,7 @@ public class Order {
     private LocalDateTime updatedAt;
     private String platformOrderId;
     private double profit;
-    private long positionId;
+    private String positionId;
     private double currentActualTakeProfit;
     private String openedOrderId;
 
