@@ -35,6 +35,7 @@ public class Order {
     private String positionId;
     private double currentActualTakeProfit;
     private String openedOrderId;
+    private String botId;
 
     public String toCancelPayload() {
         String template = "[{\"symbol\":\"%s\",\"orderId\":\"%s\"}]";

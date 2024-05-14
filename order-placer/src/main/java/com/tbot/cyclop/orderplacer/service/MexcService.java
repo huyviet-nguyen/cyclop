@@ -125,7 +125,7 @@ public class MexcService implements PlatformService {
     @Override
     public void reduceProfit(Order orderWithUpdatedProfit, Strategy strategy, KlineData marketData) throws JsonProcessingException {
         String webToken = decryptSecretKey(strategy.getBot().getWebToken());
-        MexcStopOrderResponse stopOrder = getStopOrderOpenOrders(webToken, strategy.getSymbolString()).getData().stream().filter(a -> Objects.equals(a.getOrderId(), orderWithUpdatedProfit.getPlatformOrderId())).findFirst().orElse(null);
+        MexcStopOrderResponse stopOrder = getStopOrderOpenOrders(webToken, strategy.getSymbolString()).getData().stream().filter(a -> Objects.equals(a.getOrderId(), orderWithUpdatedProfit.getOpenedOrderId())).findFirst().orElse(null);
         if (stopOrder == null) {
             logger.error("CANNOT FIND OPENED ORDER {} ON PLATFORM, CANNOT REDUCE TAKE-PROFIT", orderWithUpdatedProfit.getPlatformOrderId());
             throw new ReduceTakeProfitFailException(orderWithUpdatedProfit);
@@ -308,7 +308,7 @@ public class MexcService implements PlatformService {
     private MexcStopOrderListResponse getStopOrderOpenOrders(String decryptedWebToken, String symbol) {
         long timestamp = System.currentTimeMillis();
 
-        String path = mexcOrderBaseUrl.concat("api/v1/private/stoporder/open_orders?is_finished=0&page_num=1&page_size=30&symbol=").concat(symbol);
+        String path = mexcOrderBaseUrl.concat("api/v1/private/stoporder/open_orders?");
         String headerHash = getMexcSign("", timestamp, decryptedWebToken);
 
         return webClient.get()

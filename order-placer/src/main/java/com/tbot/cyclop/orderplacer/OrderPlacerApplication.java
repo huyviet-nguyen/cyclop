@@ -19,6 +19,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.scheduler.Schedulers;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
 import static com.tbot.cyclop.orderplacer.util.PercentageUtil.calculateChangePercent;
@@ -65,7 +66,7 @@ public class OrderPlacerApplication {
                         return new ArrayList<>();
                     }
                     String symbolString = value.getSymbol().replace("USDT", "_USDT");
-                    Flux<Strategy> strategyFlux = strategyRepo.findByCandleStickAndSymbolStringAndStatus("M".concat(value.getInterval()), symbolString, "ACTIVE");
+                    Flux<Strategy> strategyFlux = strategyRepo.findBySymbolStringAndCandleStickAndStatus(symbolString,"M".concat(value.getInterval()), "ACTIVE");
                     Flux<Order> orderAckFlux = strategyFlux
                             .filter(strategy -> strategy.getBot().getStatus().equals("RUNNING"))
                             .publishOn(Schedulers.boundedElastic()).mapNotNull(
@@ -73,7 +74,8 @@ public class OrderPlacerApplication {
                                     {
                                         try {
                                             assert strategy != null;
-                                            logger.info("PROCESS | SYMBOL: {} | STRATEGY: {} | BOT: {}", strategy.getSymbolString(), strategy.toNotiString(), strategy.getBot().getName());
+                                            String strategyNotiString = strategy.toNotiString();
+                                            logger.info("PROCESS | SYMBOL: {} | STRATEGY: {} | BOT: {}", strategy.getSymbolString(), strategyNotiString, strategy.getBot().getName());
                                             String mapKey = value.getSymbol().concat(".").concat(value.getInterval());
                                             double openPrice = candlePriceMap.get(mapKey) == null ? 0 : candlePriceMap.get(mapKey);
                                             boolean isNewCandle = value.getOpenPrice() != openPrice;
@@ -85,7 +87,7 @@ public class OrderPlacerApplication {
                                             double changePercent = calculateChangePercent(value.getOpenPrice(), value.getCurrentPrice());
                                             double ignorePercent = calculateNewValue(candlePumpMap.get(mapKey), strategy.getIgnore());
                                             if (Math.abs(changePercent) < ignorePercent) {
-                                                logger.info("STRATEGY {} | IGNORED | {} < {}% OF LAST PUMP {}", strategy.toNotiString(), Math.abs(changePercent), ignorePercent, candlePumpMap.get(mapKey));
+                                                logger.info("STRATEGY {} | IGNORED | {} < {}% OF LAST PUMP {}", strategyNotiString, Math.abs(changePercent), ignorePercent, candlePumpMap.get(mapKey));
                                                 return null;
                                             }
                                             Order latestOrder = orderCache.get(strategy.getId());
@@ -96,14 +98,14 @@ public class OrderPlacerApplication {
                                                     if (submitOrder != null) return submitOrder;
                                                 }
                                             } else {
-                                                logger.info("STRATEGY {} | LAST ORDER ID {} | STATUS {}", strategy.toNotiString(), latestOrder.getPlatformOrderId(), latestOrder.getOrderStatus());
+                                                logger.info("STRATEGY {} | LAST ORDER ID {} | STATUS {}", strategyNotiString, latestOrder.getPlatformOrderId(), latestOrder.getOrderStatus());
                                                 OrderStatus oldStatus = latestOrder.getOrderStatus();
                                                 Order order = orderPlacerService.handleSyncStatus(value, latestOrder, strategy);
                                                 OrderStatus newStatus = order.getOrderStatus();
                                                 boolean orderMatchCandle = value.getOpenPrice() == order.getCandleOpenPrice();
                                                 if (!orderMatchCandle){
                                                     if (newStatus.equals(OrderStatus.SUBMIT)) {
-                                                        orderCache.put(strategy.getId(), null);
+                                                        orderCache.remove(strategy.getId());
                                                         orderPlacerService.handleCancelOrder(order, strategy);
                                                         return null;
                                                     }
@@ -116,7 +118,7 @@ public class OrderPlacerApplication {
                                                 }
 
                                                 boolean statusChanged = !oldStatus.equals(order.getOrderStatus());
-                                                logger.info("STRATEGY {} | LAST ORDER ID {} | STATUS AFTER SYNCED {}", strategy.toNotiString(), order.getPlatformOrderId(), order.getOrderStatus());
+                                                logger.info("STRATEGY {} | LAST ORDER ID {} | STATUS AFTER SYNCED {}", strategyNotiString, order.getPlatformOrderId(), order.getOrderStatus());
 
                                                 if (statusChanged) {
                                                     switch (newStatus) {
@@ -131,12 +133,12 @@ public class OrderPlacerApplication {
                                                                 strategy.getBot().lose();
                                                             }
                                                             botRepo.save(strategy.getBot()).block();
-                                                            orderCache.put(strategy.getId(), null);
+                                                            orderCache.remove(strategy.getId());
                                                             decorateNotification(order, strategy);
                                                             return order;
                                                         }
                                                         case OrderStatus.IGNORED -> {
-                                                            orderCache.put(strategy.getId(), null);
+                                                            orderCache.remove(strategy.getId());
                                                             orderPlacerService.handleCancelOrder(order, strategy);
                                                             orderRepo.save(order).block();
                                                             return null;

@@ -30,6 +30,14 @@ public class MarketObserveCommandLineRunner implements CommandLineRunner {
     private final BybitSocketService bybitService;
     private final KafkaSender<String, KlineData> producerTemplate;
     private final KafkaSender<String, String> errorSender;
+    private volatile long lastPublished;
+
+    public synchronized long getLastPublished() {
+        return lastPublished;
+    }
+    public void stop(){
+        System.exit(1);
+    }
 
     @Value("${app.runMexc}")
     public Boolean isRunMexc;
@@ -44,9 +52,6 @@ public class MarketObserveCommandLineRunner implements CommandLineRunner {
     private String errorTopic;
     private final Logger logger = LoggerFactory.getLogger(MarketObserveCommandLineRunner.class);
     private final ConcurrentMap<String, Long> concurrentHashMap = new ConcurrentHashMap<>();
-
-    private final Sinks.Many<Boolean> stopper = Sinks.many().unicast().onBackpressureBuffer();
-
 
     public MarketObserveCommandLineRunner(MexcSocketService mexcService, BybitSocketService bybitService, KafkaSender<String, KlineData> producerTemplate, KafkaSender<String, String> errorSender) {
         this.mexcService = mexcService;
@@ -109,7 +114,7 @@ public class MarketObserveCommandLineRunner implements CommandLineRunner {
                         }
                         String message = String.format("PUBLISHED %s | M%s | %s | OPEN PRICE : %s | CURRENT PRICE : %s", i.getSymbol(), i.getInterval(), i.getSourcePlatform(), i.getOpenPrice(), i.getCurrentPrice());
                         logger.info(message);
-                        stopper.tryEmitNext(true);
+                        lastPublished = System.currentTimeMillis();
                     }
                 }).publishOn(Schedulers.boundedElastic()).doOnError(error -> {
                     logger.error(error.getMessage());
@@ -118,15 +123,6 @@ public class MarketObserveCommandLineRunner implements CommandLineRunner {
                 })
                 .doOnComplete(() -> System.exit(0))
                 .subscribe();
-
-        stopper.asFlux()
-                .subscribeOn(Schedulers.parallel())
-                .bufferTimeout(5000, Duration.ofMillis(5000))
-                .filter(List::isEmpty)
-                .doOnNext(list -> {
-                    logger.error("No emission for 5 seconds. Shutting down the application.");
-                    System.exit(0);
-                }).subscribe();
     }
 
 }

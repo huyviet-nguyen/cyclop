@@ -8,7 +8,7 @@ import reactor.core.publisher.Flux;
 
 @Repository
 public interface StrategyRepo extends ReactiveMongoRepository<Strategy, String> {
-    Flux<Strategy> findByCandleStickAndSymbolStringAndStatus(String candleStick, String symbolString, String status);
+    Flux<Strategy> findBySymbolStringAndCandleStickAndStatus(String symbolString,String candleStick, String status);
 
 }
 

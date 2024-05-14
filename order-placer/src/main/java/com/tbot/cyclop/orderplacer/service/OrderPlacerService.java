@@ -83,6 +83,7 @@ public class OrderPlacerService {
         ack.setUpdatedAt(LocalDateTime.now());
         ack.setOrderStatus(OrderStatus.SYS_CREATED);
         ack.setCurrentActualTakeProfit(strategy.getTakeProfit());
+        ack.setBotId(strategy.getBot().getId());
         return ack;
     }
 
