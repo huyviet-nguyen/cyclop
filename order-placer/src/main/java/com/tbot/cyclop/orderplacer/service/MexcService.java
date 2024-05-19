@@ -308,7 +308,7 @@ public class MexcService implements PlatformService {
     private MexcStopOrderListResponse getStopOrderOpenOrders(String decryptedWebToken, String symbol) {
         long timestamp = System.currentTimeMillis();
 
-        String path = mexcOrderBaseUrl.concat("api/v1/private/stoporder/open_orders?");
+        String path = mexcOrderBaseUrl.concat("api/v1/private/stoporder/open_orders?page_num=1&page_size=40");
         String headerHash = getMexcSign("", timestamp, decryptedWebToken);
 
         return webClient.get()
@@ -383,6 +383,7 @@ public class MexcService implements PlatformService {
         double balance = getBalance(apiKey, secretKey);
         double cont = strategy.getSymbol().getCs() * sysOrder.getOpenOrderPrice();
         int volume = getVolume(balance, strategy.getRealAmount(), cont);
+        logger.info("ACCOUNT {} | BALANCE : {} | VOL {}", strategy.getBot().getName(), balance, volume);
         mexcOrder.setVol(volume);
         sysOrder.setVolume(volume);
         sysOrder.setOpenOrderPrice(Double.parseDouble(mexcOrder.getTriggerPrice()));

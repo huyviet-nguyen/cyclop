@@ -66,7 +66,7 @@ public class OrderPlacerApplication {
                         return new ArrayList<>();
                     }
                     String symbolString = value.getSymbol().replace("USDT", "_USDT");
-                    Flux<Strategy> strategyFlux = strategyRepo.findBySymbolStringAndCandleStickAndStatus(symbolString,"M".concat(value.getInterval()), "ACTIVE");
+                    Flux<Strategy> strategyFlux = strategyRepo.findBySymbolStringAndCandleStickAndStatus(symbolString, "M".concat(value.getInterval()), "ACTIVE");
                     Flux<Order> orderAckFlux = strategyFlux
                             .filter(strategy -> strategy.getBot().getStatus().equals("RUNNING"))
                             .publishOn(Schedulers.boundedElastic()).mapNotNull(
@@ -103,7 +103,7 @@ public class OrderPlacerApplication {
                                                 Order order = orderPlacerService.handleSyncStatus(value, latestOrder, strategy);
                                                 OrderStatus newStatus = order.getOrderStatus();
                                                 boolean orderMatchCandle = value.getOpenPrice() == order.getCandleOpenPrice();
-                                                if (!orderMatchCandle){
+                                                if (!orderMatchCandle) {
                                                     if (newStatus.equals(OrderStatus.SUBMIT)) {
                                                         orderCache.remove(strategy.getId());
                                                         orderPlacerService.handleCancelOrder(order, strategy);
@@ -111,7 +111,13 @@ public class OrderPlacerApplication {
                                                     }
                                                     if (newStatus.equals(OrderStatus.OPEN)) {
                                                         double beforeReduced = order.getCurrentActualTakeProfit();
-                                                        orderPlacerService.handleReduceTakeProfit(strategy, value, order);
+                                                        try {
+                                                            orderPlacerService.handleReduceTakeProfit(strategy, value, order);
+                                                        } catch (Exception e) {
+                                                            orderCache.remove(strategy.getId());
+                                                            orderRepo.save(order).block();
+                                                            throw e;
+                                                        }
                                                         logger.info("REDUCED TAKE PROFIT FOR ORDER {} FROM {} TO {}", order.getPlatformOrderId(), beforeReduced, order.getCurrentActualTakeProfit());
                                                         return null;
                                                     }
