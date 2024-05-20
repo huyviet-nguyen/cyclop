@@ -68,6 +68,7 @@ public class OrderPlacerApplication {
                     String symbolString = value.getSymbol().replace("USDT", "_USDT");
                     Flux<Strategy> strategyFlux = strategyRepo.findBySymbolStringAndCandleStickAndStatus(symbolString, "M".concat(value.getInterval()), "ACTIVE");
                     Flux<Order> orderAckFlux = strategyFlux
+                            .filter(strategy -> strategy.getBot() != null)
                             .filter(strategy -> strategy.getBot().getStatus().equals("RUNNING"))
                             .publishOn(Schedulers.boundedElastic()).mapNotNull(
                                     (Strategy strategy) ->

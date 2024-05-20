@@ -104,7 +104,7 @@ public class NotificationService {
                 strategy.getCandleStick(), strategy.getOrderChange(), strategy.getTakeProfit(),
                 sellPrice, strategy.getRealAmount(),
                 order.getOpenOrderPrice(), order.getOpenOrderPrice() * order.getVolume(),
-                order.getProfit(), pnl);
+                order.getProfit(), roundToSameDecimal(0.01, Math.abs(pnl)));
     }
 
     private String getNotificationContent(Order order, Strategy strategy) {
