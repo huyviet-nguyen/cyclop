@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#sh mvnw clean package;
+sh mvnw clean package;
 
 # Build and tag the publisher Docker image
 docker build -f publisher.Dockerfile --platform linux/amd64 -t huyvietjava/tradebot-publisher .

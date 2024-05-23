@@ -3,6 +3,8 @@ package com.tbot.cyclop.orderplacer.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.tbot.cyclop.Cyclop.dto.KlineData;
 import com.tbot.cyclop.Cyclop.model.*;
+import com.tbot.cyclop.orderplacer.exception.ReduceTakeProfitFailException;
+import com.tbot.cyclop.orderplacer.util.GenericHttpUtil;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 
+import static com.tbot.cyclop.orderplacer.util.GenericHttpUtil.exceptionToString;
 import static com.tbot.cyclop.orderplacer.util.TradingUtil.*;
 import static com.tbot.cyclop.orderplacer.util.PercentageUtil.*;
 
@@ -51,15 +54,27 @@ public class OrderPlacerService {
         double stopLossPrice = calculateStopLossPrice(strategy, order);
         order.setStopLossPrice(stopLossPrice);
         PlatformService service = getService(klineData.getSourcePlatform());
-        service.submitOrder(order, strategy);
+        try {
+            service.submitOrder(order, strategy);
+        } catch (Exception e) {
+            saveErrorOrder(order, e);
+            throw e;
+        }
         logger.info("SUBMIT ORDER : {} | {} | {} | {} | {} | PLATFORM ID : {}", order.getSymbol(), order.getOpenOrderPrice(), order.getCurrentTakeProfitPrice(), order.getStopLossPrice(), order.getVolume(), order.getPlatformOrderId());
         return order;
     }
 
     @Transactional
     public Order handleSyncStatus(KlineData klineData, Order latestOrder, Strategy strategy) throws JsonProcessingException, InterruptedException {
-        PlatformService service = getService(klineData.getSourcePlatform());
-        service.syncStatus(latestOrder, strategy);
+        try {
+            PlatformService service = getService(klineData.getSourcePlatform());
+            service.syncStatus(latestOrder, strategy);
+        } catch (Exception e) {
+            logger.error("CANNOT SYNC STATUS FOR ORDER {}", latestOrder.getPlatformOrderId());
+            logger.error(e.getMessage());
+            latestOrder.setOrderStatus(OrderStatus.IGNORED);
+            saveErrorOrder(latestOrder, e);
+        }
         return latestOrder;
     }
 
@@ -67,7 +82,12 @@ public class OrderPlacerService {
         PlatformService service = getService(klineData.getSourcePlatform());
         double newTakeProfitPrice = calculateReducedTakeProfitPrice(strategy, latestOrder);
         latestOrder.setCurrentTakeProfitPrice(newTakeProfitPrice);
-        service.reduceProfit(latestOrder, strategy, klineData);
+        try {
+            service.reduceProfit(latestOrder, strategy, klineData);
+        } catch (Exception e) {
+            saveErrorOrder(latestOrder, e);
+            throw new ReduceTakeProfitFailException(latestOrder, e);
+        }
     }
 
     private Order createOrderAck(KlineData klineData, Strategy strategy) {
@@ -89,5 +109,10 @@ public class OrderPlacerService {
 
     private PlatformService getService(String platform) {
         return serviceMap.get(platform);
+    }
+
+
+    public void saveErrorOrder(Order failedOrder, Exception failReason) {
+        failedOrder.setCancelReason(exceptionToString(failReason));
     }
 }

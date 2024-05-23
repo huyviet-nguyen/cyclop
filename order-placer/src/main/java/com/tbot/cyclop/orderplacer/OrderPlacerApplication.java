@@ -18,10 +18,12 @@ import org.springframework.context.annotation.Bean;
 import reactor.core.publisher.Flux;
 import reactor.core.scheduler.Schedulers;
 
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
+import static com.tbot.cyclop.orderplacer.util.GenericHttpUtil.exceptionToString;
 import static com.tbot.cyclop.orderplacer.util.PercentageUtil.calculateChangePercent;
 import static com.tbot.cyclop.orderplacer.util.PercentageUtil.calculateNewValue;
 import static com.tbot.cyclop.orderplacer.util.TradingUtil.*;
@@ -46,14 +48,17 @@ public class OrderPlacerApplication {
     @Autowired
     public OrderRepo orderRepo;
 
+    @Autowired
+    public ErrorTraceRepo errorTraceRepo;
+
     @Value("${bot.strategy.refreshRate}")
     public long STRATEGY_REFRESH_RATE;
 
-    private final HashMap<String, Double> candlePriceMap = new HashMap<>();
-    private final HashMap<String, Double> candlePumpMap = new HashMap<>();
+    private final ConcurrentHashMap<String, Double> candlePriceMap = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Double> candlePumpMap = new ConcurrentHashMap<>();
     private final Logger logger = LoggerFactory.getLogger(OrderPlacerApplication.class);
 
-    private final HashMap<String, Order> orderCache = new HashMap<>();
+    private final ConcurrentHashMap<String, Order> orderCache = new ConcurrentHashMap<>();
 
     @Bean
     public Function<KStream<String, KlineData>, KStream<String, Order>> process() {
@@ -61,22 +66,21 @@ public class OrderPlacerApplication {
                 (key, value) ->
                 {
                     long lag = System.currentTimeMillis() - value.getCandleTimestamp();
-                    if (lag > 2500) {
+                    if (lag > 2000) {
                         logger.warn("HIGH LAG : {} -> IGNORED!", lag);
                         return new ArrayList<>();
                     }
                     String symbolString = value.getSymbol().replace("USDT", "_USDT");
                     Flux<Strategy> strategyFlux = strategyRepo.findBySymbolStringAndCandleStickAndStatus(symbolString, "M".concat(value.getInterval()), "ACTIVE");
                     Flux<Order> orderAckFlux = strategyFlux
-                            .filter(strategy -> strategy.getBot() != null)
-                            .filter(strategy -> strategy.getBot().getStatus().equals("RUNNING"))
+                            .filter(strategy -> strategy.getBot() != null && strategy.getBot().getStatus().equals("RUNNING"))
                             .publishOn(Schedulers.boundedElastic()).mapNotNull(
                                     (Strategy strategy) ->
                                     {
                                         try {
                                             assert strategy != null;
                                             String strategyNotiString = strategy.toNotiString();
-                                            logger.info("PROCESS | SYMBOL: {} | STRATEGY: {} | BOT: {}", strategy.getSymbolString(), strategyNotiString, strategy.getBot().getName());
+//                                            logger.info("PROCESS | SYMBOL: {} | STRATEGY: {} | BOT: {}", strategy.getSymbolString(), strategyNotiString, strategy.getBot().getName());
                                             String mapKey = value.getSymbol().concat(".").concat(value.getInterval());
                                             double openPrice = candlePriceMap.get(mapKey) == null ? 0 : candlePriceMap.get(mapKey);
                                             boolean isNewCandle = value.getOpenPrice() != openPrice;
@@ -116,7 +120,6 @@ public class OrderPlacerApplication {
                                                             orderPlacerService.handleReduceTakeProfit(strategy, value, order);
                                                         } catch (Exception e) {
                                                             orderCache.remove(strategy.getId());
-                                                            orderRepo.save(order).block();
                                                             throw e;
                                                         }
                                                         logger.info("REDUCED TAKE PROFIT FOR ORDER {} FROM {} TO {}", order.getPlatformOrderId(), beforeReduced, order.getCurrentActualTakeProfit());
@@ -147,15 +150,16 @@ public class OrderPlacerApplication {
                                                         case OrderStatus.IGNORED -> {
                                                             orderCache.remove(strategy.getId());
                                                             orderPlacerService.handleCancelOrder(order, strategy);
-                                                            orderRepo.save(order).block();
                                                             return null;
                                                         }
                                                     }
                                                 }
                                             }
                                         } catch (Exception e) {
-                                            logger.error(e.getMessage());
-                                            e.printStackTrace();
+                                            ErrorTrace trace = new ErrorTrace();
+                                            trace.setCreatedAt(LocalDateTime.now());
+                                            trace.setStackTrace(exceptionToString(e));
+                                            errorTraceRepo.save(trace).block();
                                             notificationService.sendErrorNotification(strategy, value, e.getMessage());
                                         }
                                         return null;

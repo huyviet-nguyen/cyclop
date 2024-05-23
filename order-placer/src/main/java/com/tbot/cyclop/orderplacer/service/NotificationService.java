@@ -102,7 +102,7 @@ public class NotificationService {
                 win, lose,
                 strategy.getExtendOrderChangePercent(),
                 strategy.getCandleStick(), strategy.getOrderChange(), strategy.getTakeProfit(),
-                sellPrice, strategy.getRealAmount(),
+                sellPrice, sellPrice * order.getVolume(),
                 order.getOpenOrderPrice(), order.getOpenOrderPrice() * order.getVolume(),
                 order.getProfit(), roundToSameDecimal(0.01, Math.abs(pnl)));
     }

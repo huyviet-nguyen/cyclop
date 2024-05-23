@@ -8,6 +8,8 @@ import javax.crypto.Mac;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.security.*;
@@ -109,5 +111,12 @@ public class GenericHttpUtil {
             valueString = value.toString();
         }
         return key + "=" + URLEncoder.encode(valueString, StandardCharsets.UTF_8);
+    }
+
+    public static String exceptionToString(Exception e) {
+        StringWriter string_writer = new StringWriter();
+        e.printStackTrace(
+                new PrintWriter(string_writer));
+        return string_writer.toString();
     }
 }
