@@ -4,6 +4,7 @@ import com.tbot.cyclop.Cyclop.dto.KlineData;
 import com.tbot.cyclop.Cyclop.model.*;
 import com.tbot.cyclop.orderplacer.exception.OpenOrderFailException;
 import com.tbot.cyclop.orderplacer.repo.*;
+import com.tbot.cyclop.orderplacer.service.MarketContextHolder;
 import com.tbot.cyclop.orderplacer.service.OrderPlacerService;
 import com.tbot.cyclop.orderplacer.service.NotificationService;
 import org.apache.kafka.streams.kstream.KStream;
@@ -20,7 +21,6 @@ import reactor.core.scheduler.Schedulers;
 
 import java.time.LocalDateTime;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
 import static com.tbot.cyclop.orderplacer.util.GenericHttpUtil.exceptionToString;
@@ -43,6 +43,9 @@ public class OrderPlacerApplication {
     public OrderPlacerService orderPlacerService;
 
     @Autowired
+    public MarketContextHolder marketContextHolder;
+
+    @Autowired
     public BotRepo botRepo;
 
     @Autowired
@@ -53,12 +56,7 @@ public class OrderPlacerApplication {
 
     @Value("${bot.strategy.refreshRate}")
     public long STRATEGY_REFRESH_RATE;
-
-    private final ConcurrentHashMap<String, Double> candlePriceMap = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<String, Double> candlePumpMap = new ConcurrentHashMap<>();
     private final Logger logger = LoggerFactory.getLogger(OrderPlacerApplication.class);
-
-    private final ConcurrentHashMap<String, Order> orderCache = new ConcurrentHashMap<>();
 
     @Bean
     public Function<KStream<String, KlineData>, KStream<String, Order>> process() {
@@ -80,27 +78,26 @@ public class OrderPlacerApplication {
                                         try {
                                             assert strategy != null;
                                             String strategyNotiString = strategy.toNotiString();
-//                                            logger.info("PROCESS | SYMBOL: {} | STRATEGY: {} | BOT: {}", strategy.getSymbolString(), strategyNotiString, strategy.getBot().getName());
                                             String mapKey = value.getSymbol().concat(".").concat(value.getInterval());
-                                            double openPrice = candlePriceMap.get(mapKey) == null ? 0 : candlePriceMap.get(mapKey);
+                                            double openPrice = marketContextHolder.getCandleOpenPrice(mapKey);
                                             boolean isNewCandle = value.getOpenPrice() != openPrice;
                                             if (isNewCandle) {
-                                                candlePumpMap.put(mapKey, calculateChangePercent(openPrice, value.getOpenPrice()));
-                                                candlePriceMap.put(mapKey, value.getOpenPrice());
-                                                logger.info("NEW CANDLE STARTED | OPEN PRICE {} | LAST PUMP {}", candlePriceMap.get(mapKey), candlePumpMap.get(mapKey));
+                                                marketContextHolder.updateCandleMaps(mapKey, value.getOpenPrice(), value.getCurrentPrice());
+                                                logger.info("{} | NEW CANDLE STARTED | OPEN PRICE {} | LAST PUMP {}", mapKey, marketContextHolder.getCandleOpenPrice(mapKey), marketContextHolder.getCandlePump(mapKey));
                                             }
                                             double changePercent = calculateChangePercent(value.getOpenPrice(), value.getCurrentPrice());
-                                            double ignorePercent = calculateNewValue(candlePumpMap.get(mapKey), strategy.getIgnore());
+                                            double ignorePercent = calculateNewValue(marketContextHolder.getCandlePump(mapKey), strategy.getIgnore());
                                             if (Math.abs(changePercent) < ignorePercent) {
-                                                logger.info("STRATEGY {} | IGNORED | {} < {}% OF LAST PUMP {}", strategyNotiString, Math.abs(changePercent), ignorePercent, candlePumpMap.get(mapKey));
                                                 return null;
                                             }
-                                            Order latestOrder = orderCache.get(strategy.getId());
+                                            Order latestOrder = marketContextHolder.getOrder(strategy.getId());
                                             if (latestOrder == null) {
                                                 if (canSubmit(strategy, value)) {
                                                     logger.info("ORDER CAN BE SUBMIT | CURRENT CHANGE {} | OC {} | EXTEND {}", changePercent, strategy.getOrderChange(), strategy.getExtendOrderChangePercent());
                                                     Order submitOrder = submitOrder(value, strategy);
-                                                    if (submitOrder != null) return submitOrder;
+                                                    if (submitOrder != null) {
+                                                        return submitOrder;
+                                                    }
                                                 }
                                             } else {
                                                 logger.info("STRATEGY {} | LAST ORDER ID {} | STATUS {}", strategyNotiString, latestOrder.getPlatformOrderId(), latestOrder.getOrderStatus());
@@ -110,7 +107,7 @@ public class OrderPlacerApplication {
                                                 boolean orderMatchCandle = value.getOpenPrice() == order.getCandleOpenPrice();
                                                 if (!orderMatchCandle) {
                                                     if (newStatus.equals(OrderStatus.SUBMIT)) {
-                                                        orderCache.remove(strategy.getId());
+                                                        marketContextHolder.removeOrder(strategy.getId());
                                                         orderPlacerService.handleCancelOrder(order, strategy);
                                                         return null;
                                                     }
@@ -118,8 +115,12 @@ public class OrderPlacerApplication {
                                                         double beforeReduced = order.getCurrentActualTakeProfit();
                                                         try {
                                                             orderPlacerService.handleReduceTakeProfit(strategy, value, order);
+                                                            order.setCandleOpenPrice(value.getOpenPrice());
+                                                            marketContextHolder.removeOrder(strategy.getId());
+                                                            marketContextHolder.cacheOrder(strategy.getId(),order);
                                                         } catch (Exception e) {
-                                                            orderCache.remove(strategy.getId());
+                                                            orderPlacerService.handleCancelOrder(order, strategy);
+                                                            marketContextHolder.removeOrder(strategy.getId());
                                                             throw e;
                                                         }
                                                         logger.info("REDUCED TAKE PROFIT FOR ORDER {} FROM {} TO {}", order.getPlatformOrderId(), beforeReduced, order.getCurrentActualTakeProfit());
@@ -143,12 +144,12 @@ public class OrderPlacerApplication {
                                                                 strategy.getBot().lose();
                                                             }
                                                             botRepo.save(strategy.getBot()).block();
-                                                            orderCache.remove(strategy.getId());
+                                                            marketContextHolder.removeOrder(strategy.getId());
                                                             decorateNotification(order, strategy);
                                                             return order;
                                                         }
                                                         case OrderStatus.IGNORED -> {
-                                                            orderCache.remove(strategy.getId());
+                                                            marketContextHolder.removeOrder(strategy.getId());
                                                             orderPlacerService.handleCancelOrder(order, strategy);
                                                             return null;
                                                         }
@@ -174,16 +175,14 @@ public class OrderPlacerApplication {
     protected Order submitOrder(KlineData value, Strategy strategy) throws Exception {
         try {
             Order submitOrder = orderPlacerService.handleSubmitOrder(strategy, value);
-            if (submitOrder.getOrderStatus().equals(OrderStatus.SUBMIT)) {
-                orderCache.put(strategy.getId(), submitOrder);
-                return submitOrder;
-            }
+            marketContextHolder.removeOrder(strategy.getId());
+            marketContextHolder.cacheOrder(strategy.getId(), submitOrder);
+            return submitOrder;
         } catch (OpenOrderFailException e) {
             logger.error(e.getMessage());
-            e.printStackTrace();
             notificationService.sendErrorNotification(strategy, value, e.getMessage());
+            throw e;
         }
-        return null;
     }
 
     public void decorateNotification(Order order, Strategy strategy) {

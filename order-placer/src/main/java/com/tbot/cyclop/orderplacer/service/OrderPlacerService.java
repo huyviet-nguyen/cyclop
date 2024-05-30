@@ -74,6 +74,7 @@ public class OrderPlacerService {
             logger.error(e.getMessage());
             latestOrder.setOrderStatus(OrderStatus.IGNORED);
             saveErrorOrder(latestOrder, e);
+            throw e;
         }
         return latestOrder;
     }
