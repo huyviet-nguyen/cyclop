@@ -13,6 +13,8 @@ import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import static com.tbot.cyclop.Cyclop.HttpConstant.APPLICATION_JSON;
+import static com.tbot.cyclop.Cyclop.HttpConstant.CONTENT_TYPE_HEADER_NAME;
 import static com.tbot.cyclop.orderplacer.util.GenericHttpUtil.calculateHmacSHA256;
 
 @Service
@@ -33,7 +35,7 @@ public class BybitService implements PlatformService {
         return client.method(HttpMethod.GET)
                 .uri(path)
                 .header("X-BAPI-SIGN-TYPE", "2")
-                .header("Content-Type", "application/json")
+                .header(CONTENT_TYPE_HEADER_NAME, APPLICATION_JSON)
                 .header("X-BAPI-API-KEY", apiKey)
                 .header("X-BAPI-SIGN", signature)
                 .header("X-BAPI-TIMESTAMP", String.valueOf(timestamp))

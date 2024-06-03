@@ -15,6 +15,8 @@ import org.springframework.web.util.UriBuilder;
 
 import java.util.*;
 
+import static com.tbot.cyclop.Cyclop.HttpConstant.APPLICATION_JSON;
+import static com.tbot.cyclop.Cyclop.HttpConstant.CONTENT_TYPE_HEADER_NAME;
 import static com.tbot.cyclop.orderplacer.util.PercentageUtil.*;
 
 
@@ -28,6 +30,8 @@ public class NotificationService {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     private static final String DEFAULT_CHANNEL_ID = "-1002026702728";
+
+    private static final String FAILED_NOTIFICATION_TEMPLATE = "Cannot send notification to telegram. Order ID: {}";
 
     private static final String OPEN_ORDER_NOTIFICATION_TEMPLATE =
             """
@@ -134,16 +138,16 @@ public class NotificationService {
         Bot bot = strategy.getBot();
         User user = strategy.getUser();
         if (botInfo == null || botInfo.getApiToken() == null || bot == null || bot.getApiKey() == null || bot.getSecretKey() == null || user == null) {
-            logger.error("Cannot send noti for" + order.getId());
+            logger.error(FAILED_NOTIFICATION_TEMPLATE,order.getId());
             return;
         }
         String content = getReportNotificationContent(order, strategy, win, loose);
         try {
             sendNotification(botInfo.getApiToken(), bot.getTelegramId(), content);
         } catch (Exception e) {
-            logger.error("Cannot send noti for" + order.getId());
+            logger.error(FAILED_NOTIFICATION_TEMPLATE, order.getId());
         }
-        logger.info("SENT NOTIFICATION TO " + user.getName() + " at " + user.getTelegramId());
+        logger.info("SENT NOTIFICATION TO {} at {} ",user.getName(), user.getTelegramId());
     }
 
     public void sendNotification(Order order, Strategy strategy) {
@@ -151,7 +155,7 @@ public class NotificationService {
         Bot bot = strategy.getBot();
         User user = strategy.getUser();
         if (botInfo == null || botInfo.getApiToken() == null || bot == null || bot.getApiKey() == null || bot.getSecretKey() == null || user == null) {
-            logger.error("Cannot send noti for" + order.getId());
+            logger.error("Cannot send noti for {}",order.getId());
             return;
         }
         String content = getNotificationContent(order, strategy);
@@ -161,9 +165,9 @@ public class NotificationService {
         try {
             sendNotification(botInfo.getApiToken(), bot.getTelegramId(), content);
         } catch (Exception e) {
-            logger.error("Cannot send noti for" + order.getId());
+            logger.error("Cannot send noti for {}",order.getId());
         }
-        logger.info("SENT NOTIFICATION TO " + user.getName() + " at " + user.getTelegramId());
+        logger.info("SENT NOTIFICATION TO {} at {}",user.getName(),user.getTelegramId());
     }
 
     protected void sendNotification(String telegramBot, String chatId, String content) throws JsonProcessingException {
@@ -176,7 +180,7 @@ public class NotificationService {
                 .build();
         client.post()
                 .uri(UriBuilder::build)
-                .header("Content-Type", "application/json")
+                .header(CONTENT_TYPE_HEADER_NAME, APPLICATION_JSON)
                 .body(BodyInserters.fromValue(objectMapper.writeValueAsString(telegramNotiPayload)))
                 .retrieve()
                 .bodyToMono(String.class)
@@ -194,6 +198,6 @@ public class NotificationService {
             sendNotification(botInfo.getApiToken(), bot.getTelegramId(), content);
         } catch (Exception ignored) {
         }
-        logger.info("SENT NOTIFICATION TO " + user.getName() + " at " + user.getTelegramId());
+        logger.info("SENT NOTIFICATION TO {} at {}", user.getName(), user.getTelegramId());
     }
 }

@@ -30,6 +30,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import static com.tbot.cyclop.Cyclop.HttpConstant.*;
 import static com.tbot.cyclop.orderplacer.util.GenericHttpUtil.calculateHmacSHA256;
 import static com.tbot.cyclop.orderplacer.util.GenericHttpUtil.decryptSecretKey;
 import static com.tbot.cyclop.orderplacer.util.PercentageUtil.roundToSameDecimal;
@@ -68,17 +69,8 @@ public class MexcService implements PlatformService {
         String objectString = String.join("", decryptedApiKey, String.valueOf(timestamp));
         String signature = calculateHmacSHA256(decryptedApiSecret, objectString);
         try {
-            return webClient.method(HttpMethod.GET)
-                    .uri(path)
-                    .header("Content-Type", "application/json")
-                    .header("ApiKey", decryptedApiKey)
-                    .header("Signature", signature)
-                    .header("Request-Time", String.valueOf(timestamp))
-                    .retrieve()
-                    .bodyToMono(String.class)
-                    .doOnError(error -> logger.error(error.getMessage()))
-                    .map(MexcService::extractAvailableBalanceMexc)
-                    .block();
+            String responseString = webClient.method(HttpMethod.GET).uri(path).header(CONTENT_TYPE_HEADER_NAME, APPLICATION_JSON).header("ApiKey", decryptedApiKey).header("Signature", signature).header("Request-Time", String.valueOf(timestamp)).retrieve().bodyToMono(String.class).block();
+            return responseString == null ? 0 : extractAvailableBalanceMexc(responseString);
         } catch (Exception e) {
             logger.info("CANNOT RETRIEVE BALANCE");
             return 0;
@@ -103,28 +95,13 @@ public class MexcService implements PlatformService {
         String webToken = decryptSecretKey(strategy.getBot().getWebToken());
         long timestamp = openOrderRequest.getTimestamp();
         String stringPayload = objectMapper.writeValueAsString(openOrderRequest);
-        String contentLength = String.valueOf(stringPayload.getBytes(StandardCharsets.UTF_8).length);
         String headerHash = getMexcSign(stringPayload, timestamp, webToken);
         String path = mexcOrderBaseUrl.concat("api/v1/private/planorder/place/v2?mhash=").concat(mHash);
 
 
         if (openOrderRequest.getVol() > 0) {
-            logger.info(objectMapper.writeValueAsString(openOrderRequest));
             try {
-                LocalDateTime reqTime = LocalDateTime.now();
-                String responseString =
-                        webClient.post()
-                                .uri(path)
-                                .body(BodyInserters.fromValue(openOrderRequest))
-                                .header("Content-Type", "application/json")
-                                .header("Content-Length", contentLength)
-                                .header("X-Mxc-Nonce", String.valueOf(timestamp))
-                                .header("X-Mxc-Sign", headerHash)
-                                .header("Authorization", webToken)
-                                .retrieve()
-                                .bodyToMono(String.class).block();
-                LocalDateTime resTime = LocalDateTime.now();
-                appendLog(path, objectMapper.writeValueAsString(openOrderRequest), responseString, reqTime, resTime);
+                String responseString = req(HttpMethod.POST, path, objectMapper.writeValueAsString(openOrderRequest), webToken, headerHash, timestamp, 10);
                 MexcOrderResponse response = objectMapper.readValue(responseString, MexcOrderResponse.class);
                 if (response == null || response.getData() == 0 || !response.isSuccess()) {
                     throw new OpenOrderFailException(response != null ? response.getMessage() : "");
@@ -145,7 +122,7 @@ public class MexcService implements PlatformService {
     @Override
     public void reduceProfit(Order orderWithUpdatedProfit, Strategy strategy, KlineData marketData) throws JsonProcessingException {
         String webToken = decryptSecretKey(strategy.getBot().getWebToken());
-        MexcStopOrderListResponse stopOrderList = getStopOrderOpenOrders(webToken, strategy.getSymbolString());
+        MexcStopOrderListResponse stopOrderList = getStopOrderOpenOrders(webToken);
         MexcStopOrderResponse stopOrder = stopOrderList.getData().stream().filter(a -> Objects.equals(a.getOrderId(), orderWithUpdatedProfit.getOpenedOrderId())).findFirst().orElse(null);
         if (stopOrder == null) {
             logger.error("CANNOT FIND OPENED ORDER {} ON PLATFORM, CANNOT REDUCE TAKE-PROFIT", orderWithUpdatedProfit.getPlatformOrderId());
@@ -157,25 +134,9 @@ public class MexcService implements PlatformService {
 
         String path = mexcOrderBaseUrl.concat("api/v1/private/stoporder/change_plan_order");
         String stringPayload = objectMapper.writeValueAsString(changePriceRequest);
-        String contentLength = String.valueOf(stringPayload.getBytes(StandardCharsets.UTF_8).length);
         String headerHash = getMexcSign(stringPayload, timestamp, webToken);
         MexcChangeOrderResponse response;
-        LocalDateTime reqTime = LocalDateTime.now();
-        String stringResponse = webClient.post()
-                .uri(path)
-                .body(BodyInserters.fromValue(changePriceRequest))
-                .header("Content-Type", "application/json")
-                .header("Content-Length", contentLength)
-                .header("X-Mxc-Nonce", String.valueOf(timestamp))
-                .header("X-Mxc-Sign", headerHash)
-                .header("Authorization", webToken)
-                .retrieve()
-                .bodyToMono(String.class)
-                .timeout(Duration.ofSeconds(20))  // Add timeout here
-//                .onErrorResume(Exception.class, ex -> Mono.empty()) // Return null on timeout
-                .block();
-        LocalDateTime resTime = LocalDateTime.now();
-        appendLog(path, objectMapper.writeValueAsString(changePriceRequest), stringResponse, reqTime, resTime);
+        String stringResponse = req(HttpMethod.POST, path, stringPayload, webToken, headerHash, timestamp, 10);
         response = objectMapper.readValue(stringResponse, MexcChangeOrderResponse.class);
         logger.info("REDUCED TAKE PROFIT FOR ORDER {}", orderWithUpdatedProfit.getPlatformOrderId());
         if (response == null || !response.isSuccess()) {
@@ -202,15 +163,12 @@ public class MexcService implements PlatformService {
     @Override
     public void syncStatus(Order order, Strategy strategy) throws JsonProcessingException {
         String decryptedWebToken = decryptSecretKey(strategy.getBot().getWebToken());
-        MexcOrderHistoryListResponse listResponse = null;
-        Optional<MexcStopOrderResponse> closedFound = Optional.empty();
+        MexcOrderHistoryListResponse listResponse;
+        Optional<MexcStopOrderResponse> closedFound;
 
         if (OrderStatus.SUBMIT.equals(order.getOrderStatus())) {
             listResponse = getOrderListHistoryOrder(decryptedWebToken, strategy.getSymbolString());
-            Optional<MexcOrderHistoryListResponse.MexcOrderHistoryResponse> openedFound =
-                    listResponse.getData().stream()
-                            .filter(res -> res.getExternalOid().contains(order.getPlatformOrderId())
-                            ).findFirst();
+            Optional<MexcOrderHistoryListResponse.MexcOrderHistoryResponse> openedFound = listResponse.getData().stream().filter(res -> res.getExternalOid().contains(order.getPlatformOrderId())).findFirst();
             if (openedFound.isPresent()) {
                 if (openedFound.get().getState() != 4) {
                     order.setOrderStatus(OrderStatus.OPEN);
@@ -223,15 +181,11 @@ public class MexcService implements PlatformService {
         }
 
         if (OrderStatus.OPEN.equals(order.getOrderStatus())) {
-            closedFound = getStopOrderListOrder(decryptedWebToken, strategy.getSymbolString()).getData().stream()
-                    .filter(res -> res.getOrderId().equals(order.getOpenedOrderId()) && res.getState() == 3 && res.getPositionId() != null).findFirst();
+            closedFound = getStopOrderListOrder(decryptedWebToken, strategy.getSymbolString()).getData().stream().filter(res -> res.getOrderId().equals(order.getOpenedOrderId()) && res.getState() == 3 && res.getPositionId() != null).findFirst();
             if (closedFound.isPresent()) {
                 order.setPositionId(closedFound.get().getPositionId());
                 MexcPositionListResponse positionListResponse = getClosedPositionHistory(decryptedWebToken, strategy.getSymbolString());
-                Optional<MexcStopOrderResponse> finalClosedFound = closedFound;
-                MexcPositionResponse position = positionListResponse.getData().stream().filter(
-                        pos -> pos.getPositionId() == Long.parseLong(finalClosedFound.get().getPositionId())
-                ).findFirst().orElse(null);
+                MexcPositionResponse position = positionListResponse.getData().stream().filter(pos -> pos.getPositionId() == Long.parseLong(closedFound.get().getPositionId())).findFirst().orElse(null);
 
                 if (position != null) {
                     order.setOrderStatus(OrderStatus.CLOSED);
@@ -252,24 +206,10 @@ public class MexcService implements PlatformService {
         String decryptWebToken = decryptSecretKey(strategy.getBot().getWebToken());
         String path = mexcOrderBaseUrl.concat("api/v1/private/planorder/cancel");
         String payload = order.toCancelPayload();
-        String contentLength = String.valueOf(payload.getBytes(StandardCharsets.UTF_8).length);
         String headerHash = getMexcSign(payload, timestamp, decryptWebToken);
 
         try {
-            LocalDateTime start = LocalDateTime.now();
-            String responseString = webClient.post()
-                    .uri(path)
-                    .header("Content-Type", "application/json")
-                    .header("X-Mxc-Nonce", String.valueOf(timestamp))
-                    .header("X-Mxc-Sign", headerHash)
-                    .header("Content-Length", contentLength)
-                    .header("Authorization", decryptWebToken)
-                    .body(BodyInserters.fromValue(payload))
-                    .retrieve()
-                    .bodyToMono(String.class)
-                    .block();
-            LocalDateTime end = LocalDateTime.now();
-            appendLog(path,payload, responseString, start, end);
+            String responseString = req(HttpMethod.POST, path, payload, decryptWebToken, headerHash, timestamp, 10);
             logger.info("CANCEL ORDER : {}", responseString);
             order.setOrderStatus(OrderStatus.IGNORED);
         } catch (Exception e) {
@@ -284,59 +224,38 @@ public class MexcService implements PlatformService {
 
         String path = mexcOrderBaseUrl.concat("api/v1/private/order/list/history_orders?category=1,6&page_num=1&page_size=50&symbol=").concat(symbol);
         String headerHash = getMexcSign("", timestamp, decryptedWebToken);
-        LocalDateTime now = LocalDateTime.now();
-        String responseString = webClient.get()
-                .uri(path)
-                .header("Content-Type", "application/json")
-                .header("X-Mxc-Nonce", String.valueOf(timestamp))
-                .header("X-Mxc-Sign", headerHash)
-                .header("Authorization", decryptedWebToken)
-                .retrieve()
-                .bodyToMono(String.class)
-                .timeout(Duration.ofSeconds(20))  // Add timeout here
-                .block();
-        LocalDateTime end = LocalDateTime.now();
-        appendLog(path, "", responseString, now, end);
+        String responseString = req(HttpMethod.GET, path, null, decryptedWebToken, headerHash, timestamp, 20);
         return objectMapper.readValue(responseString, MexcOrderHistoryListResponse.class);
+    }
+
+    private String req(HttpMethod method, String path, String payload, String decryptedWebToken, String headerHash, long timestamp, int timeout) {
+        LocalDateTime reqTime = LocalDateTime.now();
+        String responseString = "";
+        if (method.equals(HttpMethod.GET)) {
+            webClient.method(method).uri(path).header(CONTENT_TYPE_HEADER_NAME, APPLICATION_JSON).header(X_MXC_NONCE_HEADER_NAME, String.valueOf(timestamp)).header(X_MXC_SIGN_HEADER_NAME, headerHash).header(AUTH_HEADER_NAME, decryptedWebToken).retrieve().bodyToMono(String.class).timeout(Duration.ofSeconds(timeout)).block();
+        } else {
+            webClient.method(method).uri(path).body(BodyInserters.fromValue(payload)).header(CONTENT_TYPE_HEADER_NAME, APPLICATION_JSON).header(X_MXC_NONCE_HEADER_NAME, String.valueOf(timestamp)).header(X_MXC_SIGN_HEADER_NAME, headerHash).header(AUTH_HEADER_NAME, decryptedWebToken).header(CONTENT_LENGTH_HEADER_NAME, String.valueOf(payload.getBytes(StandardCharsets.UTF_8).length)).retrieve().bodyToMono(String.class).timeout(Duration.ofSeconds(timeout)).block();
+        }
+        LocalDateTime respTime = LocalDateTime.now();
+        appendLog(path, payload, responseString, reqTime, respTime);
+        return responseString;
     }
 
     private MexcPositionListResponse getClosedPositionHistory(String decryptedWebToken, String symbol) throws JsonProcessingException {
         long timestamp = System.currentTimeMillis();
-
         String path = mexcOrderBaseUrl.concat("api/v1/private/position/list/history_positions?page_num=1&page_size=20&symbol=").concat(symbol);
         String headerHash = getMexcSign("", timestamp, decryptedWebToken);
-        LocalDateTime now = LocalDateTime.now();
-        String responseString = webClient.get()
-                .uri(path)
-                .header("Content-Type", "application/json")
-                .header("X-Mxc-Nonce", String.valueOf(timestamp))
-                .header("X-Mxc-Sign", headerHash)
-                .header("Authorization", decryptedWebToken)
-                .retrieve()
-                .bodyToMono(String.class)
-                .timeout(Duration.ofSeconds(20))
-                .block();
-        LocalDateTime end = LocalDateTime.now();
-        appendLog(path, "", responseString, now, end);
+        String responseString = req(HttpMethod.GET, path, null, decryptedWebToken, headerHash, timestamp, 20);
         return objectMapper.readValue(responseString, MexcPositionListResponse.class);
     }
 
-    private MexcStopOrderListResponse getStopOrderOpenOrders(String decryptedWebToken, String symbol) {
+    private MexcStopOrderListResponse getStopOrderOpenOrders(String decryptedWebToken) throws JsonProcessingException {
         long timestamp = System.currentTimeMillis();
 
         String path = mexcOrderBaseUrl.concat("api/v1/private/stoporder/open_orders?");
         String headerHash = getMexcSign("", timestamp, decryptedWebToken);
-
-        return webClient.get()
-                .uri(path)
-                .header("Content-Type", "application/json")
-                .header("X-Mxc-Nonce", String.valueOf(timestamp))
-                .header("X-Mxc-Sign", headerHash)
-                .header("Authorization", decryptedWebToken)
-                .retrieve()
-                .bodyToMono(MexcStopOrderListResponse.class)
-                .timeout(Duration.ofSeconds(4))  // Add timeout here
-                .block();
+        String responseString = req(HttpMethod.GET, path, null, decryptedWebToken, headerHash, timestamp, 20);
+        return objectMapper.readValue(responseString, MexcStopOrderListResponse.class);
     }
 
     private MexcStopOrderListResponse getStopOrderListOrder(String decryptedWebToken, String symbol) throws JsonProcessingException {
@@ -344,19 +263,7 @@ public class MexcService implements PlatformService {
 
         String path = mexcOrderBaseUrl.concat("api/v1/private/stoporder/list/orders?is_finished=1&page_num=1&page_size=20&symbol=").concat(symbol);
         String headerHash = getMexcSign("", timestamp, decryptedWebToken);
-        LocalDateTime requestTime = LocalDateTime.now();
-        String responseString = webClient.get()
-                .uri(path)
-                .header("Content-Type", "application/json")
-                .header("X-Mxc-Nonce", String.valueOf(timestamp))
-                .header("X-Mxc-Sign", headerHash)
-                .header("Authorization", decryptedWebToken)
-                .retrieve()
-                .bodyToMono(String.class)
-                .timeout(Duration.ofSeconds(20))  // Add timeout here
-                .block();
-        LocalDateTime responseTime = LocalDateTime.now();
-        appendLog(path, "", responseString, requestTime, responseTime);
+        String responseString = req(HttpMethod.GET, path, null, decryptedWebToken, headerHash, timestamp, 20);
         return objectMapper.readValue(responseString, MexcStopOrderListResponse.class);
     }
 
@@ -372,7 +279,6 @@ public class MexcService implements PlatformService {
         }
     }
 
-    @Transactional
     public MexcOpenOrderRequest orderAckToMexcOpenOrderRequest(Order sysOrder, Strategy strategy) throws Exception {
         long timestamp = Instant.now().toEpochMilli();
         double pu = strategy.getSymbol().getPu();
