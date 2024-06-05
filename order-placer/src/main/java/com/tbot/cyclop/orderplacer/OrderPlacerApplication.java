@@ -12,7 +12,6 @@ import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
@@ -54,8 +53,6 @@ public class OrderPlacerApplication {
     @Autowired
     public ErrorTraceRepo errorTraceRepo;
 
-    @Value("${bot.strategy.refreshRate}")
-    public long STRATEGY_REFRESH_RATE;
     private final Logger logger = LoggerFactory.getLogger(OrderPlacerApplication.class);
 
     @Bean
@@ -64,7 +61,7 @@ public class OrderPlacerApplication {
                 (key, value) ->
                 {
                     long lag = System.currentTimeMillis() - value.getCandleTimestamp();
-                    if (lag > 2000) {
+                    if (lag > 5000) {
                         logger.warn("HIGH LAG : {} -> IGNORED!", lag);
                         return new ArrayList<>();
                     }
@@ -87,10 +84,10 @@ public class OrderPlacerApplication {
                                             }
                                             double changePercent = calculateChangePercent(value.getOpenPrice(), value.getCurrentPrice());
                                             double ignorePercent = calculateNewValue(marketContextHolder.getCandlePump(mapKey), strategy.getIgnore());
-                                            if (Math.abs(changePercent) < ignorePercent) {
+                                            Order latestOrder = marketContextHolder.getOrder(strategy.getId());
+                                            if (Math.abs(changePercent) < ignorePercent && latestOrder == null) {
                                                 return null;
                                             }
-                                            Order latestOrder = marketContextHolder.getOrder(strategy.getId());
                                             if (latestOrder == null) {
                                                 if (canSubmit(strategy, value)) {
                                                     logger.info("ORDER CAN BE SUBMIT | CURRENT CHANGE {} | OC {} | EXTEND {}", changePercent, strategy.getOrderChange(), strategy.getExtendOrderChangePercent());
@@ -117,10 +114,10 @@ public class OrderPlacerApplication {
                                                             orderPlacerService.handleReduceTakeProfit(strategy, value, order);
                                                             order.setCandleOpenPrice(value.getOpenPrice());
                                                             marketContextHolder.removeOrder(strategy.getId());
-                                                            marketContextHolder.cacheOrder(strategy.getId(),order);
+                                                            marketContextHolder.cacheOrder(strategy.getId(), order);
                                                         } catch (Exception e) {
-                                                            orderPlacerService.handleCancelOrder(order, strategy);
                                                             marketContextHolder.removeOrder(strategy.getId());
+                                                            orderPlacerService.handleCancelOrder(order, strategy);
                                                             throw e;
                                                         }
                                                         logger.info("REDUCED TAKE PROFIT FOR ORDER {} FROM {} TO {}", order.getPlatformOrderId(), beforeReduced, order.getCurrentActualTakeProfit());
@@ -197,7 +194,7 @@ public class OrderPlacerApplication {
             }
         } catch (Exception e) {
             logger.error("CANNOT SEND NOTIFICATION:");
-            System.out.println(e.getMessage());
+            logger.error(e.getMessage());
         }
     }
 

@@ -30,11 +30,10 @@ public class Strategy implements Serializable {
     private User user;
     @DocumentReference
     private Bot bot;
-    //    @DocumentReference
-//    private Order latestOrder;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private String symbolString;
+    private double actualOrderChange;
 
     public String toNotiString() {
         String template = "SIDE: %s | %s | OC: %s | EXT: %s | TP: %s | SL: %s";

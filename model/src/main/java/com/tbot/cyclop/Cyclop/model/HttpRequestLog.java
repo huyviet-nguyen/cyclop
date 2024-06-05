@@ -18,4 +18,6 @@ public class HttpRequestLog {
     private String responseBody;
     private LocalDateTime requestTime;
     private LocalDateTime responseTime;
+    private String symbolString;
+    private String strategyId;
 }

@@ -3,9 +3,11 @@ package com.tbot.cyclop.Cyclop.model;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.io.Serializable;
+
 @Getter
 @Setter
-public class FingerprintSysInfo {
+public class FingerprintSysInfo implements Serializable {
     private String id;
     private String mtoken;
     private String mhash;
