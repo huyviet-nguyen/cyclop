@@ -10,15 +10,12 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import reactor.core.publisher.Sinks;
 import reactor.core.scheduler.Schedulers;
 import reactor.kafka.sender.KafkaSender;
 import reactor.kafka.sender.SenderRecord;
 import reactor.kafka.sender.SenderResult;
 
-import java.time.Duration;
 import java.time.Instant;
-import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -85,7 +82,7 @@ public class MarketObserveCommandLineRunner implements CommandLineRunner {
         return unfilteredFlux.filter(klineData -> {
             concurrentHashMap.computeIfAbsent(klineData.getKafkaKey(), v -> System.currentTimeMillis());
             long interval = switch (klineData.getInterval()) {
-                case "1" -> 5000;
+                case "1" -> 2000;
                 case "5" -> 10000;
                 case "15" -> 20000;
                 default -> 1000000;

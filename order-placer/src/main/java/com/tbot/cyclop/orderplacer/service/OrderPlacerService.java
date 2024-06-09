@@ -4,7 +4,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.tbot.cyclop.Cyclop.dto.KlineData;
 import com.tbot.cyclop.Cyclop.model.*;
 import com.tbot.cyclop.orderplacer.exception.ReduceTakeProfitFailException;
-import com.tbot.cyclop.orderplacer.util.GenericHttpUtil;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -69,17 +68,17 @@ public class OrderPlacerService {
         try {
             PlatformService service = getService(klineData.getSourcePlatform());
             service.syncStatus(latestOrder, strategy);
-        } catch (Exception e) {
+        } catch (Exception rethrown) {
             logger.error("CANNOT SYNC STATUS FOR ORDER {}", latestOrder.getPlatformOrderId());
-            logger.error(e.getMessage());
-            latestOrder.setOrderStatus(OrderStatus.IGNORED);
-            saveErrorOrder(latestOrder, e);
-            throw e;
+            logger.error(rethrown.getMessage());
+//            latestOrder.setOrderStatus(OrderStatus.IGNORED);
+            saveErrorOrder(latestOrder, rethrown);
+            throw rethrown;
         }
         return latestOrder;
     }
 
-    public void handleReduceTakeProfit(Strategy strategy, KlineData klineData, Order latestOrder) throws JsonProcessingException, InterruptedException {
+    public void handleReduceTakeProfit(Strategy strategy, KlineData klineData, Order latestOrder){
         PlatformService service = getService(klineData.getSourcePlatform());
         double newTakeProfitPrice = calculateReducedTakeProfitPrice(strategy, latestOrder);
         latestOrder.setCurrentTakeProfitPrice(newTakeProfitPrice);

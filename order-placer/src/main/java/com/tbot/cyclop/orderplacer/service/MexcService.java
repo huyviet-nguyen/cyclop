@@ -10,6 +10,7 @@ import com.tbot.cyclop.Cyclop.dto.res.*;
 import com.tbot.cyclop.Cyclop.model.*;
 import com.tbot.cyclop.orderplacer.exception.OpenOrderFailException;
 import com.tbot.cyclop.orderplacer.exception.ReduceTakeProfitFailException;
+import com.tbot.cyclop.orderplacer.repo.ErrorTraceRepo;
 import com.tbot.cyclop.orderplacer.repo.HttpRequestLogRepo;
 import com.tbot.cyclop.orderplacer.repo.OrderRepo;
 import org.jetbrains.annotations.NotNull;
@@ -56,9 +57,12 @@ public class MexcService implements PlatformService {
 
     private final HttpRequestLogRepo requestLogRepo;
 
-    public MexcService(OrderRepo orderRepo, HttpRequestLogRepo requestLogRepo) {
+    private final ErrorTraceRepo errorTraceRepo;
+
+    public MexcService(OrderRepo orderRepo, HttpRequestLogRepo requestLogRepo, ErrorTraceRepo errorTraceRepo) {
         this.orderRepo = orderRepo;
         this.requestLogRepo = requestLogRepo;
+        this.errorTraceRepo = errorTraceRepo;
     }
 
 
@@ -176,6 +180,10 @@ public class MexcService implements PlatformService {
                     order.setOrderStatus(OrderStatus.OPEN);
                     order.setOpenedOrderId(openedFound.get().getOrderId());
                 } else {
+                    ErrorTrace trace = new ErrorTrace();
+                    trace.setStackTrace("OPENED ORDER IS FOUND WITH STATUS == 4 : " + objectMapper.writeValueAsString(openedFound.get()));
+                    trace.setCreatedAt(LocalDateTime.now());
+                    errorTraceRepo.save(trace).block();
                     order.setOrderStatus(OrderStatus.IGNORED);
                 }
                 return;
