@@ -3,6 +3,8 @@ package com.tbot.cyclop.Cyclop.dto.res;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -15,9 +17,17 @@ public class MexcOrderResponse {
     private int code;
 
     @JsonProperty("data")
-    private long data;
+    private MexcOrderResponseInner data;
 
-    @JsonProperty("message")
-    private String message;
+
+    @Getter
+    @Setter
+    public static class MexcOrderResponseInner {
+        @JsonProperty("orderId")
+        private String orderId;
+        @JsonProperty("ts")
+        private long ts;
+    }
+
 }
 

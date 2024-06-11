@@ -6,15 +6,9 @@ import lombok.Setter;
 
 @Getter
 @Setter
-public class MexcOpenOrderRequest {
+public class MexcOpenOrderRequestV1 {
     @JsonProperty("symbol")
     private String symbol;
-
-    @JsonProperty("trend")
-    private int trend = 1;
-
-    @JsonProperty("triggerPrice")
-    private String triggerPrice;
 
     @JsonProperty("price")
     private String price;
@@ -22,17 +16,11 @@ public class MexcOpenOrderRequest {
     @JsonProperty("side")
     private int side; // 1=open long | 3 = open short
 
-    @JsonProperty("triggerType")
-    private int triggerType; // 1=open long | 2 = open short
-
     @JsonProperty("openType")
     private int openType = 2; // Default value 1 for ISOLATED
 
-    @JsonProperty("orderType")
-    private int orderType = 1;
-
-    @JsonProperty("positionMode")
-    private int positionMode = 1;
+    @JsonProperty("type")
+    private String type = "1";
 
     @JsonProperty("vol")
     private double vol;
@@ -74,13 +62,7 @@ public class MexcOpenOrderRequest {
     @JsonProperty("lossTrend")
     private String lossTrend = "1";
 
-    @JsonProperty("executeCycle")
-    private int executeCycle = 3;
-
-
-    public void setTriggerPrice(String triggerPrice) {
-        this.triggerPrice = triggerPrice;
-        this.price = triggerPrice;
-    }
+    @JsonProperty("marketCeiling")
+    private boolean marketCeiling = false;
 
 }

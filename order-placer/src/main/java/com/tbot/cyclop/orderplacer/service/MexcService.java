@@ -5,7 +5,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tbot.cyclop.Cyclop.dto.KlineData;
 import com.tbot.cyclop.Cyclop.dto.req.MexcChangePriceRequest;
-import com.tbot.cyclop.Cyclop.dto.req.MexcOpenOrderRequest;
+import com.tbot.cyclop.Cyclop.dto.req.MexcOpenOrderRequestV1;
+import com.tbot.cyclop.Cyclop.dto.req.MexcOpenOrderRequestV2;
 import com.tbot.cyclop.Cyclop.dto.res.*;
 import com.tbot.cyclop.Cyclop.model.*;
 import com.tbot.cyclop.orderplacer.exception.OpenOrderFailException;
@@ -96,23 +97,24 @@ public class MexcService implements PlatformService {
     @Override
     @Transactional
     public void submitOrder(Order newOrder, Strategy strategy) throws Exception {
-        MexcOpenOrderRequest openOrderRequest = orderAckToMexcOpenOrderRequest(newOrder, strategy);
+        MexcOpenOrderRequestV1 openOrderRequest = orderAckToMexcOpenOrderRequestV1(newOrder, strategy);
         String mHash = openOrderRequest.getMHash();
         String webToken = decryptSecretKey(strategy.getBot().getWebToken());
         long timestamp = openOrderRequest.getTimestamp();
         String stringPayload = objectMapper.writeValueAsString(openOrderRequest);
         String headerHash = getMexcSign(stringPayload, timestamp, webToken);
-        String path = mexcOrderBaseUrl.concat("api/v1/private/planorder/place/v2?mhash=").concat(mHash);
+        String path = mexcOrderBaseUrl.concat("/api/v1/private/order/create?mhash=").concat(mHash);
 
 
         if (openOrderRequest.getVol() > 0) {
             try {
                 String responseString = req(HttpMethod.POST, path, objectMapper.writeValueAsString(openOrderRequest), strategy.getSymbolString(), webToken, headerHash, timestamp, 10, strategy.getId());
                 MexcOrderResponse response = objectMapper.readValue(responseString, MexcOrderResponse.class);
-                if (response == null || response.getData() == 0 || !response.isSuccess()) {
-                    throw new OpenOrderFailException(response != null ? response.getMessage() : "");
+                if (response == null || response.getData() == null || !response.isSuccess()) {
+                    throw new OpenOrderFailException("FAILED TO CREATE ORDER");
                 }
-                newOrder.setPlatformOrderId(String.valueOf(response.getData()));
+                MexcOrderResponse.MexcOrderResponseInner orderResponseInner = response.getData();
+                newOrder.setPlatformOrderId(String.valueOf(orderResponseInner.getOrderId()));
                 logger.info("SUBMIT ORDER {} ON {} SYMBOL {}", newOrder.getPlatformOrderId(), newOrder.getPlatform(), newOrder.getSymbol());
                 newOrder.setPlatformTimestamp(System.currentTimeMillis());
                 newOrder.setOrderStatus(OrderStatus.SUBMIT);
@@ -132,13 +134,13 @@ public class MexcService implements PlatformService {
         MexcStopOrderResponse stopOrder = stopOrderList.getData().stream().filter(a -> Objects.equals(a.getOrderId(), orderWithUpdatedProfit.getOpenedOrderId())).findFirst().orElse(null);
         if (stopOrder == null) {
             logger.error("CANNOT FIND OPENED ORDER {} ON PLATFORM, CANNOT REDUCE TAKE-PROFIT", orderWithUpdatedProfit.getPlatformOrderId());
-            String foundId = stopOrderList.getData().stream().map(MexcStopOrderResponse::getOrderId).collect(Collectors.joining(","));
+            String foundId = objectMapper.writeValueAsString(stopOrderList);
             throw new ReduceTakeProfitFailException(orderWithUpdatedProfit, foundId);
         }
         MexcChangePriceRequest changePriceRequest = getMexcChangePriceRequest(orderWithUpdatedProfit, stopOrder, strategy);
         long timestamp = System.currentTimeMillis();
 
-        String path = mexcOrderBaseUrl.concat("api/v1/private/stoporder/change_plan_order");
+        String path = mexcOrderBaseUrl.concat("api/v1/private/stoporder/change_price");
         String stringPayload = objectMapper.writeValueAsString(changePriceRequest);
         String headerHash = getMexcSign(stringPayload, timestamp, webToken);
         MexcChangeOrderResponse response;
@@ -157,12 +159,6 @@ public class MexcService implements PlatformService {
         changePriceRequest.setTakeProfitPrice(roundToSameDecimal(pu, order.getCurrentTakeProfitPrice()));
         changePriceRequest.setStopLossPrice(roundToSameDecimal(pu, order.getStopLossPrice()));
         changePriceRequest.setOrderId(stopOrder.getId());
-        changePriceRequest.setProfitTrend(stopOrder.getProfitTrend());
-        changePriceRequest.setLossTrend(stopOrder.getLossTrend());
-        changePriceRequest.setStopLossReverse(stopOrder.getStopLossReverse());
-        changePriceRequest.setTakeProfitReverse(stopOrder.getTakeProfitReverse());
-        changePriceRequest.setTakeProfitVolume(stopOrder.getTakeProfitVol());
-        changePriceRequest.setStopLossVolume(stopOrder.getStopLossVol());
         return changePriceRequest;
     }
 
@@ -174,32 +170,31 @@ public class MexcService implements PlatformService {
 
         if (OrderStatus.SUBMIT.equals(order.getOrderStatus())) {
             listResponse = getOrderListHistoryOrder(decryptedWebToken, strategy.getSymbolString(), strategy.getId());
-            Optional<MexcOrderHistoryListResponse.MexcOrderHistoryResponse> openedFound = listResponse.getData().stream().filter(res -> res.getExternalOid().contains(order.getPlatformOrderId())).findFirst();
+            Optional<MexcOrderHistoryListResponse.MexcOrderHistoryResponse> openedFound = listResponse.getData().stream().filter(res -> order.getPlatformOrderId().equals(res.getOrderId())).findFirst();
             if (openedFound.isPresent()) {
-                if (openedFound.get().getState() != 4) {
-                    order.setOrderStatus(OrderStatus.OPEN);
-                    order.setOpenedOrderId(openedFound.get().getOrderId());
-                } else {
-                    ErrorTrace trace = new ErrorTrace();
-                    trace.setStackTrace("OPENED ORDER IS FOUND WITH STATUS == 4 : " + objectMapper.writeValueAsString(openedFound.get()));
-                    trace.setCreatedAt(LocalDateTime.now());
-                    errorTraceRepo.save(trace).block();
-                    order.setOrderStatus(OrderStatus.IGNORED);
+                switch (openedFound.get().getState()) {
+                    case 2:
+                        break;
+                    case 3:
+                        order.setOrderStatus(OrderStatus.OPEN);
+                        break;
+                    default:
+                        order.setOrderStatus(OrderStatus.IGNORED);
+                        break;
                 }
                 return;
             }
         }
 
         if (OrderStatus.OPEN.equals(order.getOrderStatus())) {
-            closedFound = getStopOrderListOrder(decryptedWebToken, strategy.getSymbolString(), strategy.getId()).getData().stream().filter(res -> res.getOrderId().equals(order.getOpenedOrderId()) && res.getState() == 3 && res.getPositionId() != null).findFirst();
+            closedFound = getStopOrderListOrder(decryptedWebToken, strategy.getSymbolString(), strategy.getId()).getData().stream().filter(res -> res.getOrderId().equals(order.getPlatformOrderId())).findFirst();
             if (closedFound.isPresent()) {
-                order.setPositionId(closedFound.get().getPositionId());
-                MexcPositionListResponse positionListResponse = getClosedPositionHistory(decryptedWebToken, strategy.getSymbolString(), strategy.getId());
-                MexcPositionResponse position = positionListResponse.getData().stream().filter(pos -> pos.getPositionId() == Long.parseLong(closedFound.get().getPositionId())).findFirst().orElse(null);
-
-                if (position != null) {
+                order.setOrderStatus(OrderStatus.CLOSED);
+                MexcOrderHistoryListResponse historyResponse = getOrderListHistoryOrder(decryptedWebToken, strategy.getSymbolString(), strategy.getId());
+                MexcOrderHistoryListResponse.MexcOrderHistoryResponse closedHistory = historyResponse.getData().stream().filter(res -> res.getOrderId().equals(closedFound.get().getPlaceOrderId())).findFirst().orElse(null);
+                if (closedHistory != null) {
                     order.setOrderStatus(OrderStatus.CLOSED);
-                    order.setProfit(position.getCloseProfitLoss());
+                    order.setProfit(closedHistory.getProfit());
                     return;
                 } else {
                     order.setOrderStatus(OrderStatus.IGNORED);
@@ -214,14 +209,13 @@ public class MexcService implements PlatformService {
     public void cancelOrder(Order order, Strategy strategy) throws JsonProcessingException {
         long timestamp = System.currentTimeMillis();
         String decryptWebToken = decryptSecretKey(strategy.getBot().getWebToken());
-        String path = mexcOrderBaseUrl.concat("api/v1/private/planorder/cancel");
+        String path = mexcOrderBaseUrl.concat("api/v1/private/order/cancel");
         String payload = order.toCancelPayload();
         String headerHash = getMexcSign(payload, timestamp, decryptWebToken);
 
         try {
             String responseString = req(HttpMethod.POST, path, payload, strategy.getSymbolString(), decryptWebToken, headerHash, timestamp, 10, strategy.getId());
             logger.info("CANCEL ORDER : {}", responseString);
-            order.setOrderStatus(OrderStatus.IGNORED);
         } catch (Exception e) {
             orderRepo.save(order).block();
             logger.error("CANNOT CANCEL ORDER : {}", order.getPlatformOrderId());
@@ -251,18 +245,18 @@ public class MexcService implements PlatformService {
         return responseString;
     }
 
-    private MexcPositionListResponse getClosedPositionHistory(String decryptedWebToken, String symbol, String strategyId) throws JsonProcessingException {
-        long timestamp = System.currentTimeMillis();
-        String path = mexcOrderBaseUrl.concat("api/v1/private/position/list/history_positions?page_num=1&page_size=20&symbol=").concat(symbol);
-        String headerHash = getMexcSign("", timestamp, decryptedWebToken);
-        String responseString = req(HttpMethod.GET, path, null, symbol, decryptedWebToken, headerHash, timestamp, 20, strategyId);
-        return objectMapper.readValue(responseString, MexcPositionListResponse.class);
-    }
+//    private MexcPositionListResponse getClosedPositionHistory(String decryptedWebToken, String symbol, String strategyId) throws JsonProcessingException {
+//        long timestamp = System.currentTimeMillis();
+//        String path = mexcOrderBaseUrl.concat("api/v1/private/position/list/history_positions?page_num=1&page_size=20&symbol=").concat(symbol);
+//        String headerHash = getMexcSign("", timestamp, decryptedWebToken);
+//        String responseString = req(HttpMethod.GET, path, null, symbol, decryptedWebToken, headerHash, timestamp, 20, strategyId);
+//        return objectMapper.readValue(responseString, MexcPositionListResponse.class);
+//    }
 
     private MexcStopOrderListResponse getStopOrderOpenOrders(String decryptedWebToken, String strategyId) throws JsonProcessingException {
         long timestamp = System.currentTimeMillis();
 
-        String path = mexcOrderBaseUrl.concat("api/v1/private/stoporder/open_orders?");
+        String path = mexcOrderBaseUrl.concat("api/v1/private/stoporder/open_orders?page_num=1&page_size=100");
         String headerHash = getMexcSign("", timestamp, decryptedWebToken);
         String responseString = req(HttpMethod.GET, path, null, "", decryptedWebToken, headerHash, timestamp, 20, strategyId);
         return objectMapper.readValue(responseString, MexcStopOrderListResponse.class);
@@ -289,10 +283,10 @@ public class MexcService implements PlatformService {
         }
     }
 
-    public MexcOpenOrderRequest orderAckToMexcOpenOrderRequest(Order sysOrder, Strategy strategy) throws Exception {
+    public MexcOpenOrderRequestV2 orderAckToMexcOpenOrderRequestV2(Order sysOrder, Strategy strategy) throws Exception {
         long timestamp = Instant.now().toEpochMilli();
         double pu = strategy.getSymbol().getPu();
-        MexcOpenOrderRequest mexcOrder = new MexcOpenOrderRequest();
+        MexcOpenOrderRequestV2 mexcOrder = new MexcOpenOrderRequestV2();
         String side = strategy.getPositionSide().equals("LONG") ? "1" : "3";
         String triggerType = strategy.getPositionSide().equals("LONG") ? "2" : "1";
         byte[] key = generateRandomBytes(32);
@@ -324,4 +318,39 @@ public class MexcService implements PlatformService {
         sysOrder.setStopLossPrice(Double.parseDouble(mexcOrder.getStopLossPrice()));
         return mexcOrder;
     }
+
+    public MexcOpenOrderRequestV1 orderAckToMexcOpenOrderRequestV1(Order sysOrder, Strategy strategy) throws Exception {
+        long timestamp = Instant.now().toEpochMilli();
+        double pu = strategy.getSymbol().getPu();
+        MexcOpenOrderRequestV1 mexcOrder = new MexcOpenOrderRequestV1();
+        String side = strategy.getPositionSide().equals("LONG") ? "1" : "3";
+        byte[] key = generateRandomBytes(32);
+        mexcOrder.setSide(Integer.parseInt(side));
+        mexcOrder.setSymbol(sysOrder.getSymbol());
+        mexcOrder.setLeverage(LEVERAGE);
+        mexcOrder.setStopLossPrice(String.valueOf(roundToSameDecimal(pu, sysOrder.getStopLossPrice())));
+        mexcOrder.setTakeProfitPrice(String.valueOf(roundToSameDecimal(pu, sysOrder.getCurrentTakeProfitPrice())));
+        mexcOrder.setPrice(String.valueOf(roundToSameDecimal(pu, sysOrder.getOpenOrderPrice())));
+        mexcOrder.setK0(getMexcK0(bytesToHex(key)));
+        FingerprintSysInfo sysInfo = strategy.getBot().getFingerprintSysInfo();
+        mexcOrder.setP0(getMexcP0(sysInfo, key));
+        mexcOrder.setTimestamp(timestamp);
+        mexcOrder.setCHash(getMexcCHashs());
+        mexcOrder.setMToken(sysInfo.getMtoken());
+        mexcOrder.setMHash(sysInfo.getMhash());
+        Bot bot = strategy.getBot();
+        String apiKey = decryptSecretKey(bot.getApiKey());
+        String secretKey = decryptSecretKey(bot.getSecretKey());
+        double balance = getBalance(apiKey, secretKey);
+        double cont = strategy.getSymbol().getCs() * sysOrder.getOpenOrderPrice();
+        int volume = getVolume(balance, strategy.getRealAmount(), cont);
+        logger.info("ACCOUNT {} | BALANCE : {} | VOL {}", strategy.getBot().getName(), balance, volume);
+        mexcOrder.setVol(volume);
+        sysOrder.setVolume(volume);
+        sysOrder.setOpenOrderPrice(Double.parseDouble(mexcOrder.getPrice()));
+        sysOrder.setCurrentTakeProfitPrice(Double.parseDouble(mexcOrder.getTakeProfitPrice()));
+        sysOrder.setStopLossPrice(Double.parseDouble(mexcOrder.getStopLossPrice()));
+        return mexcOrder;
+    }
+
 }

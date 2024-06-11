@@ -22,7 +22,6 @@ public class Order {
     private double stopLossPrice;
     private long timestamp;
     private OrderStatus orderStatus;
-    private String platformOrderStatus;
     private String symbol;
     private double candleOpenPrice;
     private int volume;
@@ -39,7 +38,7 @@ public class Order {
     private String cancelReason;
 
     public String toCancelPayload() {
-        String template = "[{\"symbol\":\"%s\",\"orderId\":\"%s\"}]";
-        return String.format(template, this.getSymbol(), this.getPlatformOrderId());
+        String template = "[\"%s\"]";
+        return String.format(template,this.getPlatformOrderId());
     }
 }

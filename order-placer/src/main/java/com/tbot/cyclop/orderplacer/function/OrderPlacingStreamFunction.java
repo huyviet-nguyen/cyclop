@@ -182,14 +182,14 @@ public class OrderPlacingStreamFunction {
             }
         } catch (Exception rethrow) {
             marketContextHolder.removeOrder(strategy.getId());
-            orderPlacerService.handleCancelOrder(orderAfterSync, strategy);
+//            orderPlacerService.handleCancelOrder(orderAfterSync, strategy);
             throw rethrow;
         }
         return null;
     }
 
     private static String getMapKey(KlineData value) {
-        return value.getSymbol().concat(".").concat(value.getInterval());
+        return value.getSymbol() + "." + value.getInterval();
     }
 
     private boolean isNewCandle(KlineData value) {
