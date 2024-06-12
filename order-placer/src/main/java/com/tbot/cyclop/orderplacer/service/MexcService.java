@@ -140,7 +140,7 @@ public class MexcService implements PlatformService {
         MexcChangePriceRequest changePriceRequest = getMexcChangePriceRequest(orderWithUpdatedProfit, stopOrder, strategy);
         long timestamp = System.currentTimeMillis();
 
-        String path = mexcOrderBaseUrl.concat("api/v1/private/stoporder/change_price");
+        String path = mexcOrderBaseUrl.concat("api/v1/private/stoporder/change_plan_order");
         String stringPayload = objectMapper.writeValueAsString(changePriceRequest);
         String headerHash = getMexcSign(stringPayload, timestamp, webToken);
         MexcChangeOrderResponse response;
@@ -159,6 +159,12 @@ public class MexcService implements PlatformService {
         changePriceRequest.setTakeProfitPrice(roundToSameDecimal(pu, order.getCurrentTakeProfitPrice()));
         changePriceRequest.setStopLossPrice(roundToSameDecimal(pu, order.getStopLossPrice()));
         changePriceRequest.setOrderId(stopOrder.getId());
+        changePriceRequest.setProfitTrend(stopOrder.getProfitTrend());
+        changePriceRequest.setLossTrend(stopOrder.getLossTrend());
+        changePriceRequest.setStopLossReverse(stopOrder.getStopLossReverse());
+        changePriceRequest.setTakeProfitReverse(stopOrder.getTakeProfitReverse());
+        changePriceRequest.setTakeProfitVolume(stopOrder.getTakeProfitVol());
+        changePriceRequest.setStopLossVolume(stopOrder.getStopLossVol());
         return changePriceRequest;
     }
 
