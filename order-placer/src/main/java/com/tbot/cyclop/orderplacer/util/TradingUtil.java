@@ -51,15 +51,9 @@ public class TradingUtil {
     }
 
 
-    public static double calculateReducedTakeProfitPrice(Strategy strategy, Order latestOrder) {
-        double openPriceToOcOffset = Math.abs(latestOrder.getOpenOrderPrice() - latestOrder.getCandleOpenPrice());
-        latestOrder.setCurrentActualTakeProfit(deductPercentage(latestOrder.getCurrentActualTakeProfit(), strategy.getReduceTakeProfit()));
-        double takeProfitPriceOffset = Math.abs(calculateNewValue(openPriceToOcOffset, latestOrder.getCurrentActualTakeProfit()));
-        if (strategy.getPositionSide().equals("LONG")) {
-            return latestOrder.getOpenOrderPrice() + takeProfitPriceOffset;
-        } else {
-            return latestOrder.getOpenOrderPrice() - takeProfitPriceOffset;
-        }
+    public static double calculateReducedTakeProfitPrice(Strategy strategy, Order latestOrder, double newOpenPrice) {
+        double offset = (Math.abs(latestOrder.getCurrentTakeProfitPrice() - newOpenPrice) * strategy.getReduceTakeProfit() / 100);
+        return strategy.getPositionSide().equals("LONG") ? newOpenPrice - offset : newOpenPrice + offset;
     }
 
     public static byte[] generateRandomBytes(int length) {

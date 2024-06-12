@@ -9,8 +9,8 @@ import lombok.Setter;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class MexcChangePriceRequest {
     private String orderId;
-    private double stopLossPrice;
-    private double takeProfitPrice;
+    private String stopLossPrice;
+    private String takeProfitPrice;
     private String profitTrend;
     private String lossTrend;
     private int takeProfitVolume;

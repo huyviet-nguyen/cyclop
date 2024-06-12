@@ -63,8 +63,6 @@ public class MexcSocketService extends PlatformSocketService {
 
     @Override
     Flux<String> getMessageFlux() {
-//        Flux<String> initialMessage = strategyRepo.findAllByStatusAndPlatform("ACTIVE", "MEXC")
-//                .map(strategy -> initMessageTemplate.replace("%symbol", strategy.getSymbolString()).replace("%interval", strategy.getCandleStick().replace("M", "")));
         Flux<String> initialMessage = symbolRepo.findAllByPlatform("MEXC")
                 .flatMap(symbol -> Flux.fromIterable(Arrays.stream(SUPPORTED_INTERVAL).toList())
                         .map(interval -> initMessageTemplate.replace("%symbol", symbol.getSymbol()).replace("%interval", interval))

@@ -35,6 +35,7 @@ import java.util.stream.Collectors;
 import static com.tbot.cyclop.Cyclop.HttpConstant.*;
 import static com.tbot.cyclop.orderplacer.util.GenericHttpUtil.calculateHmacSHA256;
 import static com.tbot.cyclop.orderplacer.util.GenericHttpUtil.decryptSecretKey;
+import static com.tbot.cyclop.orderplacer.util.PercentageUtil.normalizeDouble;
 import static com.tbot.cyclop.orderplacer.util.PercentageUtil.roundToSameDecimal;
 import static com.tbot.cyclop.orderplacer.util.TradingUtil.*;
 
@@ -131,7 +132,7 @@ public class MexcService implements PlatformService {
     public void reduceProfit(Order orderWithUpdatedProfit, Strategy strategy, KlineData marketData) throws JsonProcessingException {
         String webToken = decryptSecretKey(strategy.getBot().getWebToken());
         MexcStopOrderListResponse stopOrderList = getStopOrderOpenOrders(webToken, strategy.getId());
-        MexcStopOrderResponse stopOrder = stopOrderList.getData().stream().filter(a -> Objects.equals(a.getOrderId(), orderWithUpdatedProfit.getOpenedOrderId())).findFirst().orElse(null);
+        MexcStopOrderResponse stopOrder = stopOrderList.getData().stream().filter(a -> Objects.equals(a.getOrderId(), orderWithUpdatedProfit.getPlatformOrderId())).findFirst().orElse(null);
         if (stopOrder == null) {
             logger.error("CANNOT FIND OPENED ORDER {} ON PLATFORM, CANNOT REDUCE TAKE-PROFIT", orderWithUpdatedProfit.getPlatformOrderId());
             String foundId = objectMapper.writeValueAsString(stopOrderList);
@@ -156,8 +157,8 @@ public class MexcService implements PlatformService {
     private static MexcChangePriceRequest getMexcChangePriceRequest(Order order, MexcStopOrderResponse stopOrder, Strategy strategy) {
         double pu = strategy.getSymbol().getPu();
         MexcChangePriceRequest changePriceRequest = new MexcChangePriceRequest();
-        changePriceRequest.setTakeProfitPrice(roundToSameDecimal(pu, order.getCurrentTakeProfitPrice()));
-        changePriceRequest.setStopLossPrice(roundToSameDecimal(pu, order.getStopLossPrice()));
+        changePriceRequest.setTakeProfitPrice(normalizeDouble(roundToSameDecimal(pu, order.getCurrentTakeProfitPrice())));
+        changePriceRequest.setStopLossPrice(normalizeDouble(roundToSameDecimal(pu, order.getStopLossPrice())));
         changePriceRequest.setOrderId(stopOrder.getId());
         changePriceRequest.setProfitTrend(stopOrder.getProfitTrend());
         changePriceRequest.setLossTrend(stopOrder.getLossTrend());
@@ -334,9 +335,9 @@ public class MexcService implements PlatformService {
         mexcOrder.setSide(Integer.parseInt(side));
         mexcOrder.setSymbol(sysOrder.getSymbol());
         mexcOrder.setLeverage(LEVERAGE);
-        mexcOrder.setStopLossPrice(String.valueOf(roundToSameDecimal(pu, sysOrder.getStopLossPrice())));
-        mexcOrder.setTakeProfitPrice(String.valueOf(roundToSameDecimal(pu, sysOrder.getCurrentTakeProfitPrice())));
-        mexcOrder.setPrice(String.valueOf(roundToSameDecimal(pu, sysOrder.getOpenOrderPrice())));
+        mexcOrder.setStopLossPrice(normalizeDouble(roundToSameDecimal(pu, sysOrder.getStopLossPrice())));
+        mexcOrder.setTakeProfitPrice(normalizeDouble(roundToSameDecimal(pu, sysOrder.getCurrentTakeProfitPrice())));
+        mexcOrder.setPrice(normalizeDouble(roundToSameDecimal(pu, sysOrder.getOpenOrderPrice())));
         mexcOrder.setK0(getMexcK0(bytesToHex(key)));
         FingerprintSysInfo sysInfo = strategy.getBot().getFingerprintSysInfo();
         mexcOrder.setP0(getMexcP0(sysInfo, key));
