@@ -224,6 +224,7 @@ public class MexcService implements PlatformService {
             String responseString = req(HttpMethod.POST, path, payload, strategy.getSymbolString(), decryptWebToken, headerHash, timestamp, 10, strategy.getId());
             logger.info("CANCEL ORDER : {}", responseString);
         } catch (Exception e) {
+            order.setErrorMessage(e.getLocalizedMessage());
             orderRepo.save(order).block();
             logger.error("CANNOT CANCEL ORDER : {}", order.getPlatformOrderId());
             throw e;

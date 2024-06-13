@@ -48,7 +48,6 @@ public class OrderPlacingStreamFunction {
     private final ErrorTraceRepo errorTraceRepo;
 
     private final Logger logger = LoggerFactory.getLogger(OrderPlacingStreamFunction.class);
-
     public OrderPlacingStreamFunction(StrategyRepo strategyRepo, NotificationService notificationService, OrderPlacerService orderPlacerService, MarketContextHolder marketContextHolder, BotRepo botRepo, OrderRepo orderRepo, ErrorTraceRepo errorTraceRepo) {
         this.strategyRepo = strategyRepo;
         this.notificationService = notificationService;
@@ -182,7 +181,7 @@ public class OrderPlacingStreamFunction {
             }
         } catch (Exception rethrow) {
             marketContextHolder.removeOrder(strategy.getId());
-//            orderPlacerService.handleCancelOrder(orderAfterSync, strategy);
+            notificationService.sendErrorNotification(strategy, value, rethrow.getMessage());
             throw rethrow;
         }
         return null;
