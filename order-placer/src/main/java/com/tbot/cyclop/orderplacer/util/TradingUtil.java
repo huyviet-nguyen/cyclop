@@ -53,7 +53,7 @@ public class TradingUtil {
 
     public static double calculateReducedTakeProfitPrice(Strategy strategy, Order latestOrder, double newOpenPrice) {
         double offset = (Math.abs(latestOrder.getCurrentTakeProfitPrice() - newOpenPrice) * strategy.getReduceTakeProfit() / 100);
-        return strategy.getPositionSide().equals("LONG") ? newOpenPrice - offset : newOpenPrice + offset;
+        return strategy.getPositionSide().equals("LONG") ? latestOrder.getCurrentTakeProfitPrice() - offset : latestOrder.getCurrentTakeProfitPrice() + offset;
     }
 
     public static byte[] generateRandomBytes(int length) {
