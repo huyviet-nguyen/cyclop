@@ -182,6 +182,7 @@ public class MexcService implements PlatformService {
                         break;
                     case 3:
                         order.setOrderStatus(OrderStatus.OPEN);
+                        order.setPlatformBuyPrice(openedFound.get().getPrice());
                         break;
                     default:
                         order.setOrderStatus(OrderStatus.IGNORED);
@@ -200,6 +201,7 @@ public class MexcService implements PlatformService {
                 if (closedHistory != null) {
                     order.setOrderStatus(OrderStatus.CLOSED);
                     order.setProfit(closedHistory.getProfit());
+                    order.setPlatformSellPrice(closedHistory.getDealAvgPrice());
                     return;
                 } else {
                     order.setOrderStatus(OrderStatus.IGNORED);

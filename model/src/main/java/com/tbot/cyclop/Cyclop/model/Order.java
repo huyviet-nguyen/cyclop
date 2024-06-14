@@ -37,6 +37,8 @@ public class Order {
     private String botId;
     private String cancelReason;
     private String errorMessage;
+    private double platformBuyPrice;
+    private double platformSellPrice;
 
     public String toCancelPayload() {
         String template = "[\"%s\"]";

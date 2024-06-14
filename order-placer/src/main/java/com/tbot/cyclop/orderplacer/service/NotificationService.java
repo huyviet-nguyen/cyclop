@@ -90,15 +90,8 @@ public class NotificationService {
     }
 
     private String getReportNotificationContent(Order order, Strategy strategy, int win, int lose) {
-        double pnl;
-        double sellPrice;
-        if (order.getProfit() > 0) {
-            pnl = calculateChangePercent(order.getOpenOrderPrice(), order.getCurrentTakeProfitPrice());
-            sellPrice = order.getCurrentTakeProfitPrice();
-        } else {
-            pnl = calculateChangePercent(order.getOpenOrderPrice(), order.getStopLossPrice());
-            sellPrice = order.getStopLossPrice();
-        }
+        double pnl = calculateChangePercent(order.getPlatformBuyPrice(), order.getPlatformSellPrice());
+        double sellPrice = order.getPlatformSellPrice();
         String overall = order.getProfit() > 0 ? "WIN" : "LOSE";
         return String.format(REPORT_NOTIFICATION_TEMPLATE,
                 order.getSymbol().replace("_", "\\_"), strategy.getPositionSide(), overall,
