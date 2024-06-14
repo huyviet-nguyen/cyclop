@@ -120,7 +120,7 @@ public class OrderPlacingStreamFunction {
     }
 
     private Order handleNullOrderCache(KlineData value, Strategy strategy, double changePercent) throws Exception {
-        if (!canSubmit(strategy, value)) {
+        if (canSubmit(strategy, value)) {
             logger.info("ORDER CAN BE SUBMIT | CURRENT CHANGE {} | OC {} | EXTEND {}", changePercent, strategy.getOrderChange(), strategy.getExtendOrderChangePercent());
             return submitOrder(value, strategy);
         }
