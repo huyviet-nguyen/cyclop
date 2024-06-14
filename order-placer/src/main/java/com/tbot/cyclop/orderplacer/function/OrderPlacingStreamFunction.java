@@ -85,6 +85,7 @@ public class OrderPlacingStreamFunction {
                                     {
                                         try {
                                             String mapKey = getMapKey(value);
+                                            double lastPump = marketContextHolder.getCandlePump(mapKey);
 
                                             if (isNewCandle(value)) {
                                                 marketContextHolder.updateCandleMaps(mapKey, value.getOpenPrice(), value.getCurrentPrice());
@@ -96,7 +97,7 @@ public class OrderPlacingStreamFunction {
                                             Order orderBeforeSync = marketContextHolder.getOrder(strategy.getId());
 
                                             if (orderBeforeSync == null) {
-                                                if (Math.abs(changePercent) < ignorePercent){
+                                                if (Math.abs(changePercent) < ignorePercent && lastPump * changePercent < 0){
                                                     return null;
                                                 }
                                                 return handleNullOrderCache(value, strategy, changePercent);
@@ -119,7 +120,7 @@ public class OrderPlacingStreamFunction {
     }
 
     private Order handleNullOrderCache(KlineData value, Strategy strategy, double changePercent) throws Exception {
-        if (canSubmit(strategy, value)) {
+        if (!canSubmit(strategy, value)) {
             logger.info("ORDER CAN BE SUBMIT | CURRENT CHANGE {} | OC {} | EXTEND {}", changePercent, strategy.getOrderChange(), strategy.getExtendOrderChangePercent());
             return submitOrder(value, strategy);
         }

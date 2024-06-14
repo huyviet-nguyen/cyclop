@@ -253,20 +253,38 @@ public class MexcService implements PlatformService {
         return responseString;
     }
 
-//    private MexcPositionListResponse getClosedPositionHistory(String decryptedWebToken, String symbol, String strategyId) throws JsonProcessingException {
-//        long timestamp = System.currentTimeMillis();
-//        String path = mexcOrderBaseUrl.concat("api/v1/private/position/list/history_positions?page_num=1&page_size=20&symbol=").concat(symbol);
-//        String headerHash = getMexcSign("", timestamp, decryptedWebToken);
-//        String responseString = req(HttpMethod.GET, path, null, symbol, decryptedWebToken, headerHash, timestamp, 20, strategyId);
-//        return objectMapper.readValue(responseString, MexcPositionListResponse.class);
-//    }
+    private String reqRestTemplate(HttpMethod method, String path, String payload, String symbol, String decryptedWebToken, String headerHash, long timestamp, int timeout, String strategyId) {
+        LocalDateTime reqTime = LocalDateTime.now();
+        String responseString = "";
+
+        RestTemplate restTemplate = new RestTemplate();
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("X-MXC-NONCE", String.valueOf(timestamp));
+        headers.set("X-MXC-SIGN", headerHash);
+        headers.set("Authorization", decryptedWebToken);
+
+        if (method.equals(HttpMethod.GET)) {
+            HttpEntity<String> entity = new HttpEntity<>(headers);
+            responseString = restTemplate.exchange(path, method, entity, String.class).getBody();
+        } else {
+            headers.setContentLength(payload.getBytes(StandardCharsets.UTF_8).length);
+            HttpEntity<String> entity = new HttpEntity<>(payload, headers);
+            responseString = restTemplate.exchange(path, method, entity, String.class).getBody();
+        }
+
+        LocalDateTime respTime = LocalDateTime.now();
+        appendLog(path, payload, responseString, reqTime, respTime, symbol, strategyId);
+        return responseString;
+    }
 
     private MexcStopOrderListResponse getStopOrderOpenOrders(String decryptedWebToken, String strategyId) throws JsonProcessingException {
         long timestamp = System.currentTimeMillis();
 
         String path = mexcOrderBaseUrl.concat("api/v1/private/stoporder/open_orders?page_num=1&page_size=100");
         String headerHash = getMexcSign("", timestamp, decryptedWebToken);
-        String responseString = req(HttpMethod.GET, path, null, "", decryptedWebToken, headerHash, timestamp, 20, strategyId);
+        String responseString = reqRestTemplate(HttpMethod.GET, path, null, "", decryptedWebToken, headerHash, timestamp, 20, strategyId);
         return objectMapper.readValue(responseString, MexcStopOrderListResponse.class);
     }
 
@@ -275,7 +293,7 @@ public class MexcService implements PlatformService {
 
         String path = mexcOrderBaseUrl.concat("api/v1/private/stoporder/list/orders?is_finished=1&page_num=1&page_size=20&symbol=").concat(symbol);
         String headerHash = getMexcSign("", timestamp, decryptedWebToken);
-        String responseString = req(HttpMethod.GET, path, null, symbol, decryptedWebToken, headerHash, timestamp, 20, strategyId);
+        String responseString = reqRestTemplate(HttpMethod.GET, path, null, symbol, decryptedWebToken, headerHash, timestamp, 20, strategyId);
         return objectMapper.readValue(responseString, MexcStopOrderListResponse.class);
     }
 
@@ -291,6 +309,7 @@ public class MexcService implements PlatformService {
         }
     }
 
+    @Deprecated
     public MexcOpenOrderRequestV2 orderAckToMexcOpenOrderRequestV2(Order sysOrder, Strategy strategy) throws Exception {
         long timestamp = Instant.now().toEpochMilli();
         double pu = strategy.getSymbol().getPu();
