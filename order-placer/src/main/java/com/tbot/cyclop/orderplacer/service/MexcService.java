@@ -18,9 +18,13 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
 
@@ -30,7 +34,6 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 import static com.tbot.cyclop.Cyclop.HttpConstant.*;
 import static com.tbot.cyclop.orderplacer.util.GenericHttpUtil.calculateHmacSHA256;
@@ -49,8 +52,6 @@ public class MexcService implements PlatformService {
     public String mexcOrderBaseUrl;
     private final Logger logger = LoggerFactory.getLogger(MexcService.class);
 
-    private final WebClient webClient = WebClient.create();
-
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     private static final int LEVERAGE = 10;
@@ -59,12 +60,10 @@ public class MexcService implements PlatformService {
 
     private final HttpRequestLogRepo requestLogRepo;
 
-    private final ErrorTraceRepo errorTraceRepo;
 
-    public MexcService(OrderRepo orderRepo, HttpRequestLogRepo requestLogRepo, ErrorTraceRepo errorTraceRepo) {
+    public MexcService(OrderRepo orderRepo, HttpRequestLogRepo requestLogRepo) {
         this.orderRepo = orderRepo;
         this.requestLogRepo = requestLogRepo;
-        this.errorTraceRepo = errorTraceRepo;
     }
 
 
@@ -75,7 +74,7 @@ public class MexcService implements PlatformService {
         String objectString = String.join("", decryptedApiKey, String.valueOf(timestamp));
         String signature = calculateHmacSHA256(decryptedApiSecret, objectString);
         try {
-            String responseString = webClient.method(HttpMethod.GET).uri(path).header(CONTENT_TYPE_HEADER_NAME, APPLICATION_JSON).header("ApiKey", decryptedApiKey).header("Signature", signature).header("Request-Time", String.valueOf(timestamp)).retrieve().bodyToMono(String.class).block();
+            String responseString = WebClient.create().method(HttpMethod.GET).uri(path).header(CONTENT_TYPE_HEADER_NAME, APPLICATION_JSON).header("ApiKey", decryptedApiKey).header("Signature", signature).header("Request-Time", String.valueOf(timestamp)).retrieve().bodyToMono(String.class).block();
             return responseString == null ? 0 : extractAvailableBalanceMexc(responseString);
         } catch (Exception e) {
             logger.info("CANNOT RETRIEVE BALANCE");
@@ -104,12 +103,12 @@ public class MexcService implements PlatformService {
         long timestamp = openOrderRequest.getTimestamp();
         String stringPayload = objectMapper.writeValueAsString(openOrderRequest);
         String headerHash = getMexcSign(stringPayload, timestamp, webToken);
-        String path = mexcOrderBaseUrl.concat("/api/v1/private/order/create?mhash=").concat(mHash);
+        String path = mexcOrderBaseUrl.concat("api/v1/private/order/create?mhash=").concat(mHash);
 
 
         if (openOrderRequest.getVol() > 0) {
             try {
-                String responseString = req(HttpMethod.POST, path, objectMapper.writeValueAsString(openOrderRequest), strategy.getSymbolString(), webToken, headerHash, timestamp, 10, strategy.getId());
+                String responseString = reqRestTemplate(HttpMethod.POST, path, objectMapper.writeValueAsString(openOrderRequest), strategy.getSymbolString(), webToken, headerHash, timestamp, 10, strategy.getId());
                 MexcOrderResponse response = objectMapper.readValue(responseString, MexcOrderResponse.class);
                 if (response == null || response.getData() == null || !response.isSuccess()) {
                     throw new OpenOrderFailException("FAILED TO CREATE ORDER");
@@ -145,7 +144,7 @@ public class MexcService implements PlatformService {
         String stringPayload = objectMapper.writeValueAsString(changePriceRequest);
         String headerHash = getMexcSign(stringPayload, timestamp, webToken);
         MexcChangeOrderResponse response;
-        String stringResponse = req(HttpMethod.POST, path, stringPayload, strategy.getSymbolString(), webToken, headerHash, timestamp, 10, strategy.getId());
+        String stringResponse = reqRestTemplate(HttpMethod.POST, path, stringPayload, strategy.getSymbolString(), webToken, headerHash, timestamp, 10, strategy.getId());
         response = objectMapper.readValue(stringResponse, MexcChangeOrderResponse.class);
         logger.info("REDUCED TAKE PROFIT FOR ORDER {}", orderWithUpdatedProfit.getPlatformOrderId());
         if (response == null || !response.isSuccess()) {
@@ -221,7 +220,7 @@ public class MexcService implements PlatformService {
         String headerHash = getMexcSign(payload, timestamp, decryptWebToken);
 
         try {
-            String responseString = req(HttpMethod.POST, path, payload, strategy.getSymbolString(), decryptWebToken, headerHash, timestamp, 10, strategy.getId());
+            String responseString = reqRestTemplate(HttpMethod.POST, path, payload, strategy.getSymbolString(), decryptWebToken, headerHash, timestamp, 10, strategy.getId());
             logger.info("CANCEL ORDER : {}", responseString);
         } catch (Exception e) {
             order.setErrorMessage(e.getLocalizedMessage());
@@ -236,7 +235,7 @@ public class MexcService implements PlatformService {
 
         String path = mexcOrderBaseUrl.concat("api/v1/private/order/list/history_orders?category=1,6&page_num=1&page_size=50&symbol=").concat(symbol);
         String headerHash = getMexcSign("", timestamp, decryptedWebToken);
-        String responseString = req(HttpMethod.GET, path, null, symbol, decryptedWebToken, headerHash, timestamp, 20, strategyId);
+        String responseString = reqRestTemplate(HttpMethod.GET, path, null, symbol, decryptedWebToken, headerHash, timestamp, 20, strategyId);
         return objectMapper.readValue(responseString, MexcOrderHistoryListResponse.class);
     }
 
@@ -244,9 +243,9 @@ public class MexcService implements PlatformService {
         LocalDateTime reqTime = LocalDateTime.now();
         String responseString = "";
         if (method.equals(HttpMethod.GET)) {
-            responseString = webClient.get().uri(path).header(CONTENT_TYPE_HEADER_NAME, APPLICATION_JSON).header(X_MXC_NONCE_HEADER_NAME, String.valueOf(timestamp)).header(X_MXC_SIGN_HEADER_NAME, headerHash).header(AUTH_HEADER_NAME, decryptedWebToken).retrieve().bodyToMono(String.class).timeout(Duration.ofSeconds(timeout)).block();
+            responseString = WebClient.create().method(method).uri(path).header(CONTENT_TYPE_HEADER_NAME, APPLICATION_JSON).header(X_MXC_NONCE_HEADER_NAME, String.valueOf(timestamp)).header(X_MXC_SIGN_HEADER_NAME, headerHash).header(AUTH_HEADER_NAME, decryptedWebToken).retrieve().bodyToMono(String.class).timeout(Duration.ofSeconds(timeout)).block();
         } else {
-            responseString = webClient.post().uri(path).body(BodyInserters.fromValue(payload)).header(CONTENT_TYPE_HEADER_NAME, APPLICATION_JSON).header(X_MXC_NONCE_HEADER_NAME, String.valueOf(timestamp)).header(X_MXC_SIGN_HEADER_NAME, headerHash).header(AUTH_HEADER_NAME, decryptedWebToken).header(CONTENT_LENGTH_HEADER_NAME, String.valueOf(payload.getBytes(StandardCharsets.UTF_8).length)).retrieve().bodyToMono(String.class).timeout(Duration.ofSeconds(timeout)).block();
+            responseString = WebClient.create().method(method).uri(path).body(BodyInserters.fromValue(payload)).header(CONTENT_TYPE_HEADER_NAME, APPLICATION_JSON).header(X_MXC_NONCE_HEADER_NAME, String.valueOf(timestamp)).header(X_MXC_SIGN_HEADER_NAME, headerHash).header(AUTH_HEADER_NAME, decryptedWebToken).header(CONTENT_LENGTH_HEADER_NAME, String.valueOf(payload.getBytes(StandardCharsets.UTF_8).length)).retrieve().bodyToMono(String.class).timeout(Duration.ofSeconds(timeout)).block();
         }
         LocalDateTime respTime = LocalDateTime.now();
         appendLog(path, payload, responseString, reqTime, respTime, symbol, strategyId);
