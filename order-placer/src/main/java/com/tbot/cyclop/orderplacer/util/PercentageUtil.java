@@ -52,7 +52,7 @@ public class PercentageUtil {
     private static int countDecimalPlaces(double value) {
         String valueStr = normalizeDouble(value);
         int index = valueStr.indexOf('.');
-        return index < 0 ? 0 : valueStr.length() - index - 2;
+        return index < 0 ? 0 : valueStr.length() - index - 1;
     }
 
     // Method to round a double value to a specified number of decimal places

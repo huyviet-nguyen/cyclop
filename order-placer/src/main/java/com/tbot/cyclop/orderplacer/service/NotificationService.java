@@ -99,8 +99,8 @@ public class NotificationService {
                 win, lose,
                 strategy.getExtendOrderChangePercent(),
                 strategy.getCandleStick(), strategy.getOrderChange(), strategy.getTakeProfit(),
-                sellPrice, sellPrice * order.getVolume(),
-                order.getOpenOrderPrice(), order.getOpenOrderPrice() * order.getVolume(),
+                sellPrice, order.getRealAmount(),
+                order.getOpenOrderPrice(), order.getRealAmount(),
                 order.getProfit(), roundToSameDecimal(0.01, Math.abs(pnl)));
     }
 
@@ -113,7 +113,7 @@ public class NotificationService {
                     strategy.toNotiString(),
                     order.getCandleOpenPrice(),
                     order.getOpenOrderPrice(),
-                    order.getVolume() * order.getOpenOrderPrice());
+                    order.getRealAmount());
             case CLOSED -> String.format(CLOSE_ORDER_NOTIFICATION_TEMPLATE,
                     order.getSymbol().replace("_", "\\_"),
                     strategy.getPositionSide(),
@@ -121,7 +121,7 @@ public class NotificationService {
                     strategy.toNotiString(),
                     order.getCandleOpenPrice(),
                     order.getOpenOrderPrice(),
-                    order.getVolume() * order.getOpenOrderPrice());
+                    order.getRealAmount());
             default -> "";
         };
     }

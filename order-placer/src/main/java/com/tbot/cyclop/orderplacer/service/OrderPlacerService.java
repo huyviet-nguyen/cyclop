@@ -71,7 +71,6 @@ public class OrderPlacerService {
         } catch (Exception rethrown) {
             logger.error("CANNOT SYNC STATUS FOR ORDER {}", latestOrder.getPlatformOrderId());
             logger.error(rethrown.getMessage());
-//            latestOrder.setOrderStatus(OrderStatus.IGNORED);
             saveErrorOrder(latestOrder, rethrown);
             throw rethrown;
         }
