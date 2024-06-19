@@ -303,7 +303,6 @@ public class MexcService implements PlatformService {
         httpRequest.setHeader("origin", "https://futures.mexc.com");
         httpRequest.setHeader("pragma", "akamai-x-cache-on");
         httpRequest.setHeader("priority", "u=1, i");
-        httpRequest.setHeader("referer", "https://futures.mexc.com/vi-VN/exchange/LPT_USDT?type=linear_swap");
         httpRequest.setHeader("sec-ch-ua", "\"Not-A.Brand\";v=\"99\", \"Chromium\";v=\"124\"");
         httpRequest.setHeader("sec-ch-ua-mobile", "?0");
         httpRequest.setHeader("sec-ch-ua-platform", "\"Windows\"");
