@@ -1,6 +1,5 @@
 package com.tbot.cyclop.orderplacer.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.tbot.cyclop.Cyclop.dto.KlineData;
 import com.tbot.cyclop.Cyclop.model.*;
 import com.tbot.cyclop.orderplacer.exception.ReduceTakeProfitFailException;
@@ -10,6 +9,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
+import java.net.URISyntaxException;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 
@@ -39,7 +40,7 @@ public class OrderPlacerService {
         serviceMap.put("BYBIT", bybitService);
     }
 
-    public Order handleCancelOrder(Order order, Strategy strategy) throws JsonProcessingException {
+    public Order handleCancelOrder(Order order, Strategy strategy) throws IOException, URISyntaxException {
         PlatformService service = getService(strategy.getPlatform());
         service.cancelOrder(order, strategy);
         return order;
@@ -64,7 +65,7 @@ public class OrderPlacerService {
     }
 
     @Transactional
-    public Order handleSyncStatus(KlineData klineData, Order latestOrder, Strategy strategy) throws JsonProcessingException, InterruptedException {
+    public Order handleSyncStatus(KlineData klineData, Order latestOrder, Strategy strategy) throws IOException, InterruptedException, URISyntaxException {
         try {
             PlatformService service = getService(klineData.getSourcePlatform());
             service.syncStatus(latestOrder, strategy);

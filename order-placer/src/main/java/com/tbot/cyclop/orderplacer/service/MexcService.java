@@ -1,6 +1,5 @@
 package com.tbot.cyclop.orderplacer.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tbot.cyclop.Cyclop.dto.KlineData;
@@ -24,17 +23,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
-import org.springframework.retry.RetryException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
 
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
-import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.Objects;
@@ -115,7 +111,7 @@ public class MexcService implements PlatformService {
 
         if (openOrderRequest.getVol() > 0) {
             try {
-                String responseString = reqWithRetry(HttpMethod.POST, path, objectMapper.writeValueAsString(openOrderRequest), strategy.getSymbolString(), webToken, headerHash, timestamp, 10, strategy.getId(), 3, 10);
+                String responseString = reqRestTemplate(HttpMethod.POST, path, objectMapper.writeValueAsString(openOrderRequest), strategy.getSymbolString(), webToken, headerHash, timestamp, 10, strategy.getId());
                 MexcOrderResponse response = objectMapper.readValue(responseString, MexcOrderResponse.class);
                 if (response == null || response.getData() == null || !response.isSuccess()) {
                     throw new OpenOrderFailException("FAILED TO CREATE ORDER");
@@ -135,7 +131,7 @@ public class MexcService implements PlatformService {
     }
 
     @Override
-    public void reduceProfit(Order orderWithUpdatedProfit, Strategy strategy, KlineData marketData) throws JsonProcessingException {
+    public void reduceProfit(Order orderWithUpdatedProfit, Strategy strategy, KlineData marketData) throws IOException, URISyntaxException {
         String webToken = decryptSecretKey(strategy.getBot().getWebToken());
         MexcStopOrderListResponse stopOrderList = getStopOrderOpenOrders(webToken, strategy.getId());
         MexcStopOrderResponse stopOrder = stopOrderList.getData().stream().filter(a -> Objects.equals(a.getOrderId(), orderWithUpdatedProfit.getPlatformOrderId())).findFirst().orElse(null);
@@ -151,7 +147,15 @@ public class MexcService implements PlatformService {
         String stringPayload = objectMapper.writeValueAsString(changePriceRequest);
         String headerHash = getMexcSign(stringPayload, timestamp, webToken);
         MexcChangeOrderResponse response;
-        String stringResponse = reqWithRetry(HttpMethod.POST, path, stringPayload, strategy.getSymbolString(), webToken, headerHash, timestamp, 10, strategy.getId(), 3, 10);
+        String stringResponse = "";
+        try {
+            stringResponse = reqRestTemplate(HttpMethod.POST, path, stringPayload, strategy.getSymbolString(), webToken, headerHash, timestamp, 10, strategy.getId());
+        } catch (Exception e){
+            orderWithUpdatedProfit.setErrorMessage(e.getLocalizedMessage());
+            orderRepo.save(orderWithUpdatedProfit).block();
+            logger.error("CANNOT CANCEL ORDER : {}", orderWithUpdatedProfit.getPlatformOrderId());
+            throw e;
+        }
         response = objectMapper.readValue(stringResponse, MexcChangeOrderResponse.class);
         logger.info("REDUCED TAKE PROFIT FOR ORDER {}", orderWithUpdatedProfit.getPlatformOrderId());
         if (response == null || !response.isSuccess()) {
@@ -176,7 +180,7 @@ public class MexcService implements PlatformService {
     }
 
     @Override
-    public void syncStatus(Order order, Strategy strategy) throws JsonProcessingException {
+    public void syncStatus(Order order, Strategy strategy) throws IOException, URISyntaxException {
         String decryptedWebToken = decryptSecretKey(strategy.getBot().getWebToken());
         MexcOrderHistoryListResponse listResponse;
         Optional<MexcStopOrderResponse> closedFound;
@@ -223,7 +227,7 @@ public class MexcService implements PlatformService {
     }
 
     @Override
-    public void cancelOrder(Order order, Strategy strategy) throws JsonProcessingException {
+    public void cancelOrder(Order order, Strategy strategy) throws IOException, URISyntaxException {
         long timestamp = System.currentTimeMillis();
         String decryptWebToken = decryptSecretKey(strategy.getBot().getWebToken());
         String path = mexcOrderBaseUrl.concat("api/v1/private/order/cancel");
@@ -231,7 +235,7 @@ public class MexcService implements PlatformService {
         String headerHash = getMexcSign(payload, timestamp, decryptWebToken);
 
         try {
-            String responseString = reqWithRetry(HttpMethod.POST, path, payload, strategy.getSymbolString(), decryptWebToken, headerHash, timestamp, 10, strategy.getId(), 5, 10);
+            String responseString = reqRestTemplate(HttpMethod.POST, path, payload, strategy.getSymbolString(), decryptWebToken, headerHash, timestamp, 10, strategy.getId());
             logger.info("CANCEL ORDER : {}", responseString);
         } catch (Exception e) {
             order.setErrorMessage(e.getLocalizedMessage());
@@ -241,34 +245,24 @@ public class MexcService implements PlatformService {
         }
     }
 
-    private MexcOrderHistoryListResponse getOrderListHistoryOrder(String decryptedWebToken, String symbol, String strategyId) throws JsonProcessingException {
+    private MexcOrderHistoryListResponse getOrderListHistoryOrder(String decryptedWebToken, String symbol, String strategyId) throws IOException, URISyntaxException {
         long timestamp = System.currentTimeMillis();
 
         String path = mexcOrderBaseUrl.concat("api/v1/private/order/list/history_orders?category=1,6&page_num=1&page_size=50&symbol=").concat(symbol);
         String headerHash = getMexcSign("", timestamp, decryptedWebToken);
-        String responseString = reqWithRetry(HttpMethod.GET, path, null, symbol, decryptedWebToken, headerHash, timestamp, 20, strategyId, 3,10);
+        String responseString = reqRestTemplate(HttpMethod.GET, path, null, symbol, decryptedWebToken, headerHash, timestamp, 20, strategyId);
         return objectMapper.readValue(responseString, MexcOrderHistoryListResponse.class);
     }
 
-    private String req(HttpMethod method, String path, String payload, String symbol, String decryptedWebToken, String headerHash, long timestamp, int timeout, String strategyId) {
-        LocalDateTime reqTime = LocalDateTime.now();
-        String responseString = "";
-        if (method.equals(HttpMethod.GET)) {
-            responseString = WebClient.create().method(method).uri(path).header(CONTENT_TYPE_HEADER_NAME, APPLICATION_JSON).header(X_MXC_NONCE_HEADER_NAME, String.valueOf(timestamp)).header(X_MXC_SIGN_HEADER_NAME, headerHash).header(AUTH_HEADER_NAME, decryptedWebToken).retrieve().bodyToMono(String.class).timeout(Duration.ofSeconds(timeout)).block();
-        } else {
-            responseString = WebClient.create().method(method).uri(path).body(BodyInserters.fromValue(payload)).header(CONTENT_TYPE_HEADER_NAME, APPLICATION_JSON).header(X_MXC_NONCE_HEADER_NAME, String.valueOf(timestamp)).header(X_MXC_SIGN_HEADER_NAME, headerHash).header(AUTH_HEADER_NAME, decryptedWebToken).header(CONTENT_LENGTH_HEADER_NAME, String.valueOf(payload.getBytes(StandardCharsets.UTF_8).length)).retrieve().bodyToMono(String.class).timeout(Duration.ofSeconds(timeout)).block();
-        }
-        LocalDateTime respTime = LocalDateTime.now();
-        appendLog(path, payload, responseString, reqTime, respTime, symbol, strategyId);
-        return responseString;
-    }
-
-    public String reqWithRetry(HttpMethod method, String path, String payload, String symbol, String decryptedWebToken, String headerHash, long timestamp, int timeout, String strategyId, int maxRetry, int retryInterval) {
+    @Deprecated
+    public String reqWithRetry(HttpMethod method, String path, String payload, String symbol, String decryptedWebToken, String headerHash, long timestamp, int timeout, String strategyId) {
         int attempt = 0;
+        int maxRetry = 5;
+        int retryInterval = 3;
         while (attempt < maxRetry) {
             try {
                 return reqRestTemplate(method, path, payload, symbol, decryptedWebToken, headerHash, timestamp, timeout, strategyId);
-            } catch (RetryException | IOException | URISyntaxException e) {
+            } catch (RuntimeException | IOException | URISyntaxException e) {
                 attempt++;
                 if (attempt >= maxRetry) {
                     throw new RuntimeException("Max retry attempts reached", e);
@@ -291,68 +285,64 @@ public class MexcService implements PlatformService {
 
         CloseableHttpClient httpClient = HttpClientSingleton.getHttpClient();
 
-        try {
-            URI uri = new URI(path);
-            HttpRequestBase httpRequest;
-            if (method.equals(HttpMethod.GET)) {
-                httpRequest = new HttpGet(uri);
-            } else {
-                httpRequest = new HttpPost(uri);
-                ((HttpPost) httpRequest).setEntity(new StringEntity(payload, StandardCharsets.UTF_8));
-            }
-
-            httpRequest.setHeader("Content-Type", MediaType.APPLICATION_JSON_VALUE);
-            httpRequest.setHeader("X-MXC-NONCE", String.valueOf(timestamp));
-            httpRequest.setHeader("X-MXC-SIGN", headerHash);
-            httpRequest.setHeader("Authorization", decryptedWebToken);
-            httpRequest.setHeader("dnt", "1");
-            httpRequest.setHeader("language", "English");
-            httpRequest.setHeader("origin", "https://futures.mexc.com");
-            httpRequest.setHeader("pragma", "akamai-x-cache-on");
-            httpRequest.setHeader("priority", "u=1, i");
-            httpRequest.setHeader("referer", "https://futures.mexc.com/vi-VN/exchange/LPT_USDT?type=linear_swap");
-            httpRequest.setHeader("sec-ch-ua", "\"Not-A.Brand\";v=\"99\", \"Chromium\";v=\"124\"");
-            httpRequest.setHeader("sec-ch-ua-mobile", "?0");
-            httpRequest.setHeader("sec-ch-ua-platform", "\"Windows\"");
-            httpRequest.setHeader("sec-fetch-dest", "empty");
-            httpRequest.setHeader("sec-fetch-mode", "cors");
-            httpRequest.setHeader("sec-fetch-site", "same-origin");
-            httpRequest.setHeader("trochilus-trace-id", "76d182ac-097c-477e-9b1e-fdb5bdba57c5-0226");
-            httpRequest.setHeader("trochilus-uid", "20738208");
-            httpRequest.setHeader("user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36");
-
-            try (CloseableHttpResponse response = httpClient.execute(httpRequest)) {
-                int statusCode = response.getStatusLine().getStatusCode();
-                responseString = EntityUtils.toString(response.getEntity());
-
-                LocalDateTime respTime = LocalDateTime.now();
-                appendLog(path, payload, responseString, reqTime, respTime, symbol, strategyId);
-
-                if (statusCode >= 400 && statusCode < 500) {
-                    throw new RetryException("RETRYING");
-                }
-            }
-        } catch (Exception e) {
-            throw e;
+        URI uri = new URI(path);
+        HttpRequestBase httpRequest;
+        if (method.equals(HttpMethod.GET)) {
+            httpRequest = new HttpGet(uri);
+        } else {
+            httpRequest = new HttpPost(uri);
+            ((HttpPost) httpRequest).setEntity(new StringEntity(payload, StandardCharsets.UTF_8));
         }
+
+        httpRequest.setHeader("Content-Type", MediaType.APPLICATION_JSON_VALUE);
+        httpRequest.setHeader("X-MXC-NONCE", String.valueOf(timestamp));
+        httpRequest.setHeader("X-MXC-SIGN", headerHash);
+        httpRequest.setHeader("Authorization", decryptedWebToken);
+        httpRequest.setHeader("dnt", "1");
+        httpRequest.setHeader("language", "English");
+        httpRequest.setHeader("origin", "https://futures.mexc.com");
+        httpRequest.setHeader("pragma", "akamai-x-cache-on");
+        httpRequest.setHeader("priority", "u=1, i");
+        httpRequest.setHeader("referer", "https://futures.mexc.com/vi-VN/exchange/LPT_USDT?type=linear_swap");
+        httpRequest.setHeader("sec-ch-ua", "\"Not-A.Brand\";v=\"99\", \"Chromium\";v=\"124\"");
+        httpRequest.setHeader("sec-ch-ua-mobile", "?0");
+        httpRequest.setHeader("sec-ch-ua-platform", "\"Windows\"");
+        httpRequest.setHeader("sec-fetch-dest", "empty");
+        httpRequest.setHeader("sec-fetch-mode", "cors");
+        httpRequest.setHeader("sec-fetch-site", "same-origin");
+        httpRequest.setHeader("trochilus-trace-id", "76d182ac-097c-477e-9b1e-fdb5bdba57c5-0226");
+        httpRequest.setHeader("trochilus-uid", "20738208");
+        httpRequest.setHeader("user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36");
+
+        CloseableHttpResponse response = httpClient.execute(httpRequest);
+        int statusCode = response.getStatusLine().getStatusCode();
+        responseString = EntityUtils.toString(response.getEntity());
+
+        LocalDateTime respTime = LocalDateTime.now();
+        appendLog(path, payload, responseString, reqTime, respTime, symbol, strategyId);
+
+        if (statusCode >= 400 && statusCode < 500) {
+            throw new RuntimeException(responseString);
+        }
+
         return responseString;
     }
 
 
-    private MexcStopOrderListResponse getStopOrderOpenOrders(String decryptedWebToken, String strategyId) throws JsonProcessingException {
+    private MexcStopOrderListResponse getStopOrderOpenOrders(String decryptedWebToken, String strategyId) throws IOException, URISyntaxException {
         long timestamp = System.currentTimeMillis();
         String path = mexcOrderBaseUrl.concat("api/v1/private/stoporder/open_orders?page_num=1&page_size=100");
         String headerHash = getMexcSign("", timestamp, decryptedWebToken);
-        String responseString = reqWithRetry(GET, path, null, "", decryptedWebToken, headerHash, timestamp, 20, strategyId, 3, 10);
+        String responseString = reqRestTemplate(GET, path, null, "", decryptedWebToken, headerHash, timestamp, 20, strategyId);
         return objectMapper.readValue(responseString, MexcStopOrderListResponse.class);
     }
 
-    private MexcStopOrderListResponse getStopOrderListOrder(String decryptedWebToken, String symbol, String strategyId) throws JsonProcessingException {
+    private MexcStopOrderListResponse getStopOrderListOrder(String decryptedWebToken, String symbol, String strategyId) throws IOException, URISyntaxException {
         long timestamp = System.currentTimeMillis();
 
         String path = mexcOrderBaseUrl.concat("api/v1/private/stoporder/list/orders?is_finished=1&page_num=1&page_size=20&symbol=").concat(symbol);
         String headerHash = getMexcSign("", timestamp, decryptedWebToken);
-        String responseString = reqWithRetry(GET, path, null, symbol, decryptedWebToken, headerHash, timestamp, 20, strategyId, 3, 10);
+        String responseString = reqRestTemplate(GET, path, null, symbol, decryptedWebToken, headerHash, timestamp, 20, strategyId);
         return objectMapper.readValue(responseString, MexcStopOrderListResponse.class);
     }
 

@@ -1,6 +1,5 @@
 package com.tbot.cyclop.orderplacer.function;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.tbot.cyclop.Cyclop.dto.KlineData;
 import com.tbot.cyclop.Cyclop.model.ErrorTrace;
 import com.tbot.cyclop.Cyclop.model.Order;
@@ -23,6 +22,8 @@ import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
 import reactor.core.scheduler.Schedulers;
 
+import java.io.IOException;
+import java.net.URISyntaxException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.function.Function;
@@ -127,7 +128,7 @@ public class OrderPlacingStreamFunction {
         return null;
     }
 
-    private Order handleExistingOrderCache(KlineData value, Strategy strategy, Order orderBeforeSync) throws JsonProcessingException, InterruptedException {
+    private Order handleExistingOrderCache(KlineData value, Strategy strategy, Order orderBeforeSync) throws IOException, InterruptedException, URISyntaxException {
         String notiString = strategy.toNotiString();
         logger.info("STRATEGY {} | LAST ORDER ID {} | STATUS {}", notiString, orderBeforeSync.getPlatformOrderId(), orderBeforeSync.getOrderStatus());
         OrderStatus statusBeforeSync = orderBeforeSync.getOrderStatus();
