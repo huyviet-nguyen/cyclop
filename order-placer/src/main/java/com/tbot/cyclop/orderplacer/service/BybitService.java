@@ -6,12 +6,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tbot.cyclop.Cyclop.dto.KlineData;
 import com.tbot.cyclop.Cyclop.dto.req.bybit.BybitCancelOrderReq;
 import com.tbot.cyclop.Cyclop.dto.req.bybit.BybitOrderReq;
+import com.tbot.cyclop.Cyclop.dto.req.bybit.BybitReduceTpReq;
 import com.tbot.cyclop.Cyclop.dto.res.bybit.BybitOrderRes;
 import com.tbot.cyclop.Cyclop.model.HttpRequestLog;
 import com.tbot.cyclop.Cyclop.model.Order;
 import com.tbot.cyclop.Cyclop.model.OrderStatus;
 import com.tbot.cyclop.Cyclop.model.Strategy;
 import com.tbot.cyclop.orderplacer.exception.OpenOrderFailException;
+import com.tbot.cyclop.orderplacer.exception.ReduceTakeProfitFailException;
 import com.tbot.cyclop.orderplacer.repo.HttpRequestLogRepo;
 import com.tbot.cyclop.orderplacer.repo.OrderRepo;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -126,7 +128,23 @@ public class BybitService implements PlatformService {
 
     @Override
     public void reduceProfit(Order orderWithUpdatedProfit, Strategy strategy, KlineData marketData) {
+        try {
+            BybitReduceTpReq reduceTpReq = new BybitReduceTpReq();
+            reduceTpReq.setSymbol(orderWithUpdatedProfit.getSymbol());
+            reduceTpReq.setOrderId(orderWithUpdatedProfit.getPlatformOrderId());
+            reduceTpReq.setTakeProfitPrice(String.valueOf(orderWithUpdatedProfit.getCurrentTakeProfitPrice()));
 
+            String path = bybitBaseUrl.concat("order/replace");
+            String response = reqRestTemplate(HttpMethod.POST, path, objectMapper.writeValueAsString(reduceTpReq), strategy);
+            BybitOrderRes res = objectMapper.readValue(response, BybitOrderRes.class);
+            if (res.getRetCode() != 0) {
+                logger.error("Error submitting order: {}", res.getRetMsg());
+                throw new ReduceTakeProfitFailException(orderWithUpdatedProfit);
+            }
+            logger.info("REDUCED TAKE PROFIT FOR ORDER {}", orderWithUpdatedProfit.getPlatformOrderId());
+        } catch (IOException | URISyntaxException e) {
+            throw new ReduceTakeProfitFailException(orderWithUpdatedProfit);
+        }
     }
 
     @Override
