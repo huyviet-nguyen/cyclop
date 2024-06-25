@@ -130,7 +130,7 @@ public class TradingUtil {
         return result.toString().toLowerCase();
     }
 
-    public static int getVolume(double balance, double strategyAmount, double cont) {
+    public static int getMexcVolume(double balance, double strategyAmount, double cont) {
         if (strategyAmount < 0 || strategyAmount > 100) {
             throw new IllegalArgumentException("Percentage must be between 0 and 100.");
         }
@@ -138,6 +138,11 @@ public class TradingUtil {
         double portfolioPortion = balance * equityFraction;
         double result = (portfolioPortion * 10) / cont;
         return (int) result;
+    }
+
+    public static int getBybitQuantity(double balance, double strategyAmount, double lev, double price) {
+        double equityFraction = balance * strategyAmount / 100.0;
+        return (int) (equityFraction * lev / price);
     }
 
     public static String getMexcSign(String payload, long ts, String apiKey) {

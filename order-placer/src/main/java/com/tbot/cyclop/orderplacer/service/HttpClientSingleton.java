@@ -5,8 +5,6 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 
-import java.io.IOException;
-
 public class HttpClientSingleton {
     private static final int MAX_CONNECTIONS = 75;
     private static final int MAX_PER_ROUTE = 20;

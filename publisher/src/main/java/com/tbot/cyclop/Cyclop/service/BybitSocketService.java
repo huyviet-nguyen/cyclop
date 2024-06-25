@@ -2,7 +2,7 @@ package com.tbot.cyclop.Cyclop.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tbot.cyclop.Cyclop.dto.KlineData;
-import com.tbot.cyclop.Cyclop.dto.BybitKline;
+import com.tbot.cyclop.Cyclop.dto.res.bybit.BybitKline;
 import com.tbot.cyclop.Cyclop.model.Symbol;
 import com.tbot.cyclop.Cyclop.repo.SymbolRepo;
 import org.slf4j.Logger;
@@ -23,7 +23,7 @@ public class BybitSocketService extends PlatformSocketService {
 
     private final Logger logger = LoggerFactory.getLogger(BybitSocketService.class);
 
-    private static final String topicTemplate = "\"kline.1.symbol\",\"kline.5.symbol\",\"kline.15.symbol\",\"kline.30.symbol\",\"kline.60.symbol\"";
+    private static final String topicTemplate = "\"kline.1.symbol\",\"kline.5.symbol\",\"kline.15.symbol\"";
 
     @Value("${wss.bybit.url}")
     private String bybitWebSocketUri;
@@ -55,7 +55,22 @@ public class BybitSocketService extends PlatformSocketService {
 
     @Override
     Flux<String> getMessageFlux() {
-        return Flux.empty();
+        return symbolRepo.findAllByPlatform("BYBIT_TEST")
+                .map(Symbol::getSymbol)
+                .distinct()
+                .flatMap(symbol -> {
+                    String replacedString = topicTemplate.replaceAll("symbol", symbol);
+                    return Mono.just(replacedString);
+                })
+                .collectList()
+                .flatMapMany(symbolList -> {
+                    String joined = String.join(",", symbolList);
+                    String initialMessage = initMessageTemplate.replace("%params", joined);
+                    return Flux.concat(
+                            Mono.just(String.format(initialMessage)),
+                            Flux.interval(Duration.ofSeconds(Integer.parseInt(pingInterval))).map(v -> pingMessage)
+                    );
+                });
     }
 
 

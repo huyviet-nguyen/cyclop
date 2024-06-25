@@ -40,6 +40,7 @@ public class Order {
     private double platformBuyPrice;
     private double platformSellPrice;
     private double realAmount;
+    private String orderLinkId;
 
     public String toCancelPayload() {
         String template = "[\"%s\"]";

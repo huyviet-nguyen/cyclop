@@ -1,4 +1,4 @@
-package com.tbot.cyclop.Cyclop.dto.req;
+package com.tbot.cyclop.Cyclop.dto.req.mexc;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
@@ -6,9 +6,15 @@ import lombok.Setter;
 
 @Getter
 @Setter
-public class MexcOpenOrderRequestV1 {
+public class MexcOpenOrderRequestV2 {
     @JsonProperty("symbol")
     private String symbol;
+
+    @JsonProperty("trend")
+    private int trend = 1;
+
+    @JsonProperty("triggerPrice")
+    private String triggerPrice;
 
     @JsonProperty("price")
     private String price;
@@ -16,11 +22,17 @@ public class MexcOpenOrderRequestV1 {
     @JsonProperty("side")
     private int side; // 1=open long | 3 = open short
 
+    @JsonProperty("triggerType")
+    private int triggerType; // 1=open long | 2 = open short
+
     @JsonProperty("openType")
     private int openType = 2; // Default value 1 for ISOLATED
 
-    @JsonProperty("type")
-    private String type = "1";
+    @JsonProperty("orderType")
+    private int orderType = 1;
+
+    @JsonProperty("positionMode")
+    private int positionMode = 1;
 
     @JsonProperty("vol")
     private double vol;
@@ -62,7 +74,13 @@ public class MexcOpenOrderRequestV1 {
     @JsonProperty("lossTrend")
     private String lossTrend = "1";
 
-    @JsonProperty("marketCeiling")
-    private boolean marketCeiling = false;
+    @JsonProperty("executeCycle")
+    private int executeCycle = 3;
+
+
+    public void setTriggerPrice(String triggerPrice) {
+        this.triggerPrice = triggerPrice;
+        this.price = triggerPrice;
+    }
 
 }

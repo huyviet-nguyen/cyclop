@@ -1,4 +1,4 @@
-package com.tbot.cyclop.Cyclop.dto.res;
+package com.tbot.cyclop.Cyclop.dto.res.mexc;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;

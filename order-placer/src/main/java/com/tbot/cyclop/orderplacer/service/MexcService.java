@@ -3,9 +3,9 @@ package com.tbot.cyclop.orderplacer.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tbot.cyclop.Cyclop.dto.KlineData;
-import com.tbot.cyclop.Cyclop.dto.req.MexcChangePriceRequest;
-import com.tbot.cyclop.Cyclop.dto.req.MexcOpenOrderRequestV1;
-import com.tbot.cyclop.Cyclop.dto.res.*;
+import com.tbot.cyclop.Cyclop.dto.req.mexc.MexcChangePriceRequest;
+import com.tbot.cyclop.Cyclop.dto.req.mexc.MexcOpenOrderRequestV1;
+import com.tbot.cyclop.Cyclop.dto.res.mexc.*;
 import com.tbot.cyclop.Cyclop.model.*;
 import com.tbot.cyclop.orderplacer.exception.OpenOrderFailException;
 import com.tbot.cyclop.orderplacer.exception.ReduceTakeProfitFailException;
@@ -43,7 +43,6 @@ import static com.tbot.cyclop.orderplacer.util.PercentageUtil.normalizeDouble;
 import static com.tbot.cyclop.orderplacer.util.PercentageUtil.roundToSameDecimal;
 import static com.tbot.cyclop.orderplacer.util.TradingUtil.*;
 import static org.springframework.http.HttpMethod.GET;
-import static org.springframework.http.HttpMethod.POST;
 
 @Service
 public class MexcService implements PlatformService {
@@ -418,7 +417,7 @@ public class MexcService implements PlatformService {
         String secretKey = decryptSecretKey(bot.getSecretKey());
         double balance = getBalance(apiKey, secretKey);
         double cont = strategy.getSymbol().getCs() * sysOrder.getOpenOrderPrice();
-        int volume = getVolume(balance, strategy.getRealAmount(), cont);
+        int volume = getMexcVolume(balance, strategy.getRealAmount(), cont);
         logger.info("ACCOUNT {} | BALANCE : {} | VOL {}", strategy.getBot().getName(), balance, volume);
         mexcOrder.setVol(volume);
         sysOrder.setVolume(volume);

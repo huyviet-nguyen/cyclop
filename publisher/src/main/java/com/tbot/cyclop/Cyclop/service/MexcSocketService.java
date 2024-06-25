@@ -2,8 +2,7 @@ package com.tbot.cyclop.Cyclop.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tbot.cyclop.Cyclop.dto.KlineData;
-import com.tbot.cyclop.Cyclop.dto.MexcKline;
-import com.tbot.cyclop.Cyclop.repo.StrategyRepo;
+import com.tbot.cyclop.Cyclop.dto.res.mexc.MexcKline;
 import com.tbot.cyclop.Cyclop.repo.SymbolRepo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

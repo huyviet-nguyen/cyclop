@@ -1,4 +1,4 @@
-package com.tbot.cyclop.Cyclop.dto.req;
+package com.tbot.cyclop.Cyclop.dto.req.bybit;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
@@ -14,7 +14,7 @@ public class BybitOrderReq {
     private String side;
 
     @JsonProperty("orderType")
-    private String orderType;
+    private String orderType = "Limit";
 
     @JsonProperty("qty")
     private String quantity;
@@ -23,7 +23,7 @@ public class BybitOrderReq {
     private String price;
 
     @JsonProperty("timeInForce")
-    private String timeInForce;
+    private String timeInForce= "GoodTillCancel";
 
     @JsonProperty("positionIdx")
     private String positionIdx;
@@ -34,10 +34,16 @@ public class BybitOrderReq {
     @JsonProperty("triggerPrice")
     private String triggerPrice;
 
-    @JsonProperty("takeProfitPrice")
+    @JsonProperty("takeProfit")
     private String takeProfitPrice;
 
-    @JsonProperty("stopLossPrice")
+    @JsonProperty("stopLoss")
     private String stopLossPrice;
+
+    @JsonProperty("tpslMode")
+    private String tpslMode = "Full";
+
+    @JsonProperty("orderLinkId")
+    private String orderLinkId;
 }
 
