@@ -7,6 +7,8 @@ import com.tbot.cyclop.Cyclop.dto.KlineData;
 import com.tbot.cyclop.Cyclop.dto.req.bybit.BybitCancelOrderReq;
 import com.tbot.cyclop.Cyclop.dto.req.bybit.BybitOrderReq;
 import com.tbot.cyclop.Cyclop.dto.req.bybit.BybitReduceTpReq;
+import com.tbot.cyclop.Cyclop.dto.res.bybit.BybitGetOrderListResponse;
+import com.tbot.cyclop.Cyclop.dto.res.bybit.BybitGetOrderResponse;
 import com.tbot.cyclop.Cyclop.dto.res.bybit.BybitOrderRes;
 import com.tbot.cyclop.Cyclop.model.HttpRequestLog;
 import com.tbot.cyclop.Cyclop.model.Order;
@@ -14,6 +16,7 @@ import com.tbot.cyclop.Cyclop.model.OrderStatus;
 import com.tbot.cyclop.Cyclop.model.Strategy;
 import com.tbot.cyclop.orderplacer.exception.OpenOrderFailException;
 import com.tbot.cyclop.orderplacer.exception.ReduceTakeProfitFailException;
+import com.tbot.cyclop.orderplacer.exception.SyncStatusFailException;
 import com.tbot.cyclop.orderplacer.repo.HttpRequestLogRepo;
 import com.tbot.cyclop.orderplacer.repo.OrderRepo;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -148,8 +151,30 @@ public class BybitService implements PlatformService {
     }
 
     @Override
-    public void syncStatus(Order order, Strategy strategy) {
+    public void syncStatus(Order order, Strategy strategy) throws IOException, URISyntaxException {
+        try {
+            String path = bybitBaseUrl.concat("order/list?symbol=").concat(order.getSymbol()).concat("&orderId=").concat(order.getPlatformOrderId());
+            String responseString = reqRestTemplate(HttpMethod.GET, path, null, strategy);
+            BybitGetOrderListResponse response = objectMapper.readValue(responseString, BybitGetOrderListResponse.class);
+            BybitGetOrderResponse foundOrder = response.getResult().getList().stream().filter(o -> o.getOrderId().equals(order.getPlatformOrderId())).findFirst().orElse(null);
+            if (foundOrder == null) {
+                throw new SyncStatusFailException(order);
+            }
 
+            switch (foundOrder.getOrderStatus()) {
+                case CANCELLED -> order.setOrderStatus(OrderStatus.IGNORED);
+                case TRIGGERED -> {
+                    order.setOrderStatus(OrderStatus.OPEN);
+                    order.setPlatformBuyPrice(Double.parseDouble(foundOrder.getPrice()));
+                    order.setRealAmount(Double.parseDouble(foundOrder.getPrice()) * Double.parseDouble(foundOrder.getQty()));
+                }
+                case FILLED -> order.setOrderStatus(OrderStatus.CLOSED);
+                default -> {}
+            }
+
+        } catch (Exception e) {
+            throw new SyncStatusFailException(order);
+        }
     }
 
     @Override
