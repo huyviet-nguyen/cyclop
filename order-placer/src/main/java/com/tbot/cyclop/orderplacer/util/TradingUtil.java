@@ -25,7 +25,7 @@ public class TradingUtil {
     public static boolean canSubmit(Strategy strategy, KlineData klineData) {
         double changePercent = calculateChangePercent(klineData.getOpenPrice(), klineData.getCurrentPrice());
         boolean matchSide = (changePercent <= 0 && strategy.getPositionSide().equals("LONG")) || (changePercent > 0 && strategy.getPositionSide().equals("SHORT"));
-        boolean matchPrice = Math.abs(changePercent) > calculateNewValue(strategy.getOrderChange(), strategy.getExtendOrderChangePercent());
+        boolean matchPrice = Math.abs(changePercent) > calculateNewValue(strategy.getOrderChange(), strategy.getExtendOrderChangePercent()) && Math.abs(changePercent) < strategy.getOrderChange();
         return matchSide && matchPrice;
     }
 
