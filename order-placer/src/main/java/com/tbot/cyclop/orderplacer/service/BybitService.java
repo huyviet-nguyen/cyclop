@@ -6,10 +6,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tbot.cyclop.Cyclop.dto.KlineData;
 import com.tbot.cyclop.Cyclop.dto.req.bybit.BybitCancelOrderReq;
 import com.tbot.cyclop.Cyclop.dto.req.bybit.BybitOrderReq;
+import com.tbot.cyclop.Cyclop.dto.req.bybit.BybitOrderStatus;
 import com.tbot.cyclop.Cyclop.dto.req.bybit.BybitReduceTpReq;
-import com.tbot.cyclop.Cyclop.dto.res.bybit.BybitGetOrderListResponse;
-import com.tbot.cyclop.Cyclop.dto.res.bybit.BybitGetOrderResponse;
-import com.tbot.cyclop.Cyclop.dto.res.bybit.BybitOrderRes;
+import com.tbot.cyclop.Cyclop.dto.res.bybit.*;
 import com.tbot.cyclop.Cyclop.model.HttpRequestLog;
 import com.tbot.cyclop.Cyclop.model.Order;
 import com.tbot.cyclop.Cyclop.model.OrderStatus;
@@ -39,6 +38,8 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import static com.tbot.cyclop.Cyclop.HttpConstant.APPLICATION_JSON;
 import static com.tbot.cyclop.Cyclop.HttpConstant.CONTENT_TYPE_HEADER_NAME;
@@ -86,7 +87,6 @@ public class BybitService implements PlatformService {
     }
 
 
-
     @Override
     public void submitOrder(Order newOrder, Strategy strategy) {
         String apiKey = decryptSecretKey(strategy.getBot().getApiKey());
@@ -94,8 +94,8 @@ public class BybitService implements PlatformService {
         double balance = getBalance(apiKey, secretKey);
 
         BybitOrderReq bybitOrderReq = mapToBybitOrder(newOrder, strategy, balance);
-        try{
-            String response = reqRestTemplate(HttpMethod.POST, bybitBaseUrl.concat("order/create"),objectMapper.writeValueAsString(bybitOrderReq), strategy);
+        try {
+            String response = reqRestTemplate(HttpMethod.POST, bybitBaseUrl.concat("order/create"), objectMapper.writeValueAsString(bybitOrderReq), strategy);
             BybitOrderRes res = objectMapper.readValue(response, BybitOrderRes.class);
             if (res.getRetCode() != 0) {
                 logger.error("Error submitting order: {}", res.getRetMsg());
@@ -110,9 +110,9 @@ public class BybitService implements PlatformService {
         }
     }
 
-    private BybitOrderReq mapToBybitOrder(Order order,Strategy strategy, double balance){
+    private BybitOrderReq mapToBybitOrder(Order order, Strategy strategy, double balance) {
         BybitOrderReq bybitOrderReq = new BybitOrderReq();
-        if (strategy.getPositionSide().equals("LONG")){
+        if (strategy.getPositionSide().equals("LONG")) {
             bybitOrderReq.setSide("Buy");
             bybitOrderReq.setTriggerDirection(2);
         } else {
@@ -120,11 +120,11 @@ public class BybitService implements PlatformService {
             bybitOrderReq.setTriggerDirection(1);
         }
         bybitOrderReq.setSymbol(order.getSymbol());
-        bybitOrderReq.setPrice(String.valueOf(roundToSameDecimal(order.getTempPu(),order.getOpenOrderPrice())));
-        bybitOrderReq.setTriggerPrice(String.valueOf(roundToSameDecimal(order.getTempPu(),order.getOpenOrderPrice())));
-        bybitOrderReq.setQuantity(String.valueOf(roundToSameDecimal(order.getTempPu(),getBybitQuantity(balance,strategy.getRealAmount(),10, order.getOpenOrderPrice()))));
-        bybitOrderReq.setTakeProfitPrice(String.valueOf(roundToSameDecimal(order.getTempPu(),order.getCurrentTakeProfitPrice())));
-        bybitOrderReq.setStopLossPrice(String.valueOf(roundToSameDecimal(order.getTempPu(),order.getStopLossPrice())));
+        bybitOrderReq.setPrice(String.valueOf(roundToSameDecimal(order.getTempPu(), order.getOpenOrderPrice())));
+        bybitOrderReq.setTriggerPrice(String.valueOf(roundToSameDecimal(order.getTempPu(), order.getOpenOrderPrice())));
+        bybitOrderReq.setQuantity(String.valueOf(roundToSameDecimal(order.getTempPu(), getBybitQuantity(balance, strategy.getRealAmount(), 10, order.getOpenOrderPrice()))));
+        bybitOrderReq.setTakeProfitPrice(String.valueOf(roundToSameDecimal(order.getTempPu(), order.getCurrentTakeProfitPrice())));
+        bybitOrderReq.setStopLossPrice(String.valueOf(roundToSameDecimal(order.getTempPu(), order.getStopLossPrice())));
         String orderLinkId = "2tbot_" + System.currentTimeMillis();
         bybitOrderReq.setOrderLinkId(orderLinkId);
         order.setOrderLinkId(orderLinkId);
@@ -155,8 +155,8 @@ public class BybitService implements PlatformService {
     @Override
     public void syncStatus(Order order, Strategy strategy) throws IOException, URISyntaxException {
         try {
-            String path = bybitBaseUrl.concat("order/list?symbol=").concat(order.getSymbol()).concat("&orderId=").concat(order.getPlatformOrderId());
-            String responseString = reqRestTemplate(HttpMethod.GET, path, null, strategy);
+            String path = bybitBaseUrl.concat("order/list?symbol=").concat(order.getSymbol());
+            String responseString = reqRestTemplate(HttpMethod.GET, path, "symbol=".concat(order.getSymbol()), strategy);
             BybitGetOrderListResponse response = objectMapper.readValue(responseString, BybitGetOrderListResponse.class);
             BybitGetOrderResponse foundOrder = response.getResult().getList().stream().filter(o -> o.getOrderId().equals(order.getPlatformOrderId())).findFirst().orElse(null);
             if (foundOrder == null) {
@@ -164,19 +164,38 @@ public class BybitService implements PlatformService {
             }
 
             switch (foundOrder.getOrderStatus()) {
-                case CANCELLED -> order.setOrderStatus(OrderStatus.IGNORED);
-                case TRIGGERED -> {
+                case Cancelled -> order.setOrderStatus(OrderStatus.IGNORED);
+                case Filled -> {
                     order.setOrderStatus(OrderStatus.OPEN);
-                    order.setPlatformBuyPrice(Double.parseDouble(foundOrder.getPrice()));
-                    order.setRealAmount(Double.parseDouble(foundOrder.getPrice()) * Double.parseDouble(foundOrder.getQty()));
+                    List<BybitGetOrderResponse> linkedOrder = response.getResult().getList().stream().filter(o -> Double.valueOf(o.getPrice()).equals(Double.valueOf(foundOrder.getPrice())) && Double.valueOf(o.getTakeProfit()).equals(Double.valueOf(foundOrder.getTakeProfit())) && !o.getOrderId().equals(foundOrder.getOrderId())).toList();
+                    for (BybitGetOrderResponse orderResponse : linkedOrder) {
+                        if (orderResponse.getCreateType().contains("TakeProfit")) {
+                            order.setBybitTpOrderId(orderResponse.getOrderId());
+                        }
+                        if (orderResponse.getOrderStatus().equals(BybitOrderStatus.Filled)) {
+                            order.setOrderStatus(OrderStatus.CLOSED);
+                            order.setProfit(getClosedPnl(orderResponse.getOrderId(), strategy));
+                            break;
+                        }
+                    }
                 }
-                case FILLED -> order.setOrderStatus(OrderStatus.CLOSED);
                 default -> {}
             }
 
         } catch (Exception e) {
             throw new SyncStatusFailException(order);
         }
+    }
+
+    private Double getClosedPnl(String orderId, Strategy strategy) throws IOException, URISyntaxException {
+        String path = bybitBaseUrl.concat("position/closed-pnl?symbol=").concat(strategy.getSymbolString());
+        String responseString = reqRestTemplate(HttpMethod.GET, path, null, strategy);
+        BybitClosedPnlListResponse closedPnlListResponse = objectMapper.readValue(responseString, BybitClosedPnlListResponse.class);
+        BybitClosedPnlResponse closedPnl = closedPnlListResponse.getResult().getList().stream().filter(pnl -> pnl.getOrderId().equals(orderId)).findFirst().orElse(null);
+        if (closedPnl == null) {
+            throw new RuntimeException("Could not find closed pnl for order: " + orderId);
+        }
+        return Double.valueOf(closedPnl.getClosedPnl());
     }
 
     @Override
