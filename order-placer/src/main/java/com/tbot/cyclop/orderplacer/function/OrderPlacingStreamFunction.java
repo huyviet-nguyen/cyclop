@@ -75,7 +75,12 @@ public class OrderPlacingStreamFunction {
                     if (isHighLag(value)) {
                         return new ArrayList<>();
                     }
-                    String symbolString = value.getSymbol().replace("USDT", "_USDT");
+                    String symbolString;
+                    if (value.getSourcePlatform().equalsIgnoreCase("mexc")){
+                        symbolString = value.getSymbol().replace("USDT", "_USDT");
+                    } else {
+                        symbolString = value.getSymbol();
+                    }
                     Flux<Strategy> relevantStrategies = strategyRepo
                             .findBySymbolStringAndCandleStickAndStatus(symbolString, "M".concat(value.getInterval()), "ACTIVE")
                             .filter(strategy -> strategy.getBot() != null && strategy.getBot().getStatus().equals("RUNNING"));

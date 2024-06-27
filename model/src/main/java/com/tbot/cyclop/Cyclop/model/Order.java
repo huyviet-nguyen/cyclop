@@ -41,6 +41,7 @@ public class Order {
     private double platformSellPrice;
     private double realAmount;
     private String orderLinkId;
+    private double tempPu;
 
     public String toCancelPayload() {
         String template = "[\"%s\"]";

@@ -55,7 +55,7 @@ public class BybitSocketService extends PlatformSocketService {
 
     @Override
     Flux<String> getMessageFlux() {
-        return symbolRepo.findAllByPlatform("BYBIT")
+        return symbolRepo.findAllByPlatform("BYBIT").filter(a -> a.getSymbol().equals("AMBUSDT") || a.getSymbol().equals("BTCUSDT"))
                 .map(Symbol::getSymbol)
                 .distinct()
                 .flatMap(symbol -> {

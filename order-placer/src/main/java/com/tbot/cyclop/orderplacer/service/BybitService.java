@@ -44,6 +44,7 @@ import static com.tbot.cyclop.Cyclop.HttpConstant.APPLICATION_JSON;
 import static com.tbot.cyclop.Cyclop.HttpConstant.CONTENT_TYPE_HEADER_NAME;
 import static com.tbot.cyclop.orderplacer.util.GenericHttpUtil.calculateHmacSHA256;
 import static com.tbot.cyclop.orderplacer.util.GenericHttpUtil.decryptSecretKey;
+import static com.tbot.cyclop.orderplacer.util.PercentageUtil.roundToSameDecimal;
 import static com.tbot.cyclop.orderplacer.util.TradingUtil.getBybitQuantity;
 
 @Service
@@ -67,9 +68,9 @@ public class BybitService implements PlatformService {
 
     @Override
     public double getBalance(String apiKey, String apiSecret) {
-        String path = bybitBaseUrl.concat("wallet/balance?coin=USDT");
+        String path = bybitBaseUrl.concat("account/wallet/balance?coin=USDT");
         long timestamp = System.currentTimeMillis();
-        String objectString = String.join("", String.valueOf(timestamp), apiKey, "5000", "coin=USDT");
+        String objectString = String.join("", String.valueOf(timestamp), apiKey, "15000", "coin=USDT");
         String signature = calculateHmacSHA256(apiSecret, objectString);
         WebClient client = WebClient.create();
         return client.method(HttpMethod.GET)
@@ -79,7 +80,7 @@ public class BybitService implements PlatformService {
                 .header("X-BAPI-API-KEY", apiKey)
                 .header("X-BAPI-SIGN", signature)
                 .header("X-BAPI-TIMESTAMP", String.valueOf(timestamp))
-                .header("X-BAPI-RECV-WINDOW", "5000")
+                .header("X-BAPI-RECV-WINDOW", "15000")
                 .retrieve()
                 .bodyToMono(String.class).doOnError(res -> logger.error(res.getMessage())).map(BybitService::extractAvailableBalanceBybit).block();
     }
@@ -118,11 +119,12 @@ public class BybitService implements PlatformService {
             bybitOrderReq.setSide("Sell");
             bybitOrderReq.setTriggerDirection(1);
         }
-        bybitOrderReq.setPrice(String.valueOf(order.getOpenOrderPrice()));
-        bybitOrderReq.setTriggerPrice(String.valueOf(order.getOpenOrderPrice()));
-        bybitOrderReq.setQuantity(String.valueOf(getBybitQuantity(balance,strategy.getRealAmount(),10, order.getOpenOrderPrice())));
-        bybitOrderReq.setTakeProfitPrice(String.valueOf(order.getCurrentTakeProfitPrice()));
-        bybitOrderReq.setStopLossPrice(String.valueOf(order.getStopLossPrice()));
+        bybitOrderReq.setSymbol(order.getSymbol());
+        bybitOrderReq.setPrice(String.valueOf(roundToSameDecimal(order.getTempPu(),order.getOpenOrderPrice())));
+        bybitOrderReq.setTriggerPrice(String.valueOf(roundToSameDecimal(order.getTempPu(),order.getOpenOrderPrice())));
+        bybitOrderReq.setQuantity(String.valueOf(roundToSameDecimal(order.getTempPu(),getBybitQuantity(balance,strategy.getRealAmount(),10, order.getOpenOrderPrice()))));
+        bybitOrderReq.setTakeProfitPrice(String.valueOf(roundToSameDecimal(order.getTempPu(),order.getCurrentTakeProfitPrice())));
+        bybitOrderReq.setStopLossPrice(String.valueOf(roundToSameDecimal(order.getTempPu(),order.getStopLossPrice())));
         String orderLinkId = "2tbot_" + System.currentTimeMillis();
         bybitOrderReq.setOrderLinkId(orderLinkId);
         order.setOrderLinkId(orderLinkId);
@@ -213,7 +215,7 @@ public class BybitService implements PlatformService {
         long timestamp = System.currentTimeMillis();
         String apiKey = decryptSecretKey(strategy.getBot().getApiKey());
         String secretKey = decryptSecretKey(strategy.getBot().getSecretKey());
-        String objectString = String.join("", String.valueOf(timestamp), apiKey, "5000", "coin=USDT");
+        String objectString = String.join("", String.valueOf(timestamp), apiKey, "15000", payload);
         String signature = calculateHmacSHA256(secretKey, objectString);
         String responseString;
 
@@ -232,7 +234,8 @@ public class BybitService implements PlatformService {
         httpRequest.setHeader("X-BAPI-SIGN-TYPE", "2");
         httpRequest.setHeader("X-BAPI-SIGN", signature);
         httpRequest.setHeader("X-BAPI-TIMESTAMP", String.valueOf(timestamp));
-        httpRequest.setHeader("X-BAPI-RECV-WINDOW", "5000");
+        httpRequest.setHeader("X-BAPI-RECV-WINDOW", "15000");
+        httpRequest.setHeader("X-BAPI-API-KEY", apiKey);
 
         CloseableHttpResponse response = httpClient.execute(httpRequest);
         int statusCode = response.getStatusLine().getStatusCode();

@@ -41,7 +41,7 @@ public class BybitOrderReq {
     private String stopLossPrice;
 
     @JsonProperty("tpslMode")
-    private String tpslMode = "Full";
+    private String tpslMode = "Partial";
 
     @JsonProperty("orderLinkId")
     private String orderLinkId;
