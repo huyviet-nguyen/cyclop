@@ -39,7 +39,6 @@ import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import static com.tbot.cyclop.Cyclop.HttpConstant.APPLICATION_JSON;
 import static com.tbot.cyclop.Cyclop.HttpConstant.CONTENT_TYPE_HEADER_NAME;
@@ -136,7 +135,7 @@ public class BybitService implements PlatformService {
         try {
             BybitReduceTpReq reduceTpReq = new BybitReduceTpReq();
             reduceTpReq.setSymbol(orderWithUpdatedProfit.getSymbol());
-            reduceTpReq.setOrderId(orderWithUpdatedProfit.getPlatformOrderId());
+            reduceTpReq.setOrderId(orderWithUpdatedProfit.getBybitTpOrderId());
             reduceTpReq.setTakeProfitPrice(String.valueOf(orderWithUpdatedProfit.getCurrentTakeProfitPrice()));
 
             String path = bybitBaseUrl.concat("order/replace");
