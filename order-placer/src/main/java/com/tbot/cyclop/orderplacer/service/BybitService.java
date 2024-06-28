@@ -113,14 +113,14 @@ public class BybitService implements PlatformService {
         BybitOrderReq bybitOrderReq = new BybitOrderReq();
         if (strategy.getPositionSide().equals("LONG")) {
             bybitOrderReq.setSide("Buy");
-            bybitOrderReq.setTriggerDirection(2);
+//            bybitOrderReq.setTriggerDirection(2);
         } else {
             bybitOrderReq.setSide("Sell");
-            bybitOrderReq.setTriggerDirection(1);
+//            bybitOrderReq.setTriggerDirection(1);
         }
         bybitOrderReq.setSymbol(order.getSymbol());
         bybitOrderReq.setPrice(String.valueOf(roundToSameDecimal(order.getTempPu(), order.getOpenOrderPrice())));
-        bybitOrderReq.setTriggerPrice(String.valueOf(roundToSameDecimal(order.getTempPu(), order.getOpenOrderPrice())));
+//        bybitOrderReq.setTriggerPrice(String.valueOf(roundToSameDecimal(order.getTempPu(), order.getOpenOrderPrice())));
         bybitOrderReq.setQuantity(String.valueOf(roundToSameDecimal(order.getTempPu(), getBybitQuantity(balance, strategy.getRealAmount(), 10, order.getOpenOrderPrice()))));
         bybitOrderReq.setTakeProfitPrice(String.valueOf(roundToSameDecimal(order.getTempPu(), order.getCurrentTakeProfitPrice())));
         bybitOrderReq.setStopLossPrice(String.valueOf(roundToSameDecimal(order.getTempPu(), order.getStopLossPrice())));

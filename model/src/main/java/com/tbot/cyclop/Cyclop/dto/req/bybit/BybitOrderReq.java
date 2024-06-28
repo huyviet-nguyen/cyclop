@@ -28,11 +28,8 @@ public class BybitOrderReq {
     @JsonProperty("positionIdx")
     private String positionIdx;
 
-    @JsonProperty("triggerDirection")
-    private Integer triggerDirection;
-
-    @JsonProperty("triggerPrice")
-    private String triggerPrice;
+//    @JsonProperty("triggerDirection")
+//    private Integer triggerDirection;
 
     @JsonProperty("takeProfit")
     private String takeProfitPrice;
