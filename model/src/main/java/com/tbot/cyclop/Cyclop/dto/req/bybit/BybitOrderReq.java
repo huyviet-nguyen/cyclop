@@ -37,13 +37,36 @@ public class BybitOrderReq {
     @JsonProperty("takeProfit")
     private String takeProfitPrice;
 
+    @JsonProperty("tpLimitPrice")
+    private String tpLimitPrice;
+
     @JsonProperty("stopLoss")
     private String stopLossPrice;
+
+    @JsonProperty("slLimitPrice")
+    private String slLimitPrice;
 
     @JsonProperty("tpslMode")
     private String tpslMode = "Partial";
 
     @JsonProperty("orderLinkId")
     private String orderLinkId;
+
+    @JsonProperty("tpOrderType")
+    private String tpOrderType = "Limit";
+
+    @JsonProperty("slOrderType")
+    private String slOrderType = "Limit";
+
+
+    public void setTakeProfitPrice(String takeProfitPrice) {
+        this.takeProfitPrice = takeProfitPrice;
+        this.tpLimitPrice = takeProfitPrice;
+    }
+
+    public void setStopLossPrice(String stopLossPrice) {
+        this.stopLossPrice = stopLossPrice;
+        this.slLimitPrice = stopLossPrice;
+    }
 }
 
