@@ -166,9 +166,18 @@ public class BybitService implements PlatformService {
                 case Cancelled -> order.setOrderStatus(OrderStatus.IGNORED);
                 case Filled -> {
                     order.setOrderStatus(OrderStatus.OPEN);
-                    List<BybitGetOrderResponse> linkedOrder = response.getResult().getList().stream().filter(o -> Double.valueOf(o.getPrice()).equals(Double.valueOf(foundOrder.getPrice())) && Double.valueOf(o.getTakeProfit()).equals(Double.valueOf(foundOrder.getTakeProfit())) && !o.getOrderId().equals(foundOrder.getOrderId())).toList();
+                    List<BybitGetOrderResponse> linkedOrder = response.getResult()
+                            .getList()
+                            .stream()
+                            .filter(o -> {
+                                boolean mismatchOrderId = o.getOrderId().equals(foundOrder.getOrderId());
+                                boolean sameQty = o.getQty().equals(foundOrder.getQty());
+                                boolean matchTp = Double.valueOf(o.getPrice()).equals(Double.valueOf(foundOrder.getTakeProfit()));
+                                boolean matchSl = Double.valueOf(o.getPrice()).equals(Double.valueOf(foundOrder.getStopLoss()));
+                                return mismatchOrderId && sameQty && (matchTp || matchSl);
+                            }).toList();
                     for (BybitGetOrderResponse orderResponse : linkedOrder) {
-                        if (orderResponse.getCreateType().contains("TakeProfit")) {
+                        if (orderResponse.getCreateType().contains("CreateByPartialTakeProfit")) {
                             order.setBybitTpOrderId(orderResponse.getOrderId());
                         }
                         if (orderResponse.getOrderStatus().equals(BybitOrderStatus.Filled)) {
@@ -178,7 +187,8 @@ public class BybitService implements PlatformService {
                         }
                     }
                 }
-                default -> {}
+                default -> {
+                }
             }
 
         } catch (Exception e) {
