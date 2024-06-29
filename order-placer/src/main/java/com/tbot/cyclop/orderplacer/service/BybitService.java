@@ -136,7 +136,7 @@ public class BybitService implements PlatformService {
             BybitReduceTpReq reduceTpReq = new BybitReduceTpReq();
             reduceTpReq.setSymbol(orderWithUpdatedProfit.getSymbol());
             reduceTpReq.setOrderId(orderWithUpdatedProfit.getBybitTpOrderId());
-            reduceTpReq.setTakeProfitPrice(String.valueOf(orderWithUpdatedProfit.getCurrentTakeProfitPrice()));
+            reduceTpReq.setPrice(String.valueOf(orderWithUpdatedProfit.getCurrentTakeProfitPrice()));
 
             String path = bybitBaseUrl.concat("order/replace");
             String response = reqRestTemplate(HttpMethod.POST, path, objectMapper.writeValueAsString(reduceTpReq), strategy);

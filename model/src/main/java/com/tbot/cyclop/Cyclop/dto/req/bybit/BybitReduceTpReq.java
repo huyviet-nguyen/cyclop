@@ -14,14 +14,14 @@ public class BybitReduceTpReq {
     @JsonProperty("orderId")
     private String orderId;
 
-    @JsonProperty("takeProfit")
-    private String takeProfitPrice;
+    @JsonProperty("price")
+    private String price;
 
-    @JsonProperty("tpLimitPrice")
-    private String tpLimitPrice;
+    @JsonProperty("triggerPrice")
+    private String triggerPrice;
 
-    public void setTakeProfitPrice(String takeProfitPrice) {
-        this.takeProfitPrice = takeProfitPrice;
-        this.tpLimitPrice = takeProfitPrice;
+    public void setPrice(String price) {
+        this.price = price;
+        this.triggerPrice = price;
     }
 }
