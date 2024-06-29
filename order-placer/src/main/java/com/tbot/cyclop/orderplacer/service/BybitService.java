@@ -198,7 +198,7 @@ public class BybitService implements PlatformService {
 
     private Double getClosedPnl(String orderId, Strategy strategy) throws IOException, URISyntaxException {
         String path = bybitBaseUrl.concat("position/closed-pnl?symbol=").concat(strategy.getSymbolString());
-        String responseString = reqRestTemplate(HttpMethod.GET, path, null, strategy);
+        String responseString = reqRestTemplate(HttpMethod.GET, path, "symbol=".concat(strategy.getSymbolString()), strategy);
         BybitClosedPnlListResponse closedPnlListResponse = objectMapper.readValue(responseString, BybitClosedPnlListResponse.class);
         BybitClosedPnlResponse closedPnl = closedPnlListResponse.getResult().getList().stream().filter(pnl -> pnl.getOrderId().equals(orderId)).findFirst().orElse(null);
         if (closedPnl == null) {

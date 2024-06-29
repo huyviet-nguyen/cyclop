@@ -3,10 +3,10 @@
 sh mvnw clean package;
 
 # Build and tag the publisher Docker image
-docker build -f publisher.Dockerfile --platform linux/amd64 -t huyvietjava/tradebot-publisher .
+#docker build -f publisher.Dockerfile --platform linux/amd64 -t huyvietjava/tradebot-publisher .
 docker build -f placer.Dockerfile --platform linux/amd64 -t huyvietjava/tradebot-consumer .
 docker push huyvietjava/tradebot-consumer:latest
-docker push huyvietjava/tradebot-publisher:latest
+#docker push huyvietjava/tradebot-publisher:latest
 
 # SSH into another host and run docker commands
 #ssh admin@116.96.87.51 << EOF
