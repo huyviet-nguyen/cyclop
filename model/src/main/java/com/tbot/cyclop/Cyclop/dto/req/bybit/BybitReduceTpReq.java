@@ -16,4 +16,12 @@ public class BybitReduceTpReq {
 
     @JsonProperty("takeProfit")
     private String takeProfitPrice;
+
+    @JsonProperty("tpLimitPrice")
+    private String tpLimitPrice;
+
+    public void setTakeProfitPrice(String takeProfitPrice) {
+        this.takeProfitPrice = takeProfitPrice;
+        this.tpLimitPrice = takeProfitPrice;
+    }
 }
