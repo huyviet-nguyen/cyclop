@@ -1,11 +1,13 @@
 package com.tbot.cyclop.Cyclop.dto.res.bybit;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 import java.util.List;
 
 @Data
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class BybitClosedPnlListResponse {
 
     @JsonProperty("retCode")
@@ -16,9 +18,6 @@ public class BybitClosedPnlListResponse {
 
     @JsonProperty("result")
     private Result result;
-
-    @JsonProperty("retExtInfo")
-    private Object retExtInfo;  // Assuming it could be any type. Adjust accordingly.
 
     @JsonProperty("time")
     private long time;

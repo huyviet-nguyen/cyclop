@@ -136,7 +136,7 @@ public class BybitService implements PlatformService {
             BybitReduceTpReq reduceTpReq = new BybitReduceTpReq();
             reduceTpReq.setSymbol(orderWithUpdatedProfit.getSymbol());
             reduceTpReq.setOrderId(orderWithUpdatedProfit.getBybitTpOrderId());
-            reduceTpReq.setPrice(String.valueOf(roundToSameDecimal(orderWithUpdatedProfit.getTempPu(),orderWithUpdatedProfit.getCurrentTakeProfitPrice())));
+            reduceTpReq.setPrice(String.valueOf(roundToSameDecimal(orderWithUpdatedProfit.getTempPu(), orderWithUpdatedProfit.getCurrentTakeProfitPrice())));
 
             String path = bybitBaseUrl.concat("order/replace");
             String response = reqRestTemplate(HttpMethod.POST, path, objectMapper.writeValueAsString(reduceTpReq), strategy);
@@ -192,7 +192,7 @@ public class BybitService implements PlatformService {
             }
 
         } catch (Exception e) {
-            throw new SyncStatusFailException(order);
+            throw e;
         }
     }
 
