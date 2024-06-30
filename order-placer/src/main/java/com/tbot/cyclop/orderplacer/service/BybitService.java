@@ -172,8 +172,8 @@ public class BybitService implements PlatformService {
                             .filter(o -> {
                                 boolean mismatchOrderId = !o.getOrderId().equals(foundOrder.getOrderId());
                                 boolean sameQty = o.getQty().equals(foundOrder.getQty());
-                                boolean matchTp = Double.valueOf(o.getPrice()).equals(Double.valueOf(foundOrder.getTakeProfit()));
-                                boolean matchSl = Double.valueOf(o.getPrice()).equals(Double.valueOf(foundOrder.getStopLoss()));
+                                boolean matchTp = Double.valueOf(o.getPrice()).equals(roundToSameDecimal(order.getTempPu(), order.getCurrentTakeProfitPrice()));
+                                boolean matchSl = Double.valueOf(o.getPrice()).equals(roundToSameDecimal(order.getTempPu(), order.getStopLossPrice()));
                                 return mismatchOrderId && sameQty && (matchTp || matchSl);
                             }).toList();
                     for (BybitGetOrderResponse orderResponse : linkedOrder) {
