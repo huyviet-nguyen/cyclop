@@ -93,7 +93,7 @@ public class BybitService implements PlatformService {
         double balance = getBalance(apiKey, secretKey);
 
         BybitOrderReq bybitOrderReq = mapToBybitOrder(newOrder, strategy, balance);
-        if (Integer.parseInt(bybitOrderReq.getQuantity()) == 0){
+        if (Double.parseDouble(bybitOrderReq.getQuantity()) == 0){
             throw new OpenOrderFailException("BALANCE NOT ENOUGH");
         }
         try {
