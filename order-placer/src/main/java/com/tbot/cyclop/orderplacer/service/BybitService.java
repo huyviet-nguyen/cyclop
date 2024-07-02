@@ -93,7 +93,7 @@ public class BybitService implements PlatformService {
         double balance = getBalance(apiKey, secretKey);
 
         BybitOrderReq bybitOrderReq = mapToBybitOrder(newOrder, strategy, balance);
-        if (Double.parseDouble(bybitOrderReq.getQuantity()) == 0){
+        if (Double.parseDouble(bybitOrderReq.getQuantity()) == 0) {
             throw new OpenOrderFailException("BALANCE NOT ENOUGH");
         }
         try {
@@ -162,7 +162,7 @@ public class BybitService implements PlatformService {
             BybitGetOrderListResponse response = objectMapper.readValue(responseString, BybitGetOrderListResponse.class);
             BybitGetOrderResponse foundOrder = response.getResult().getList().stream().filter(o -> o.getOrderId().equals(order.getPlatformOrderId())).findFirst().orElse(null);
             if (foundOrder == null) {
-                throw new SyncStatusFailException(order);
+                return;
             }
 
             switch (foundOrder.getOrderStatus()) {
@@ -195,6 +195,8 @@ public class BybitService implements PlatformService {
             }
 
         } catch (Exception e) {
+            order.setOrderStatus(OrderStatus.REMOVE_CACHE);
+            orderRepo.save(order).block();
             throw e;
         }
     }

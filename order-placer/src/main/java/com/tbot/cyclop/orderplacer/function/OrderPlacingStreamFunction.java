@@ -49,6 +49,7 @@ public class OrderPlacingStreamFunction {
     private final ErrorTraceRepo errorTraceRepo;
 
     private final Logger logger = LoggerFactory.getLogger(OrderPlacingStreamFunction.class);
+
     public OrderPlacingStreamFunction(StrategyRepo strategyRepo, NotificationService notificationService, OrderPlacerService orderPlacerService, MarketContextHolder marketContextHolder, BotRepo botRepo, OrderRepo orderRepo, ErrorTraceRepo errorTraceRepo) {
         this.strategyRepo = strategyRepo;
         this.notificationService = notificationService;
@@ -76,7 +77,7 @@ public class OrderPlacingStreamFunction {
                         return new ArrayList<>();
                     }
                     String symbolString;
-                    if (value.getSourcePlatform().equalsIgnoreCase("mexc")){
+                    if (value.getSourcePlatform().equalsIgnoreCase("mexc")) {
                         symbolString = value.getSymbol().replace("USDT", "_USDT");
                     } else {
                         symbolString = value.getSymbol();
@@ -103,7 +104,7 @@ public class OrderPlacingStreamFunction {
                                             Order orderBeforeSync = marketContextHolder.getOrder(strategy.getId());
 
                                             if (orderBeforeSync == null) {
-                                                if (Math.abs(changePercent) < ignorePercent && lastPump * changePercent < 0){
+                                                if (Math.abs(changePercent) < ignorePercent && lastPump * changePercent < 0) {
                                                     return null;
                                                 }
                                                 return handleNullOrderCache(value, strategy, changePercent);
@@ -154,6 +155,9 @@ public class OrderPlacingStreamFunction {
                     marketContextHolder.cacheOrder(strategy.getId(), orderAfterSync);
                     logger.info("REDUCED TAKE PROFIT FOR ORDER {} FROM {} TO {}", orderAfterSync.getPlatformOrderId(), beforeReduced, orderAfterSync.getCurrentActualTakeProfit());
                     return null;
+                }
+                if (statusAfterSync.equals(OrderStatus.REMOVE_CACHE)) {
+                    marketContextHolder.removeOrder(strategy.getId());
                 }
             }
 
