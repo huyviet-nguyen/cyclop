@@ -15,7 +15,6 @@ import com.tbot.cyclop.Cyclop.model.OrderStatus;
 import com.tbot.cyclop.Cyclop.model.Strategy;
 import com.tbot.cyclop.orderplacer.exception.OpenOrderFailException;
 import com.tbot.cyclop.orderplacer.exception.ReduceTakeProfitFailException;
-import com.tbot.cyclop.orderplacer.exception.SyncStatusFailException;
 import com.tbot.cyclop.orderplacer.repo.HttpRequestLogRepo;
 import com.tbot.cyclop.orderplacer.repo.OrderRepo;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -52,6 +51,8 @@ public class BybitService implements PlatformService {
 
     @Value("${bybit.contract.api.baseUrl}")
     public String bybitBaseUrl;
+
+    private static final int LEVERAGE = 10;
 
     private final Logger logger = LoggerFactory.getLogger(BybitService.class);
 
@@ -116,14 +117,11 @@ public class BybitService implements PlatformService {
         BybitOrderReq bybitOrderReq = new BybitOrderReq();
         if (strategy.getPositionSide().equals("LONG")) {
             bybitOrderReq.setSide("Buy");
-//            bybitOrderReq.setTriggerDirection(2);
         } else {
             bybitOrderReq.setSide("Sell");
-//            bybitOrderReq.setTriggerDirection(1);
         }
         bybitOrderReq.setSymbol(order.getSymbol());
         bybitOrderReq.setPrice(String.valueOf(roundToSameDecimal(order.getTempPu(), order.getOpenOrderPrice())));
-//        bybitOrderReq.setTriggerPrice(String.valueOf(roundToSameDecimal(order.getTempPu(), order.getOpenOrderPrice())));
         bybitOrderReq.setQuantity(String.valueOf(roundToSameDecimal(order.getTempPu(), getBybitQuantity(balance, strategy.getRealAmount(), 10, order.getOpenOrderPrice()))));
         bybitOrderReq.setTakeProfitPrice(String.valueOf(roundToSameDecimal(order.getTempPu(), order.getCurrentTakeProfitPrice())));
         bybitOrderReq.setStopLossPrice(String.valueOf(roundToSameDecimal(order.getTempPu(), order.getStopLossPrice())));
@@ -186,6 +184,7 @@ public class BybitService implements PlatformService {
                         if (orderResponse.getOrderStatus().equals(BybitOrderStatus.Filled)) {
                             order.setOrderStatus(OrderStatus.CLOSED);
                             order.setProfit(getClosedPnl(orderResponse.getOrderId(), strategy));
+                            order.setRealAmount(Double.parseDouble(orderResponse.getPrice()) * Double.parseDouble(orderResponse.getQty()) * LEVERAGE);
                             break;
                         }
                     }

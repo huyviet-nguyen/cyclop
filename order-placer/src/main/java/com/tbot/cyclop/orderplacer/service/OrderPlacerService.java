@@ -3,6 +3,7 @@ package com.tbot.cyclop.orderplacer.service;
 import com.tbot.cyclop.Cyclop.dto.KlineData;
 import com.tbot.cyclop.Cyclop.model.*;
 import com.tbot.cyclop.orderplacer.exception.ReduceTakeProfitFailException;
+import com.tbot.cyclop.orderplacer.util.ComparisonMethod;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,9 +65,25 @@ public class OrderPlacerService {
         return order;
     }
 
+    boolean shouldSkipProcess(KlineData klineData, Order order, Strategy strategy) {
+        ComparisonMethod<Double> method = strategy.getPositionSide().equals("LONG") ? SMALLER : BIGGER;
+        switch (order.getOrderStatus()) {
+            case SUBMIT -> {
+                return method.compare(klineData.getCurrentPrice(), order.getOpenOrderPrice());
+            }
+            case OPEN -> {
+                return method.compare(klineData.getCurrentPrice(), order.getCurrentTakeProfitPrice()) && method.compare(order.getStopLossPrice(), klineData.getCurrentPrice());
+            }
+        }
+        return true;
+    }
+
     @Transactional
     public Order handleSyncStatus(KlineData klineData, Order latestOrder, Strategy strategy) throws IOException, InterruptedException, URISyntaxException {
         try {
+            if (shouldSkipProcess(klineData, latestOrder, strategy)) {
+                return latestOrder;
+            }
             PlatformService service = getService(klineData.getSourcePlatform());
             service.syncStatus(latestOrder, strategy);
         } catch (Exception rethrown) {

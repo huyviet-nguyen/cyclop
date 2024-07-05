@@ -99,9 +99,9 @@ public class NotificationService {
                 win, lose,
                 strategy.getExtendOrderChangePercent(),
                 strategy.getCandleStick(), strategy.getOrderChange(), strategy.getTakeProfit(),
-                sellPrice, order.getRealAmount(),
-                order.getOpenOrderPrice(), order.getRealAmount(),
-                order.getProfit(), roundToSameDecimal(0.01, Math.abs(pnl)));
+                roundToSameDecimal(0.01, sellPrice), roundToSameDecimal(0.01, order.getRealAmount()),
+                roundToSameDecimal(0.01, order.getOpenOrderPrice()), roundToSameDecimal(0.01, order.getRealAmount()),
+                roundToSameDecimal(0.01, order.getProfit()), roundToSameDecimal(0.01, Math.abs(pnl)));
     }
 
     private String getNotificationContent(Order order, Strategy strategy) {
@@ -111,17 +111,17 @@ public class NotificationService {
                     strategy.getPositionSide(),
                     strategy.getBot().getName(),
                     strategy.toNotiString(),
-                    order.getCandleOpenPrice(),
-                    order.getOpenOrderPrice(),
-                    order.getRealAmount());
+                    roundToSameDecimal(0.01, order.getCandleOpenPrice()),
+                    roundToSameDecimal(0.01, order.getOpenOrderPrice()),
+                    roundToSameDecimal(0.01, order.getRealAmount()));
             case CLOSED -> String.format(CLOSE_ORDER_NOTIFICATION_TEMPLATE,
                     order.getSymbol().replace("_", "\\_"),
                     strategy.getPositionSide(),
                     strategy.getBot().getName(),
                     strategy.toNotiString(),
-                    order.getCandleOpenPrice(),
-                    order.getOpenOrderPrice(),
-                    order.getRealAmount());
+                    roundToSameDecimal(0.01, order.getCandleOpenPrice()),
+                    roundToSameDecimal(0.01, order.getOpenOrderPrice()),
+                    roundToSameDecimal(0.01, order.getRealAmount()));
             default -> "";
         };
     }
@@ -131,7 +131,7 @@ public class NotificationService {
         Bot bot = strategy.getBot();
         User user = strategy.getUser();
         if (botInfo == null || botInfo.getApiToken() == null || bot == null || bot.getApiKey() == null || bot.getSecretKey() == null || user == null) {
-            logger.error(FAILED_NOTIFICATION_TEMPLATE,order.getId());
+            logger.error(FAILED_NOTIFICATION_TEMPLATE, order.getId());
             return;
         }
         String content = getReportNotificationContent(order, strategy, win, loose);
@@ -140,7 +140,7 @@ public class NotificationService {
         } catch (Exception e) {
             logger.error(FAILED_NOTIFICATION_TEMPLATE, order.getId());
         }
-        logger.info("SENT NOTIFICATION TO {} at {} ",user.getName(), user.getTelegramId());
+        logger.info("SENT NOTIFICATION TO {} at {} ", user.getName(), user.getTelegramId());
     }
 
     public void sendNotification(Order order, Strategy strategy) {
@@ -148,7 +148,7 @@ public class NotificationService {
         Bot bot = strategy.getBot();
         User user = strategy.getUser();
         if (botInfo == null || botInfo.getApiToken() == null || bot == null || bot.getApiKey() == null || bot.getSecretKey() == null || user == null) {
-            logger.error("Cannot send noti for {}",order.getId());
+            logger.error("Cannot send noti for {}", order.getId());
             return;
         }
         String content = getNotificationContent(order, strategy);
@@ -158,9 +158,9 @@ public class NotificationService {
         try {
             sendNotification(botInfo.getApiToken(), bot.getTelegramId(), content);
         } catch (Exception e) {
-            logger.error("Cannot send noti for {}",order.getId());
+            logger.error("Cannot send noti for {}", order.getId());
         }
-        logger.info("SENT NOTIFICATION TO {} at {}",user.getName(),user.getTelegramId());
+        logger.info("SENT NOTIFICATION TO {} at {}", user.getName(), user.getTelegramId());
     }
 
     protected void sendNotification(String telegramBot, String chatId, String content) throws JsonProcessingException {

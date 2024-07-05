@@ -5,6 +5,10 @@ import java.math.RoundingMode;
 import java.text.DecimalFormat;
 
 public class PercentageUtil {
+
+    public static ComparisonMethod<Double> BIGGER = (x, y) -> x > y;
+    public static ComparisonMethod<Double> SMALLER = (x, y) -> x < y;
+
     public static double addPercentage(double value, double percent) {
         return value * (1 + percent / 100);
     }
@@ -62,9 +66,13 @@ public class PercentageUtil {
     }
 
 
-    public static String normalizeDouble(double input){
+    public static String normalizeDouble(double input) {
         DecimalFormat decimalFormat = new DecimalFormat("0.#################################");
         // Format the number
         return decimalFormat.format(input);
+    }
+
+    public static <T> boolean compare(ComparisonMethod<T> method, T a, T b) {
+        return method.compare(a, b);
     }
 }

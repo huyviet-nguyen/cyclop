@@ -29,8 +29,7 @@ import java.util.ArrayList;
 import java.util.function.Function;
 
 import static com.tbot.cyclop.orderplacer.util.GenericHttpUtil.exceptionToString;
-import static com.tbot.cyclop.orderplacer.util.PercentageUtil.calculateChangePercent;
-import static com.tbot.cyclop.orderplacer.util.PercentageUtil.calculateNewValue;
+import static com.tbot.cyclop.orderplacer.util.PercentageUtil.*;
 import static com.tbot.cyclop.orderplacer.util.TradingUtil.canSubmit;
 
 @Component
@@ -83,8 +82,7 @@ public class OrderPlacingStreamFunction {
                         symbolString = value.getSymbol();
                     }
                     Flux<Strategy> relevantStrategies = strategyRepo
-                            .findBySymbolStringAndCandleStickAndStatus(symbolString, "M".concat(value.getInterval()), "ACTIVE")
-                            .filter(strategy -> strategy.getBot() != null && strategy.getBot().getStatus().equals("RUNNING"));
+                            .findBySymbolStringAndCandleStickAndStatus(symbolString, "M".concat(value.getInterval()), "ACTIVE");
 
                     Flux<Order> orderAckFlux = relevantStrategies
                             .publishOn(Schedulers.boundedElastic()).mapNotNull(
@@ -100,7 +98,7 @@ public class OrderPlacingStreamFunction {
                                             }
 
                                             double changePercent = calculateChangePercent(value.getOpenPrice(), value.getCurrentPrice());
-                                            double ignorePercent = calculateNewValue(marketContextHolder.getCandlePump(mapKey), strategy.getIgnore());
+                                            double ignorePercent = calculateNewValue(marketContextHolder.getCandlePump(mapKey), strategy.getIgnore() + 100);
                                             Order orderBeforeSync = marketContextHolder.getOrder(strategy.getId());
 
                                             if (orderBeforeSync == null) {
@@ -197,6 +195,7 @@ public class OrderPlacingStreamFunction {
         }
         return null;
     }
+
 
     private static String getMapKey(KlineData value) {
         return value.getSymbol() + "." + value.getInterval();
