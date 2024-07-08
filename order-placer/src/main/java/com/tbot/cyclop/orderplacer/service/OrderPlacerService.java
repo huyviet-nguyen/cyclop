@@ -101,7 +101,7 @@ public class OrderPlacerService {
 
     public void handleReduceTakeProfit(Strategy strategy, KlineData klineData, Order latestOrder){
         PlatformService service = getService(klineData.getSourcePlatform());
-        double newTakeProfitPrice = calculateReducedTakeProfitPrice(strategy, latestOrder, klineData.getOpenPrice());
+        double newTakeProfitPrice = calculateReducedTakeProfitPrice(strategy, latestOrder, klineData);
         latestOrder.setCurrentTakeProfitPrice(newTakeProfitPrice);
         try {
             service.reduceProfit(latestOrder, strategy, klineData);

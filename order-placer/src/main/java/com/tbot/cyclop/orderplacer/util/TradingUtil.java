@@ -51,9 +51,24 @@ public class TradingUtil {
     }
 
 
-    public static double calculateReducedTakeProfitPrice(Strategy strategy, Order latestOrder, double newOpenPrice) {
-        double offset = (Math.abs(latestOrder.getCurrentTakeProfitPrice() - newOpenPrice) * strategy.getReduceTakeProfit() / 100);
-        return strategy.getPositionSide().equals("LONG") ? latestOrder.getCurrentTakeProfitPrice() - offset : latestOrder.getCurrentTakeProfitPrice() + offset;
+    public static double calculateReducedTakeProfitPrice(Strategy strategy, Order latestOrder, KlineData klineData) {
+        switch (strategy.getReduceType()){
+            case "V1" -> {
+                double openPriceToOcOffset = Math.abs(latestOrder.getOpenOrderPrice() - latestOrder.getCandleOpenPrice());
+                latestOrder.setCurrentActualTakeProfit(deductPercentage(latestOrder.getCurrentActualTakeProfit(), strategy.getReduceTakeProfit()));
+                double takeProfitPriceOffset = Math.abs(calculateNewValue(openPriceToOcOffset, latestOrder.getCurrentActualTakeProfit()));
+                if (strategy.getPositionSide().equals("LONG")) {
+                    return latestOrder.getOpenOrderPrice() + takeProfitPriceOffset;
+                } else {
+                    return latestOrder.getOpenOrderPrice() - takeProfitPriceOffset;
+                }
+            }
+            case "V2" -> {
+                double offset = (Math.abs(latestOrder.getCurrentTakeProfitPrice() - klineData.getOpenPrice()) * strategy.getReduceTakeProfit() / 100);
+                return strategy.getPositionSide().equals("LONG") ? latestOrder.getCurrentTakeProfitPrice() - offset : latestOrder.getCurrentTakeProfitPrice() + offset;
+            }
+            default -> throw new IllegalArgumentException("Unknown reduce type");
+        }
     }
 
     public static byte[] generateRandomBytes(int length) {

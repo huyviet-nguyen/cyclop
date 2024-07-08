@@ -34,6 +34,7 @@ public class Strategy implements Serializable {
     private LocalDateTime updatedAt;
     private String symbolString;
     private double actualOrderChange;
+    private String reduceType;
 
     public String toNotiString() {
         String template = "SIDE: %s | %s | OC: %s | EXT: %s | TP: %s | SL: %s";
