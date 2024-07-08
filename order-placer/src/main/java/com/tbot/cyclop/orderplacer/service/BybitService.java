@@ -166,6 +166,7 @@ public class BybitService implements PlatformService {
             switch (foundOrder.getOrderStatus()) {
                 case Cancelled -> order.setOrderStatus(OrderStatus.IGNORED);
                 case Filled -> {
+                    order.setPlatformBuyPrice(Double.parseDouble(foundOrder.getPrice()));
                     order.setOrderStatus(OrderStatus.OPEN);
                     List<BybitGetOrderResponse> linkedOrder = response.getResult()
                             .getList()
@@ -185,6 +186,7 @@ public class BybitService implements PlatformService {
                             order.setOrderStatus(OrderStatus.CLOSED);
                             order.setProfit(getClosedPnl(orderResponse.getOrderId(), strategy));
                             order.setRealAmount(Double.parseDouble(orderResponse.getPrice()) * Double.parseDouble(orderResponse.getQty()) * LEVERAGE);
+                            order.setPlatformSellPrice(Double.parseDouble(orderResponse.getPrice()));
                             break;
                         }
                     }
