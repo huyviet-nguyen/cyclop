@@ -30,9 +30,12 @@ public class OrderPlacerService {
 
     private final HashMap<String, PlatformService> serviceMap = new HashMap<>();
 
-    public OrderPlacerService(MexcService mexcService, BybitService bybitService) {
+    private final MarketContextHolder marketContextHolder;
+
+    public OrderPlacerService(MexcService mexcService, BybitService bybitService, MarketContextHolder marketContextHolder) {
         this.mexcService = mexcService;
         this.bybitService = bybitService;
+        this.marketContextHolder = marketContextHolder;
     }
 
     @PostConstruct
@@ -57,6 +60,7 @@ public class OrderPlacerService {
         PlatformService service = getService(klineData.getSourcePlatform());
         try {
             service.submitOrder(order, strategy);
+            marketContextHolder.updateLastOrderCandleOpenPriceMap(getMapKey(klineData), klineData.getOpenPrice());
         } catch (Exception e) {
             saveErrorOrder(order, e);
             throw e;

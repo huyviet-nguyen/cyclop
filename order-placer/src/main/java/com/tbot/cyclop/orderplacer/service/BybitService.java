@@ -52,7 +52,7 @@ public class BybitService implements PlatformService {
     @Value("${bybit.contract.api.baseUrl}")
     public String bybitBaseUrl;
 
-    private static final int LEVERAGE = 10;
+    private static final double LEVERAGE = 9.9;
 
     private final Logger logger = LoggerFactory.getLogger(BybitService.class);
 
@@ -122,7 +122,7 @@ public class BybitService implements PlatformService {
         }
         bybitOrderReq.setSymbol(order.getSymbol());
         bybitOrderReq.setPrice(String.valueOf(roundToSameDecimal(order.getTempPu(), order.getOpenOrderPrice())));
-        bybitOrderReq.setQuantity(String.valueOf(roundToSameDecimal(order.getTempPu(), getBybitQuantity(balance, strategy.getRealAmount(), 10, order.getOpenOrderPrice()))));
+        bybitOrderReq.setQuantity(String.valueOf(roundToSameDecimal(order.getTempPu(), getBybitQuantity(balance, strategy.getRealAmount(), LEVERAGE, order.getOpenOrderPrice()))));
         bybitOrderReq.setTakeProfitPrice(String.valueOf(roundToSameDecimal(order.getTempPu(), order.getCurrentTakeProfitPrice())));
         bybitOrderReq.setStopLossPrice(String.valueOf(roundToSameDecimal(order.getTempPu(), order.getStopLossPrice())));
         String orderLinkId = "2tbot_" + System.currentTimeMillis();
@@ -143,7 +143,7 @@ public class BybitService implements PlatformService {
             String response = reqRestTemplate(HttpMethod.POST, path, objectMapper.writeValueAsString(reduceTpReq), strategy);
             BybitOrderRes res = objectMapper.readValue(response, BybitOrderRes.class);
             if (res.getRetCode() != 0) {
-                logger.error("Error submitting order: {}", res.getRetMsg());
+                logger.error("Error Reduce Take Profit order: {}", res.getRetMsg());
                 throw new ReduceTakeProfitFailException(orderWithUpdatedProfit);
             }
             logger.info("REDUCED TAKE PROFIT FOR ORDER {}", orderWithUpdatedProfit.getPlatformOrderId());

@@ -173,4 +173,8 @@ public class TradingUtil {
         }
     }
 
+    public static String getMapKey(KlineData value) {
+        return value.getSymbol() + "." + value.getInterval();
+    }
+
 }

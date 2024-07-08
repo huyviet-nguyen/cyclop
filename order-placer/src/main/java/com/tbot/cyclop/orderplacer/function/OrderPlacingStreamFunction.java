@@ -31,6 +31,7 @@ import java.util.function.Function;
 import static com.tbot.cyclop.orderplacer.util.GenericHttpUtil.exceptionToString;
 import static com.tbot.cyclop.orderplacer.util.PercentageUtil.*;
 import static com.tbot.cyclop.orderplacer.util.TradingUtil.canSubmit;
+import static com.tbot.cyclop.orderplacer.util.TradingUtil.getMapKey;
 
 @Component
 public class OrderPlacingStreamFunction {
@@ -91,6 +92,7 @@ public class OrderPlacingStreamFunction {
                                         try {
                                             String mapKey = getMapKey(value);
                                             double lastPump = marketContextHolder.getCandlePump(mapKey);
+                                            double lastCandleOpenPrice = marketContextHolder.getCandleOpenPrice(mapKey);
 
                                             if (isNewCandle(value)) {
                                                 marketContextHolder.updateCandleMaps(mapKey, value.getOpenPrice(), value.getCurrentPrice());
@@ -98,8 +100,9 @@ public class OrderPlacingStreamFunction {
                                             }
 
                                             double changePercent = calculateChangePercent(value.getOpenPrice(), value.getCurrentPrice());
-                                            double ignorePercent = calculateNewValue(marketContextHolder.getCandlePump(mapKey), strategy.getIgnore() + 100);
+                                            double ignorePercent = calculateNewValue(marketContextHolder.getCandlePump(mapKey), strategy.getIgnore());
                                             Order orderBeforeSync = marketContextHolder.getOrder(strategy.getId());
+                                            boolean ignore = Math.abs(changePercent) < Math.abs(ignorePercent) && lastPump * changePercent < 0 && marketContextHolder.getLastOrderCandleOpenPrice(mapKey) == lastCandleOpenPrice;
 
                                             if (orderBeforeSync == null) {
                                                 if (Math.abs(changePercent) < ignorePercent && lastPump * changePercent < 0) {
@@ -196,10 +199,6 @@ public class OrderPlacingStreamFunction {
         return null;
     }
 
-
-    private static String getMapKey(KlineData value) {
-        return value.getSymbol() + "." + value.getInterval();
-    }
 
     private boolean isNewCandle(KlineData value) {
         double openPrice = marketContextHolder.getCandleOpenPrice(getMapKey(value));

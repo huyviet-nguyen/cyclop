@@ -13,7 +13,7 @@ public class MarketContextHolder {
     private final ConcurrentMap<String, Double> candlePriceMap = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, Double> candlePumpMap = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, Order> orderCache = new ConcurrentHashMap<>();
-
+    private final ConcurrentMap<String, Double> lastOrderCandleOpenPriceMap = new ConcurrentHashMap<>();
     public synchronized void updateCandleMaps(String mapKey, double openPrice, double newPrice) {
         double oldOpenPrice = candlePriceMap.getOrDefault(mapKey, 0.0);
         if (openPrice != oldOpenPrice) {
@@ -22,6 +22,15 @@ public class MarketContextHolder {
             candlePriceMap.put(mapKey, openPrice);
         }
     }
+
+    public void updateLastOrderCandleOpenPriceMap(String mapKey, double openPrice) {
+        lastOrderCandleOpenPriceMap.put(mapKey, openPrice);
+    }
+
+    public synchronized double getLastOrderCandleOpenPrice(String mapKey) {
+        return lastOrderCandleOpenPriceMap.getOrDefault(mapKey, 0.0);
+    }
+
     public synchronized double getCandleOpenPrice(String mapKey) {
         return candlePriceMap.getOrDefault(mapKey, 0.0);
     }
