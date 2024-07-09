@@ -50,17 +50,18 @@ public class TradingUtil {
         }
     }
 
+    public static double calculateReduceUnitAmount(Strategy strategy, Order order) {
+        return Math.abs(order.getCurrentTakeProfitPrice() - order.getOpenOrderPrice()) * strategy.getReduceTakeProfit() / 100;
+    }
+
 
     public static double calculateReducedTakeProfitPrice(Strategy strategy, Order latestOrder, KlineData klineData) {
-        switch (strategy.getReduceType()){
+        switch (strategy.getReduceType()) {
             case "V1" -> {
-                double openPriceToOcOffset = Math.abs(latestOrder.getOpenOrderPrice() - latestOrder.getCandleOpenPrice());
-                latestOrder.setCurrentActualTakeProfit(deductPercentage(latestOrder.getCurrentActualTakeProfit(), strategy.getReduceTakeProfit()));
-                double takeProfitPriceOffset = Math.abs(calculateNewValue(openPriceToOcOffset, latestOrder.getCurrentActualTakeProfit()));
                 if (strategy.getPositionSide().equals("LONG")) {
-                    return latestOrder.getOpenOrderPrice() + takeProfitPriceOffset;
+                    return latestOrder.getCurrentTakeProfitPrice() - latestOrder.getReduceUnitAmount();
                 } else {
-                    return latestOrder.getOpenOrderPrice() - takeProfitPriceOffset;
+                    return latestOrder.getCurrentTakeProfitPrice() + latestOrder.getReduceUnitAmount();
                 }
             }
             case "V2" -> {

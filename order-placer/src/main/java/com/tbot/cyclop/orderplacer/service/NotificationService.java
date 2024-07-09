@@ -112,7 +112,7 @@ public class NotificationService {
                     strategy.getBot().getName(),
                     strategy.toNotiString(),
                     roundToSameDecimal(0.01, order.getCandleOpenPrice()),
-                    roundToSameDecimal(0.01, order.getOpenOrderPrice()),
+                    roundToSameDecimal(0.01, order.getPlatformBuyPrice()),
                     roundToSameDecimal(0.01, order.getRealAmount()));
             case CLOSED -> String.format(CLOSE_ORDER_NOTIFICATION_TEMPLATE,
                     order.getSymbol().replace("_", "\\_"),
@@ -120,7 +120,7 @@ public class NotificationService {
                     strategy.getBot().getName(),
                     strategy.toNotiString(),
                     roundToSameDecimal(0.01, order.getCandleOpenPrice()),
-                    roundToSameDecimal(0.01, order.getOpenOrderPrice()),
+                    roundToSameDecimal(0.01, order.getPlatformSellPrice()),
                     roundToSameDecimal(0.01, order.getRealAmount()));
             default -> "";
         };

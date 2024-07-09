@@ -105,7 +105,7 @@ public class OrderPlacingStreamFunction {
                                             boolean ignore = Math.abs(changePercent) < Math.abs(ignorePercent) && lastPump * changePercent < 0 && marketContextHolder.getLastOrderCandleOpenPrice(mapKey) == lastCandleOpenPrice;
 
                                             if (orderBeforeSync == null) {
-                                                if (Math.abs(changePercent) < ignorePercent && lastPump * changePercent < 0) {
+                                                if (ignore) {
                                                     return null;
                                                 }
                                                 return handleNullOrderCache(value, strategy, changePercent);

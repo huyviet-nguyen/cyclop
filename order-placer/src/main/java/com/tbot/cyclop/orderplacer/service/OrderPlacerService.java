@@ -55,6 +55,8 @@ public class OrderPlacerService {
         Order order = createOrderAck(klineData, strategy);
         double takeProfitPrice = calculateTakeProfitPrice(strategy, order);
         order.setCurrentTakeProfitPrice(takeProfitPrice);
+        double reduceUnitAmount = calculateReduceUnitAmount(strategy, order);
+        order.setReduceUnitAmount(reduceUnitAmount);
         double stopLossPrice = calculateStopLossPrice(strategy, order);
         order.setStopLossPrice(stopLossPrice);
         PlatformService service = getService(klineData.getSourcePlatform());
@@ -99,7 +101,7 @@ public class OrderPlacerService {
         return latestOrder;
     }
 
-    public void handleReduceTakeProfit(Strategy strategy, KlineData klineData, Order latestOrder){
+    public void handleReduceTakeProfit(Strategy strategy, KlineData klineData, Order latestOrder) {
         PlatformService service = getService(klineData.getSourcePlatform());
         double newTakeProfitPrice = calculateReducedTakeProfitPrice(strategy, latestOrder, klineData);
         latestOrder.setCurrentTakeProfitPrice(newTakeProfitPrice);

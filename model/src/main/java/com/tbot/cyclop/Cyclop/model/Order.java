@@ -43,6 +43,7 @@ public class Order {
     private String orderLinkId;
     private double tempPu;
     private String bybitTpOrderId;
+    private double reduceUnitAmount;
 
     public String toCancelPayload() {
         String template = "[\"%s\"]";
