@@ -108,9 +108,6 @@ public class OrderPlacingStreamFunction {
                                             boolean ignoredByInvertedCandleAndPreviousMatch = invertedCandle && previousCandleMatched;
 
                                             if (orderBeforeSync == null) {
-                                                if (ignoredByInvertedCandleAndPreviousMatch) {
-                                                    return null;
-                                                }
                                                 return handleNullOrderCache(value, strategy, changePercent, ignoredByInvertedCandleAndPreviousMatch);
                                             } else {
                                                 return handleExistingOrderCache(value, strategy, orderBeforeSync);
