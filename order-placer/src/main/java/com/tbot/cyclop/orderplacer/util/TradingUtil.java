@@ -22,8 +22,8 @@ public class TradingUtil {
     private static final ObjectMapper mapper = new ObjectMapper();
 
     //checked
-    public static boolean canSubmit(Strategy strategy, KlineData klineData, double maxDiffAbs) {
-        double ignoreAmount = maxDiffAbs * strategy.getIgnore() / 100;
+    public static boolean canSubmit(Strategy strategy, KlineData klineData, double maxDiffAbs, boolean partialIgnoreFlag) {
+        double ignoreAmount = partialIgnoreFlag ? maxDiffAbs * strategy.getIgnore() / 100 : 0;
         double openPriceAfterIgnore = strategy.getPositionSide().equals("SHORT") ? klineData.getOpenPrice() + ignoreAmount : klineData.getOpenPrice() - ignoreAmount;
         double changePercent = calculateChangePercent(openPriceAfterIgnore, klineData.getCurrentPrice());
         boolean matchSide = (changePercent <= 0 && strategy.getPositionSide().equals("LONG")) || (changePercent > 0 && strategy.getPositionSide().equals("SHORT"));

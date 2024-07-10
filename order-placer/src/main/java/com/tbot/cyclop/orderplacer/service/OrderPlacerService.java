@@ -51,8 +51,8 @@ public class OrderPlacerService {
     }
 
     @Transactional
-    public Order handleSubmitOrder(Strategy strategy, KlineData klineData) throws Exception {
-        Order order = createOrderAck(klineData, strategy);
+    public Order handleSubmitOrder(Strategy strategy, KlineData klineData, boolean partialIgnoreFlag) throws Exception {
+        Order order = createOrderAck(klineData, strategy, partialIgnoreFlag);
         double takeProfitPrice = calculateTakeProfitPrice(strategy, order);
         order.setCurrentTakeProfitPrice(takeProfitPrice);
         double reduceUnitAmount = calculateReduceUnitAmount(strategy, order);
@@ -113,13 +113,14 @@ public class OrderPlacerService {
         }
     }
 
-    private Order createOrderAck(KlineData klineData, Strategy strategy) {
+    private Order createOrderAck(KlineData klineData, Strategy strategy, boolean partialIgnoreFlag) {
         Order ack = new Order();
         ack.setPlatform(strategy.getPlatform());
         ack.setSymbol(strategy.getSymbol().getSymbol());
         ack.setEntryPrice(klineData.getCurrentPrice());
         String mapkey = getMapKey(klineData);
-        double ignoreAmount = marketContextHolder.getCandleMaxDiff(mapkey) * strategy.getIgnore() / 100;
+        double maxDiff = partialIgnoreFlag ? marketContextHolder.getCandleMaxDiff(mapkey) : 0;
+        double ignoreAmount = maxDiff * strategy.getIgnore() / 100;
         double openPriceAfterIgnore = strategy.getPositionSide().equals("SHORT") ? klineData.getOpenPrice() + ignoreAmount : klineData.getOpenPrice() - ignoreAmount;
         double openOrderPrice = strategy.getPositionSide().equals("SHORT")
                 ? addPercentage(openPriceAfterIgnore, strategy.getOrderChange())

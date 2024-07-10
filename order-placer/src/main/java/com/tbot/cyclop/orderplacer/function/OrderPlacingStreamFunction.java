@@ -100,17 +100,22 @@ public class OrderPlacingStreamFunction {
                                                 marketContextHolder.updateCandleMaps(mapKey, value.getOpenPrice(), value.getCurrentPrice());
                                                 logger.info("{} | NEW CANDLE STARTED | OPEN PRICE {} | LAST PUMP {}", mapKey, marketContextHolder.getCandleOpenPrice(mapKey), marketContextHolder.getCandlePump(mapKey));
                                             }
-
-                                            double changePercent = calculateChangePercent(value.getOpenPrice(), value.getCurrentPrice());
+                                            double ignoreAmount = marketContextHolder.getCandleMaxDiff(mapKey) * strategy.getIgnore() / 100;
+                                            double openPriceAfterIgnore = strategy.getPositionSide().equals("SHORT") ? value.getOpenPrice() + ignoreAmount : value.getOpenPrice() - ignoreAmount;
+                                            double changePercent = calculateChangePercent(openPriceAfterIgnore, value.getCurrentPrice());
                                             double ignorePercent = calculateNewValue(marketContextHolder.getCandlePump(mapKey), strategy.getIgnore());
                                             Order orderBeforeSync = marketContextHolder.getOrder(strategy.getId());
-                                            boolean ignore = Math.abs(changePercent) < Math.abs(ignorePercent) && lastPump * changePercent < 0 && marketContextHolder.getLastOrderCandleOpenPrice(mapKey) == lastCandleOpenPrice;
+                                            boolean invertedCandle = lastPump * changePercent < 0;
+                                            boolean previousCandleMatched = marketContextHolder.getLastOrderCandleOpenPrice(mapKey) == lastCandleOpenPrice;
+                                            boolean priceNotSatisfied = Math.abs(changePercent) < Math.abs(ignorePercent);
+
+                                            boolean ignoredByInvertedCandleAndPreviousMatch = invertedCandle && previousCandleMatched && !priceNotSatisfied;
 
                                             if (orderBeforeSync == null) {
-                                                if (ignore) {
+                                                if (invertedCandle && previousCandleMatched && priceNotSatisfied) {
                                                     return null;
                                                 }
-                                                return handleNullOrderCache(value, strategy, changePercent);
+                                                return handleNullOrderCache(value, strategy, changePercent, ignoredByInvertedCandleAndPreviousMatch);
                                             } else {
                                                 return handleExistingOrderCache(value, strategy, orderBeforeSync);
                                             }
@@ -129,11 +134,11 @@ public class OrderPlacingStreamFunction {
         );
     }
 
-    private Order handleNullOrderCache(KlineData value, Strategy strategy, double changePercent) throws Exception {
+    private Order handleNullOrderCache(KlineData value, Strategy strategy, double changePercent, boolean partialIgnoreFlag) throws Exception {
         double maxDiffAbs = marketContextHolder.getCandleMaxDiff(getMapKey(value));
-        if (canSubmit(strategy, value, maxDiffAbs)) {
+        if (canSubmit(strategy, value, maxDiffAbs, partialIgnoreFlag)) {
             logger.info("ORDER CAN BE SUBMIT | CURRENT CHANGE {} | OC {} | EXTEND {}", changePercent, strategy.getOrderChange(), strategy.getExtendOrderChangePercent());
-            return submitOrder(value, strategy);
+            return submitOrder(value, strategy, partialIgnoreFlag);
         }
         return null;
     }
@@ -213,9 +218,9 @@ public class OrderPlacingStreamFunction {
     }
 
     @Nullable
-    protected Order submitOrder(KlineData value, Strategy strategy) throws Exception {
+    protected Order submitOrder(KlineData value, Strategy strategy, boolean partialIgnoreFlag) throws Exception {
         try {
-            Order submitOrder = orderPlacerService.handleSubmitOrder(strategy, value);
+            Order submitOrder = orderPlacerService.handleSubmitOrder(strategy, value, partialIgnoreFlag);
             marketContextHolder.removeOrder(strategy.getId());
             marketContextHolder.cacheOrder(strategy.getId(), submitOrder);
             return submitOrder;
