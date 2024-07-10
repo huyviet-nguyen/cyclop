@@ -100,19 +100,15 @@ public class OrderPlacingStreamFunction {
                                                 marketContextHolder.updateCandleMaps(mapKey, value.getOpenPrice(), value.getCurrentPrice());
                                                 logger.info("{} | NEW CANDLE STARTED | OPEN PRICE {} | LAST PUMP {}", mapKey, marketContextHolder.getCandleOpenPrice(mapKey), marketContextHolder.getCandlePump(mapKey));
                                             }
-                                            double ignoreAmount = marketContextHolder.getPreviousCandleMaxDiff(mapKey) * strategy.getIgnore() / 100;
-                                            double openPriceAfterIgnore = strategy.getPositionSide().equals("SHORT") ? value.getOpenPrice() + ignoreAmount : value.getOpenPrice() - ignoreAmount;
-                                            double changePercent = calculateChangePercent(openPriceAfterIgnore, value.getCurrentPrice());
-                                            double ignorePercent = calculateNewValue(marketContextHolder.getCandlePump(mapKey), strategy.getIgnore());
+                                            double changePercent = calculateChangePercent(value.getOpenPrice(), value.getCurrentPrice());
                                             Order orderBeforeSync = marketContextHolder.getOrder(strategy.getId());
                                             boolean invertedCandle = lastPump * changePercent < 0;
                                             boolean previousCandleMatched = marketContextHolder.getLastOrderCandleOpenPrice(mapKey) == lastCandleOpenPrice;
-                                            boolean priceNotSatisfied = Math.abs(changePercent) < Math.abs(ignorePercent);
 
-                                            boolean ignoredByInvertedCandleAndPreviousMatch = invertedCandle && previousCandleMatched && !priceNotSatisfied;
+                                            boolean ignoredByInvertedCandleAndPreviousMatch = invertedCandle && previousCandleMatched;
 
                                             if (orderBeforeSync == null) {
-                                                if (invertedCandle && previousCandleMatched && priceNotSatisfied) {
+                                                if (ignoredByInvertedCandleAndPreviousMatch) {
                                                     return null;
                                                 }
                                                 return handleNullOrderCache(value, strategy, changePercent, ignoredByInvertedCandleAndPreviousMatch);

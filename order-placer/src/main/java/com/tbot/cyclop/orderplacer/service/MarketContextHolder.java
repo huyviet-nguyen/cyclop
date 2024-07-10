@@ -51,7 +51,7 @@ public class MarketContextHolder {
     }
 
     public synchronized double getPreviousCandleMaxDiff(String mapKey) {
-        return candleMaxDiff.getOrDefault(mapKey, 0.0);
+        return previousCandleMaxDiff.getOrDefault(mapKey, 0.0);
     }
 
     public synchronized double getCandlePump(String mapKey) {
