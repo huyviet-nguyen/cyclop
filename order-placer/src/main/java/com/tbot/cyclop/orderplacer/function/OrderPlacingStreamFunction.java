@@ -100,7 +100,7 @@ public class OrderPlacingStreamFunction {
                                                 marketContextHolder.updateCandleMaps(mapKey, value.getOpenPrice(), value.getCurrentPrice());
                                                 logger.info("{} | NEW CANDLE STARTED | OPEN PRICE {} | LAST PUMP {}", mapKey, marketContextHolder.getCandleOpenPrice(mapKey), marketContextHolder.getCandlePump(mapKey));
                                             }
-                                            double ignoreAmount = marketContextHolder.getCandleMaxDiff(mapKey) * strategy.getIgnore() / 100;
+                                            double ignoreAmount = marketContextHolder.getPreviousCandleMaxDiff(mapKey) * strategy.getIgnore() / 100;
                                             double openPriceAfterIgnore = strategy.getPositionSide().equals("SHORT") ? value.getOpenPrice() + ignoreAmount : value.getOpenPrice() - ignoreAmount;
                                             double changePercent = calculateChangePercent(openPriceAfterIgnore, value.getCurrentPrice());
                                             double ignorePercent = calculateNewValue(marketContextHolder.getCandlePump(mapKey), strategy.getIgnore());
@@ -135,7 +135,7 @@ public class OrderPlacingStreamFunction {
     }
 
     private Order handleNullOrderCache(KlineData value, Strategy strategy, double changePercent, boolean partialIgnoreFlag) throws Exception {
-        double maxDiffAbs = marketContextHolder.getCandleMaxDiff(getMapKey(value));
+        double maxDiffAbs = marketContextHolder.getPreviousCandleMaxDiff(getMapKey(value));
         if (canSubmit(strategy, value, maxDiffAbs, partialIgnoreFlag)) {
             logger.info("ORDER CAN BE SUBMIT | CURRENT CHANGE {} | OC {} | EXTEND {}", changePercent, strategy.getOrderChange(), strategy.getExtendOrderChangePercent());
             return submitOrder(value, strategy, partialIgnoreFlag);

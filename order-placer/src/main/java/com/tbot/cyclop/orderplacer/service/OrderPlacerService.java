@@ -119,7 +119,7 @@ public class OrderPlacerService {
         ack.setSymbol(strategy.getSymbol().getSymbol());
         ack.setEntryPrice(klineData.getCurrentPrice());
         String mapkey = getMapKey(klineData);
-        double maxDiff = partialIgnoreFlag ? marketContextHolder.getCandleMaxDiff(mapkey) : 0;
+        double maxDiff = partialIgnoreFlag ? marketContextHolder.getPreviousCandleMaxDiff(mapkey) : 0;
         double ignoreAmount = maxDiff * strategy.getIgnore() / 100;
         double openPriceAfterIgnore = strategy.getPositionSide().equals("SHORT") ? klineData.getOpenPrice() + ignoreAmount : klineData.getOpenPrice() - ignoreAmount;
         double openOrderPrice = strategy.getPositionSide().equals("SHORT")

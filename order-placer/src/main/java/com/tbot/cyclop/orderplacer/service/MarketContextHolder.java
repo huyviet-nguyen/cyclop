@@ -12,10 +12,12 @@ import static com.tbot.cyclop.orderplacer.util.PercentageUtil.calculateChangePer
 public class MarketContextHolder {
     private final ConcurrentMap<String, Double> candlePriceMap = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, Double> candleMaxDiff = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, Double> previousCandleMaxDiff = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, Double> candlePumpMap = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, Order> orderCache = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, Double> lastOrderCandleOpenPriceMap = new ConcurrentHashMap<>();
     public synchronized void updateCandleMaps(String mapKey, double openPrice, double newPrice) {
+        previousCandleMaxDiff.put(mapKey, candleMaxDiff.getOrDefault(mapKey, 0.0));
         double oldOpenPrice = candlePriceMap.getOrDefault(mapKey, 0.0);
         if (openPrice != oldOpenPrice) {
             candlePumpMap.compute(mapKey, (k, oldValue) -> oldValue == null ?
@@ -45,6 +47,10 @@ public class MarketContextHolder {
     }
 
     public synchronized double getCandleMaxDiff(String mapKey) {
+        return candleMaxDiff.getOrDefault(mapKey, 0.0);
+    }
+
+    public synchronized double getPreviousCandleMaxDiff(String mapKey) {
         return candleMaxDiff.getOrDefault(mapKey, 0.0);
     }
 
