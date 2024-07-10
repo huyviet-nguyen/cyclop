@@ -118,7 +118,12 @@ public class OrderPlacerService {
         ack.setPlatform(strategy.getPlatform());
         ack.setSymbol(strategy.getSymbol().getSymbol());
         ack.setEntryPrice(klineData.getCurrentPrice());
-        double openOrderPrice = strategy.getPositionSide().equals("SHORT") ? addPercentage(klineData.getOpenPrice(), strategy.getOrderChange()) : deductPercentage(klineData.getOpenPrice(), strategy.getOrderChange());
+        String mapkey = getMapKey(klineData);
+        double ignoreAmount = marketContextHolder.getCandleMaxDiff(mapkey) * strategy.getIgnore() / 100;
+        double openPriceAfterIgnore = strategy.getPositionSide().equals("SHORT") ? klineData.getOpenPrice() + ignoreAmount : klineData.getOpenPrice() - ignoreAmount;
+        double openOrderPrice = strategy.getPositionSide().equals("SHORT")
+                ? addPercentage(openPriceAfterIgnore, strategy.getOrderChange())
+                : deductPercentage(openPriceAfterIgnore, strategy.getOrderChange());
         ack.setOpenOrderPrice(openOrderPrice);
         ack.setTimestamp(System.currentTimeMillis());
         ack.setCandleOpenPrice(klineData.getOpenPrice());

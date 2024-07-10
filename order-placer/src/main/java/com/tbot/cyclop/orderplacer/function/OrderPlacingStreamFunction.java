@@ -76,6 +76,9 @@ public class OrderPlacingStreamFunction {
                     if (isHighLag(value)) {
                         return new ArrayList<>();
                     }
+
+                    String mapKey = getMapKey(value);
+                    marketContextHolder.updateCandleMaxDiff(mapKey, value.getCurrentPrice());
                     String symbolString;
                     if (value.getSourcePlatform().equalsIgnoreCase("mexc")) {
                         symbolString = value.getSymbol().replace("USDT", "_USDT");
@@ -90,7 +93,6 @@ public class OrderPlacingStreamFunction {
                                     (Strategy strategy) ->
                                     {
                                         try {
-                                            String mapKey = getMapKey(value);
                                             double lastPump = marketContextHolder.getCandlePump(mapKey);
                                             double lastCandleOpenPrice = marketContextHolder.getCandleOpenPrice(mapKey);
 
@@ -128,7 +130,8 @@ public class OrderPlacingStreamFunction {
     }
 
     private Order handleNullOrderCache(KlineData value, Strategy strategy, double changePercent) throws Exception {
-        if (canSubmit(strategy, value)) {
+        double maxDiffAbs = marketContextHolder.getCandleMaxDiff(getMapKey(value));
+        if (canSubmit(strategy, value, maxDiffAbs)) {
             logger.info("ORDER CAN BE SUBMIT | CURRENT CHANGE {} | OC {} | EXTEND {}", changePercent, strategy.getOrderChange(), strategy.getExtendOrderChangePercent());
             return submitOrder(value, strategy);
         }
