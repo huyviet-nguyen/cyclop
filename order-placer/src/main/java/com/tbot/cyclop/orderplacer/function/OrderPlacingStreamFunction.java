@@ -94,7 +94,6 @@ public class OrderPlacingStreamFunction {
                                     {
                                         try {
                                             double lastPump = marketContextHolder.getCandlePump(mapKey);
-                                            double lastCandleOpenPrice = marketContextHolder.getCandleOpenPrice(mapKey);
 
                                             if (isNewCandle(value)) {
                                                 marketContextHolder.updateCandleMaps(mapKey, value.getOpenPrice(), value.getCurrentPrice());
@@ -103,7 +102,7 @@ public class OrderPlacingStreamFunction {
                                             double changePercent = calculateChangePercent(value.getOpenPrice(), value.getCurrentPrice());
                                             Order orderBeforeSync = marketContextHolder.getOrder(strategy.getId());
                                             boolean invertedCandle = lastPump * changePercent < 0;
-                                            boolean previousCandleMatched = marketContextHolder.getLastOrderCandleOpenPrice(mapKey) == lastCandleOpenPrice;
+                                            boolean previousCandleMatched = marketContextHolder.orderMatchedOnPreviousCandle(strategy.getId());
 
                                             boolean ignoredByInvertedCandleAndPreviousMatch = invertedCandle && previousCandleMatched;
 

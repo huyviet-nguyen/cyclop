@@ -11,6 +11,7 @@ import static com.tbot.cyclop.orderplacer.util.PercentageUtil.calculateChangePer
 @Component
 public class MarketContextHolder {
     private final ConcurrentMap<String, Double> candlePriceMap = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, Double> previousCandlePriceMap = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, Double> candleMaxDiff = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, Double> previousCandleMaxDiff = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, Double> candlePumpMap = new ConcurrentHashMap<>();
@@ -23,6 +24,7 @@ public class MarketContextHolder {
             candlePumpMap.compute(mapKey, (k, oldValue) -> oldValue == null ?
                     calculateChangePercent(0, newPrice) : calculateChangePercent(openPrice, newPrice));
             candlePriceMap.put(mapKey, openPrice);
+            previousCandlePriceMap.put(mapKey, oldOpenPrice);
         }
     }
 
@@ -40,6 +42,16 @@ public class MarketContextHolder {
 
     public synchronized double getLastOrderCandleOpenPrice(String strategyId) {
         return lastOrderCandleOpenPriceMap.getOrDefault(strategyId, 0.0);
+    }
+
+    public synchronized double getPreviousCandleOpenPrice(String strategyId) {
+        return previousCandlePriceMap.getOrDefault(strategyId, 0.0);
+    }
+
+    public synchronized boolean orderMatchedOnPreviousCandle(String strategyId) {
+        double lastOpenedOrderOpenPrice = getLastOrderCandleOpenPrice(strategyId);
+        double previousCandleOpenPrice = getPreviousCandleOpenPrice(strategyId);
+        return lastOpenedOrderOpenPrice == previousCandleOpenPrice;
     }
 
     public synchronized double getCandleOpenPrice(String mapKey) {
@@ -65,6 +77,7 @@ public class MarketContextHolder {
     public synchronized Order getOrder(String strategyId) {
         return orderCache.get(strategyId);
     }
+
     public synchronized void removeOrder(String strategyId) {
         orderCache.remove(strategyId);
     }
