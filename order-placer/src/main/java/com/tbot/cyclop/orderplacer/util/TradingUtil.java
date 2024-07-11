@@ -24,11 +24,20 @@ public class TradingUtil {
     //checked
     public static boolean canSubmit(Strategy strategy, KlineData klineData, double maxDiffAbs, boolean partialIgnoreFlag) {
         double ignoreAmount = partialIgnoreFlag ? maxDiffAbs * strategy.getIgnore() / 100 : 0;
-        double openPriceAfterIgnore = strategy.getPositionSide().equals("SHORT") ? klineData.getOpenPrice() + ignoreAmount : klineData.getOpenPrice() - ignoreAmount;
-        double changePercent = calculateChangePercent(openPriceAfterIgnore, klineData.getCurrentPrice());
-        boolean matchSide = (changePercent <= 0 && strategy.getPositionSide().equals("LONG")) || (changePercent > 0 && strategy.getPositionSide().equals("SHORT"));
-        boolean matchPrice = Math.abs(changePercent) >= calculateNewValue(strategy.getOrderChange(), strategy.getExtendOrderChangePercent()) && Math.abs(changePercent) <= strategy.getOrderChange();
+        double boundChangePercent = getBoundChangePercentAfterIgnored(strategy, klineData, ignoreAmount);
+        boolean matchSide = boundChangePercent <= 0 && strategy.getPositionSide().equals("LONG") || boundChangePercent > 0;
+        boolean matchPrice = Math.abs(boundChangePercent) >= calculateNewValue(strategy.getOrderChange(), strategy.getExtendOrderChangePercent()) && Math.abs(boundChangePercent) <= strategy.getOrderChange();
         return matchSide && matchPrice;
+    }
+
+    private static double getBoundChangePercentAfterIgnored(Strategy strategy, KlineData klineData, double ignoreAmount) {
+        double openPriceAfterIgnore = strategy.getPositionSide().equals("SHORT") ? klineData.getOpenPrice() + ignoreAmount : klineData.getOpenPrice() - ignoreAmount;
+        double unboundChangePercent = calculateChangePercent(openPriceAfterIgnore, klineData.getCurrentPrice());
+        double boundChangePercent = 0;
+        if ((strategy.getPositionSide().equals("LONG") && unboundChangePercent < 0) || (strategy.getPositionSide().equals("SHORT") && unboundChangePercent > 0)){
+            boundChangePercent = unboundChangePercent;
+        }
+        return boundChangePercent;
     }
 
     public static double calculateTakeProfitPrice(Strategy strategy, Order order) {
