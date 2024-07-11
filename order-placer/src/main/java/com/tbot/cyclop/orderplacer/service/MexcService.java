@@ -169,10 +169,10 @@ public class MexcService implements PlatformService {
         changePriceRequest.setTakeProfitPrice(normalizeDouble(roundToSameDecimal(pu, order.getCurrentTakeProfitPrice())));
         if (strategy.isUseStopLoss()){
             changePriceRequest.setStopLossPrice(normalizeDouble(roundToSameDecimal(pu, order.getStopLossPrice())));
+            changePriceRequest.setLossTrend(stopOrder.getLossTrend());
         }
         changePriceRequest.setOrderId(stopOrder.getId());
         changePriceRequest.setProfitTrend(stopOrder.getProfitTrend());
-        changePriceRequest.setLossTrend(stopOrder.getLossTrend());
         changePriceRequest.setStopLossReverse(stopOrder.getStopLossReverse());
         changePriceRequest.setTakeProfitReverse(stopOrder.getTakeProfitReverse());
         changePriceRequest.setTakeProfitVolume(stopOrder.getTakeProfitVol());
@@ -406,6 +406,7 @@ public class MexcService implements PlatformService {
         mexcOrder.setLeverage(LEVERAGE);
         if (strategy.isUseStopLoss()){
             mexcOrder.setStopLossPrice(normalizeDouble(roundToSameDecimal(pu, sysOrder.getStopLossPrice())));
+            mexcOrder.setLossTrend("1");
         }
         mexcOrder.setTakeProfitPrice(normalizeDouble(roundToSameDecimal(pu, sysOrder.getCurrentTakeProfitPrice())));
         mexcOrder.setPrice(normalizeDouble(roundToSameDecimal(pu, sysOrder.getOpenOrderPrice())));

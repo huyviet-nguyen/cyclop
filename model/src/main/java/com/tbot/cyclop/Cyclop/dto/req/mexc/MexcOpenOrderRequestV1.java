@@ -64,7 +64,7 @@ public class MexcOpenOrderRequestV1 {
     private String profitTrend = "1";
 
     @JsonProperty("lossTrend")
-    private String lossTrend = "1";
+    private String lossTrend;
 
     @JsonProperty("marketCeiling")
     private boolean marketCeiling = false;

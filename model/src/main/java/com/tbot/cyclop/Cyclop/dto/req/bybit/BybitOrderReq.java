@@ -55,7 +55,7 @@ public class BybitOrderReq {
     private String tpOrderType = "Limit";
 
     @JsonProperty("slOrderType")
-    private String slOrderType = "Limit";
+    private String slOrderType;
 
 
     public void setTakeProfitPrice(String takeProfitPrice) {
@@ -66,6 +66,7 @@ public class BybitOrderReq {
     public void setStopLossPrice(String stopLossPrice) {
         this.stopLossPrice = stopLossPrice;
         this.slLimitPrice = stopLossPrice;
+        this.slOrderType = "Limit";
     }
 }
 
