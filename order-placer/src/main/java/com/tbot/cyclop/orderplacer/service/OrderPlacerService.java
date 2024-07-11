@@ -62,7 +62,7 @@ public class OrderPlacerService {
         PlatformService service = getService(klineData.getSourcePlatform());
         try {
             service.submitOrder(order, strategy);
-            marketContextHolder.updateLastOrderCandleOpenPriceMap(getMapKey(klineData), klineData.getOpenPrice());
+            marketContextHolder.updateLastOrderCandleOpenPriceMap(strategy.getId(), klineData.getOpenPrice());
         } catch (Exception e) {
             saveErrorOrder(order, e);
             throw e;

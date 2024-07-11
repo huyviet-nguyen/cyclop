@@ -34,12 +34,12 @@ public class MarketContextHolder {
         }
     }
 
-    public void updateLastOrderCandleOpenPriceMap(String mapKey, double openPrice) {
-        lastOrderCandleOpenPriceMap.put(mapKey, openPrice);
+    public void updateLastOrderCandleOpenPriceMap(String strategyId, double openPrice) {
+        lastOrderCandleOpenPriceMap.put(strategyId, openPrice);
     }
 
-    public synchronized double getLastOrderCandleOpenPrice(String mapKey) {
-        return lastOrderCandleOpenPriceMap.getOrDefault(mapKey, 0.0);
+    public synchronized double getLastOrderCandleOpenPrice(String strategyId) {
+        return lastOrderCandleOpenPriceMap.getOrDefault(strategyId, 0.0);
     }
 
     public synchronized double getCandleOpenPrice(String mapKey) {
