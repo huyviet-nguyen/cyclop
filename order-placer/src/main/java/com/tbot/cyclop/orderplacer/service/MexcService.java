@@ -146,7 +146,7 @@ public class MexcService implements PlatformService {
         String stringPayload = objectMapper.writeValueAsString(changePriceRequest);
         String headerHash = getMexcSign(stringPayload, timestamp, webToken);
         MexcChangeOrderResponse response;
-        String stringResponse = "";
+        String stringResponse;
         try {
             stringResponse = reqRestTemplate(HttpMethod.POST, path, stringPayload, strategy.getSymbolString(), webToken, headerHash, timestamp, 10, strategy.getId());
         } catch (Exception e){
@@ -167,7 +167,9 @@ public class MexcService implements PlatformService {
         double pu = strategy.getSymbol().getPu();
         MexcChangePriceRequest changePriceRequest = new MexcChangePriceRequest();
         changePriceRequest.setTakeProfitPrice(normalizeDouble(roundToSameDecimal(pu, order.getCurrentTakeProfitPrice())));
-        changePriceRequest.setStopLossPrice(normalizeDouble(roundToSameDecimal(pu, order.getStopLossPrice())));
+        if (strategy.isUseStopLoss()){
+            changePriceRequest.setStopLossPrice(normalizeDouble(roundToSameDecimal(pu, order.getStopLossPrice())));
+        }
         changePriceRequest.setOrderId(stopOrder.getId());
         changePriceRequest.setProfitTrend(stopOrder.getProfitTrend());
         changePriceRequest.setLossTrend(stopOrder.getLossTrend());
@@ -280,7 +282,7 @@ public class MexcService implements PlatformService {
 
     private String reqRestTemplate(HttpMethod method, String path, String payload, String symbol, String decryptedWebToken, String headerHash, long timestamp, int timeout, String strategyId) throws IOException, URISyntaxException {
         LocalDateTime reqTime = LocalDateTime.now();
-        String responseString = "";
+        String responseString;
 
         CloseableHttpClient httpClient = HttpClientSingleton.getHttpClient();
 
@@ -402,7 +404,9 @@ public class MexcService implements PlatformService {
         mexcOrder.setSide(Integer.parseInt(side));
         mexcOrder.setSymbol(sysOrder.getSymbol());
         mexcOrder.setLeverage(LEVERAGE);
-        mexcOrder.setStopLossPrice(normalizeDouble(roundToSameDecimal(pu, sysOrder.getStopLossPrice())));
+        if (strategy.isUseStopLoss()){
+            mexcOrder.setStopLossPrice(normalizeDouble(roundToSameDecimal(pu, sysOrder.getStopLossPrice())));
+        }
         mexcOrder.setTakeProfitPrice(normalizeDouble(roundToSameDecimal(pu, sysOrder.getCurrentTakeProfitPrice())));
         mexcOrder.setPrice(normalizeDouble(roundToSameDecimal(pu, sysOrder.getOpenOrderPrice())));
         mexcOrder.setK0(getMexcK0(bytesToHex(key)));

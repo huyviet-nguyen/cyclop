@@ -124,7 +124,9 @@ public class BybitService implements PlatformService {
         bybitOrderReq.setPrice(String.valueOf(roundToSameDecimal(order.getTempPu(), order.getOpenOrderPrice())));
         bybitOrderReq.setQuantity(String.valueOf(roundToSameDecimal(order.getTempPu(), getBybitQuantity(balance, strategy.getRealAmount(), LEVERAGE, order.getOpenOrderPrice()))));
         bybitOrderReq.setTakeProfitPrice(String.valueOf(roundToSameDecimal(order.getTempPu(), order.getCurrentTakeProfitPrice())));
-        bybitOrderReq.setStopLossPrice(String.valueOf(roundToSameDecimal(order.getTempPu(), order.getStopLossPrice())));
+        if (strategy.isUseStopLoss()){
+            bybitOrderReq.setStopLossPrice(String.valueOf(roundToSameDecimal(order.getTempPu(), order.getStopLossPrice())));
+        }
         String orderLinkId = "2tbot_" + System.currentTimeMillis();
         bybitOrderReq.setOrderLinkId(orderLinkId);
         order.setOrderLinkId(orderLinkId);
