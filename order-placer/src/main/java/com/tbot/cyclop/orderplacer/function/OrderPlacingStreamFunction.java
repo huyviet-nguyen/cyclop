@@ -177,6 +177,9 @@ public class OrderPlacingStreamFunction {
                             strategy.getBot().win();
                         } else if (orderAfterSync.getProfit() < 0) {
                             strategy.getBot().lose();
+                            strategy.setLooseAmountBeforeStop(orderBeforeSync.getProfit());
+                            strategy.setStatus("INACTIVE");
+                            strategyRepo.save(strategy).block();
                         }
                         botRepo.save(strategy.getBot()).block();
                         marketContextHolder.removeOrder(strategy.getId());

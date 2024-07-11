@@ -36,6 +36,7 @@ public class Strategy implements Serializable {
     private double actualOrderChange;
     private String reduceType;
     private boolean useStopLoss;
+    private double looseAmountBeforeStop;
 
     public String toNotiString() {
         String template = "SIDE: %s | %s | OC: %s | EXT: %s | TP: %s | SL: %s";
