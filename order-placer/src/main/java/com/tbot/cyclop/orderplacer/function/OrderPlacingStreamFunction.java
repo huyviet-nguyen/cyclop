@@ -1,10 +1,7 @@
 package com.tbot.cyclop.orderplacer.function;
 
 import com.tbot.cyclop.Cyclop.dto.KlineData;
-import com.tbot.cyclop.Cyclop.model.ErrorTrace;
-import com.tbot.cyclop.Cyclop.model.Order;
-import com.tbot.cyclop.Cyclop.model.OrderStatus;
-import com.tbot.cyclop.Cyclop.model.Strategy;
+import com.tbot.cyclop.Cyclop.model.*;
 import com.tbot.cyclop.orderplacer.exception.OpenOrderFailException;
 import com.tbot.cyclop.orderplacer.repo.BotRepo;
 import com.tbot.cyclop.orderplacer.repo.ErrorTraceRepo;
@@ -86,7 +83,7 @@ public class OrderPlacingStreamFunction {
                         symbolString = value.getSymbol();
                     }
                     Flux<Strategy> relevantStrategies = strategyRepo
-                            .findBySymbolStringAndCandleStickAndStatus(symbolString, "M".concat(value.getInterval()), "ACTIVE");
+                            .findBySymbolStringAndCandleStickAndStatusAndBotStatus(symbolString, "M".concat(value.getInterval()), "ACTIVE", BotStatusEnum.RUNNING.toString());
 
                     Flux<Order> orderAckFlux = relevantStrategies
                             .publishOn(Schedulers.boundedElastic()).mapNotNull(

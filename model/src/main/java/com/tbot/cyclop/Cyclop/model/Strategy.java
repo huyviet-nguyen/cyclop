@@ -37,6 +37,8 @@ public class Strategy implements Serializable {
     private String reduceType;
     private boolean useStopLoss;
     private double looseAmountBeforeStop;
+    private double amount;
+    private BotStatusEnum botStatus;
 
     public String toNotiString() {
         String template = "SIDE: %s | %s | OC: %s | EXT: %s | TP: %s | SL: %s";
