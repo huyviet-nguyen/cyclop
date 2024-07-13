@@ -32,7 +32,8 @@ public class MarketObserveCommandLineRunner implements CommandLineRunner {
     public synchronized long getLastPublished() {
         return lastPublished;
     }
-    public void stop(){
+
+    public void stop() {
         System.exit(1);
     }
 
@@ -47,6 +48,9 @@ public class MarketObserveCommandLineRunner implements CommandLineRunner {
 
     @Value("${kafka.mexc.output.error}")
     private String errorTopic;
+
+    @Value("${app.waitTime:30}")
+    private Integer waitTime;
     private final Logger logger = LoggerFactory.getLogger(MarketObserveCommandLineRunner.class);
     private final ConcurrentMap<String, Long> concurrentHashMap = new ConcurrentHashMap<>();
 
@@ -57,8 +61,17 @@ public class MarketObserveCommandLineRunner implements CommandLineRunner {
         this.errorSender = errorSender;
     }
 
+    private void countDown() throws InterruptedException {
+        logger.info("WAITING FOR TOPIC CREATION, STARTING AFTER ...");
+        for (int i = 0; i < waitTime; i++) {
+            logger.error("{} Second...", i);
+            Thread.sleep(1000);
+        }
+    }
+
     @Override
     public void run(String... args) throws Exception {
+        countDown();
         if (isRunMexc) {
             publishMexc();
         }
