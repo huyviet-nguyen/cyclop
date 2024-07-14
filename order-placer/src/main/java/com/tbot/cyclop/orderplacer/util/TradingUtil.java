@@ -25,21 +25,20 @@ public class TradingUtil {
     //checked
     public static boolean canSubmit(Strategy strategy, KlineData klineData, double maxDiffAbs, boolean partialIgnoreFlag) {
         double ignoreAmount = partialIgnoreFlag ? maxDiffAbs * strategy.getIgnore() / 100 : 0;
-        double boundChangePercent = getBoundChangePercentAfterIgnored(strategy, klineData, ignoreAmount);
-        boolean matchSide = boundChangePercent <= 0 && strategy.getPositionSide().equals("LONG") || boundChangePercent > 0;
-        boolean matchPrice = Math.abs(boundChangePercent) >= calculateNewValue(strategy.getOrderChange(), strategy.getExtendOrderChangePercent()) && Math.abs(boundChangePercent) <= strategy.getOrderChange();
-        return matchSide && matchPrice;
+        double orderChangeExtendedAmount = klineData.getOpenPrice() * strategy.getActualOrderChange() / 100;
+        double orderChangeAmount = klineData.getOpenPrice() * strategy.getOrderChange() / 100;
+        boolean exceedExtendedPriceWithIgnore;
+        boolean notExceedOrderChangeWithIgnore;
+        if (strategy.getPositionSide().equals("LONG")){
+            exceedExtendedPriceWithIgnore = klineData.getOpenPrice() - ignoreAmount - orderChangeExtendedAmount >= klineData.getCurrentPrice();
+            notExceedOrderChangeWithIgnore = klineData.getOpenPrice() - ignoreAmount - orderChangeAmount < klineData.getCurrentPrice();
+        } else {
+            exceedExtendedPriceWithIgnore = klineData.getOpenPrice() + ignoreAmount + orderChangeExtendedAmount <= klineData.getCurrentPrice();
+            notExceedOrderChangeWithIgnore = klineData.getOpenPrice() + ignoreAmount + orderChangeAmount > klineData.getCurrentPrice();
+        }
+        return exceedExtendedPriceWithIgnore && notExceedOrderChangeWithIgnore;
     }
 
-    private static double getBoundChangePercentAfterIgnored(Strategy strategy, KlineData klineData, double ignoreAmount) {
-        double openPriceAfterIgnore = strategy.getPositionSide().equals("SHORT") ? klineData.getOpenPrice() + ignoreAmount : klineData.getOpenPrice() - ignoreAmount;
-        double unboundChangePercent = calculateChangePercent(openPriceAfterIgnore, klineData.getCurrentPrice());
-        double boundChangePercent = 0;
-        if ((strategy.getPositionSide().equals("LONG") && unboundChangePercent < 0) || (strategy.getPositionSide().equals("SHORT") && unboundChangePercent > 0)){
-            boundChangePercent = unboundChangePercent;
-        }
-        return boundChangePercent;
-    }
 
     public static double calculateTakeProfitPrice(Strategy strategy, Order order) {
         double openPriceToOcOffset = Math.abs(order.getOpenOrderPrice() - order.getCandleOpenPrice());
