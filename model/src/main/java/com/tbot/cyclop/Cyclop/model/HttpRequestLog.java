@@ -20,4 +20,7 @@ public class HttpRequestLog {
     private LocalDateTime responseTime;
     private String symbolString;
     private String strategyId;
+    private double strategyOc;
+    private String botName;
+    private String currentBotJson;
 }

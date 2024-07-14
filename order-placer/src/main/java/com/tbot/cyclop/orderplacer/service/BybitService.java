@@ -23,7 +23,6 @@ import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.methods.HttpRequestBase;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.util.Asserts;
 import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,7 +38,6 @@ import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 import static com.tbot.cyclop.Cyclop.HttpConstant.APPLICATION_JSON;
@@ -65,9 +63,13 @@ public class BybitService implements PlatformService {
 
     private final OrderRepo orderRepo;
 
-    public BybitService(HttpRequestLogRepo requestLogRepo, OrderRepo orderRepo) {
+    private final MarketContextHolder marketContextHolder;
+
+
+    public BybitService(HttpRequestLogRepo requestLogRepo, OrderRepo orderRepo, MarketContextHolder marketContextHolder) {
         this.requestLogRepo = requestLogRepo;
         this.orderRepo = orderRepo;
+        this.marketContextHolder = marketContextHolder;
     }
 
     @Override
@@ -285,7 +287,7 @@ public class BybitService implements PlatformService {
         responseString = EntityUtils.toString(response.getEntity());
 
         LocalDateTime respTime = LocalDateTime.now();
-        appendLog(path, payload, responseString, reqTime, respTime, strategy.getSymbolString(), strategy.getId());
+        appendLog(path, payload, responseString, reqTime, respTime, strategy.getSymbolString(), strategy.getId(), strategy.getOrderChange(), strategy.getBot().getName());
 
         if (statusCode >= 400 && statusCode < 500) {
             throw new RuntimeException(responseString);
@@ -294,7 +296,7 @@ public class BybitService implements PlatformService {
         return responseString;
     }
 
-    private void appendLog(String url, String reqBody, String resBody, LocalDateTime reqTime, LocalDateTime resTime, String symbol, String strategyId) {
+    private void appendLog(String url, String reqBody, String resBody, LocalDateTime reqTime, LocalDateTime resTime, String symbol, String strategyId, double strategyOc, String botName) {
         HttpRequestLog log = new HttpRequestLog();
         log.setUrl(url);
         log.setRequestTime(reqTime);
@@ -303,6 +305,13 @@ public class BybitService implements PlatformService {
         log.setResponseBody(resBody);
         log.setSymbolString(symbol);
         log.setStrategyId(strategyId);
+        log.setStrategyOc(strategyOc);
+        log.setBotName(botName);
+        try{
+            log.setCurrentBotJson(objectMapper.writeValueAsString(marketContextHolder.getOrder(strategyId)));
+        } catch (JsonProcessingException e){
+            logger.error("Error serializing current bot state", e);
+        }
         requestLogRepo.save(log).block();
     }
 }
