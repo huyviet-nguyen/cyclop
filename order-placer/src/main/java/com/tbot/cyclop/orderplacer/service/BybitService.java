@@ -23,6 +23,7 @@ import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.methods.HttpRequestBase;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.util.Asserts;
 import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,6 +38,8 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import static com.tbot.cyclop.Cyclop.HttpConstant.APPLICATION_JSON;
@@ -106,7 +109,7 @@ public class BybitService implements PlatformService {
             }
             newOrder.setPlatformOrderId(String.valueOf(res.getResult().getOrderId()));
             logger.info("SUBMIT ORDER {} ON {} SYMBOL {}", newOrder.getPlatformOrderId(), newOrder.getPlatform(), newOrder.getSymbol());
-            newOrder.setPlatformTimestamp(System.currentTimeMillis());
+            newOrder.setPlatformTimestamp(res.getTime());
             newOrder.setOrderStatus(OrderStatus.SUBMIT);
         } catch (IOException | URISyntaxException e) {
             throw new OpenOrderFailException(newOrder, e);
@@ -124,7 +127,7 @@ public class BybitService implements PlatformService {
         bybitOrderReq.setPrice(String.valueOf(roundToSameDecimal(order.getTempPu(), order.getOpenOrderPrice())));
         bybitOrderReq.setQuantity(String.valueOf(roundToSameDecimal(order.getTempPu(), getBybitQuantity(balance, strategy.getRealAmount(), LEVERAGE, order.getOpenOrderPrice()))));
         bybitOrderReq.setTakeProfitPrice(String.valueOf(roundToSameDecimal(order.getTempPu(), order.getCurrentTakeProfitPrice())));
-        if (strategy.isUseStopLoss()){
+        if (strategy.isUseStopLoss()) {
             bybitOrderReq.setStopLossPrice(String.valueOf(roundToSameDecimal(order.getTempPu(), order.getStopLossPrice())));
         }
         String orderLinkId = "2tbot_" + System.currentTimeMillis();
@@ -170,27 +173,31 @@ public class BybitService implements PlatformService {
                 case Filled -> {
                     order.setPlatformBuyPrice(Double.parseDouble(foundOrder.getPrice()));
                     order.setOrderStatus(OrderStatus.OPEN);
-                    List<BybitGetOrderResponse> linkedOrder = response.getResult()
+                    List<BybitGetOrderResponse> linkedOrder = new ArrayList<>(response.getResult()
                             .getList()
                             .stream()
+                            .filter(a -> a.getCreatedTime() <= order.getPlatformTimestamp())
                             .filter(o -> {
                                 boolean mismatchOrderId = !o.getOrderId().equals(foundOrder.getOrderId());
                                 boolean sameQty = o.getQty().equals(foundOrder.getQty());
                                 boolean matchTp = Double.valueOf(o.getPrice()).equals(roundToSameDecimal(order.getTempPu(), order.getCurrentTakeProfitPrice()));
                                 boolean matchSl = Double.valueOf(o.getPrice()).equals(roundToSameDecimal(order.getTempPu(), order.getStopLossPrice()));
                                 return mismatchOrderId && sameQty && (matchTp || matchSl);
-                            }).toList();
-                    for (BybitGetOrderResponse orderResponse : linkedOrder) {
-                        if (orderResponse.getCreateType().contains("CreateByPartialTakeProfit")) {
-                            order.setBybitTpOrderId(orderResponse.getOrderId());
-                        }
-                        if (orderResponse.getOrderStatus().equals(BybitOrderStatus.Filled)) {
-                            order.setOrderStatus(OrderStatus.CLOSED);
-                            order.setProfit(getClosedPnl(orderResponse.getOrderId(), strategy));
-                            order.setRealAmount(Double.parseDouble(orderResponse.getPrice()) * Double.parseDouble(orderResponse.getQty()) * LEVERAGE);
-                            order.setPlatformSellPrice(Double.parseDouble(orderResponse.getPrice()));
-                            break;
-                        }
+                            })
+                            .toList());
+                    linkedOrder.sort((a, b) -> a.getCreatedTime() == b.getCreatedTime() ? 0 : (a.getCreatedTime() - b.getCreatedTime() > 0 ? 1 : -1));
+                    BybitGetOrderResponse takeProfitOrder = linkedOrder.getFirst().getCreateType().contains("CreateByPartialTakeProfit") ? linkedOrder.getFirst() : linkedOrder.get(1);
+                    BybitGetOrderResponse stopLossOrder = linkedOrder.getFirst().getCreateType().contains("CreateByPartialTakeProfit") ? linkedOrder.get(1) : linkedOrder.getFirst();
+                    if (takeProfitOrder == null || stopLossOrder == null || takeProfitOrder.equals(stopLossOrder)) {
+                        return;
+                    }
+                    order.setBybitTpOrderId(takeProfitOrder.getOrderId());
+                    if (takeProfitOrder.getOrderStatus().equals(BybitOrderStatus.Filled) || stopLossOrder.getOrderStatus().equals(BybitOrderStatus.Filled)) {
+                        BybitGetOrderResponse closedOrder = takeProfitOrder.getOrderStatus().equals(BybitOrderStatus.Filled) ? takeProfitOrder : stopLossOrder;
+                        order.setOrderStatus(OrderStatus.CLOSED);
+                        order.setProfit(getClosedPnl(closedOrder.getOrderId(), strategy));
+                        order.setRealAmount(Double.parseDouble(closedOrder.getPrice()) * Double.parseDouble(closedOrder.getQty()) * LEVERAGE);
+                        order.setPlatformSellPrice(Double.parseDouble(closedOrder.getPrice()));
                     }
                 }
                 default -> {
