@@ -126,7 +126,7 @@ public class NotificationService {
         };
     }
 
-    public void sendReportNotification(Order order, Strategy strategy, int win, int loose) {
+    public void sendReportNotification(Order order, Strategy strategy, int win, int loose) throws JsonProcessingException {
         TelegramBotInfo botInfo = infoRepo.findAll().blockFirst();
         Bot bot = strategy.getBot();
         User user = strategy.getUser();
@@ -135,15 +135,12 @@ public class NotificationService {
             return;
         }
         String content = getReportNotificationContent(order, strategy, win, loose);
-        try {
-            sendNotification(botInfo.getApiToken(), bot.getTelegramId(), content);
-        } catch (Exception e) {
-            logger.error(FAILED_NOTIFICATION_TEMPLATE, order.getId());
-        }
+        sendNotification(botInfo.getApiToken(), bot.getTelegramId(), content);
+
         logger.info("SENT NOTIFICATION TO {} at {} ", user.getName(), user.getTelegramId());
     }
 
-    public void sendNotification(Order order, Strategy strategy) {
+    public void sendNotification(Order order, Strategy strategy) throws JsonProcessingException {
         TelegramBotInfo botInfo = infoRepo.findAll().blockFirst();
         Bot bot = strategy.getBot();
         User user = strategy.getUser();
@@ -155,11 +152,8 @@ public class NotificationService {
         if (content.isEmpty()) {
             return;
         }
-        try {
-            sendNotification(botInfo.getApiToken(), bot.getTelegramId(), content);
-        } catch (Exception e) {
-            logger.error("Cannot send noti for {}", order.getId());
-        }
+        sendNotification(botInfo.getApiToken(), bot.getTelegramId(), content);
+
         logger.info("SENT NOTIFICATION TO {} at {}", user.getName(), user.getTelegramId());
     }
 

@@ -236,6 +236,10 @@ public class OrderPlacingStreamFunction {
         } catch (Exception e) {
             logger.error("CANNOT SEND NOTIFICATION:");
             logger.error(e.getMessage());
+            ErrorTrace trace = new ErrorTrace();
+            trace.setCreatedAt(LocalDateTime.now());
+            trace.setStackTrace(exceptionToString(e));
+            errorTraceRepo.save(trace).block();
         }
     }
 }
