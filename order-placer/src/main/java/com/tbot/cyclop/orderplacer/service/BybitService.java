@@ -240,7 +240,7 @@ public class BybitService implements PlatformService {
         try {
             ObjectMapper mapper = new ObjectMapper();
             JsonNode jsonObject = mapper.readTree(jsonResponse);
-            return jsonObject.get("result").get("list").get(0).get("walletBalance").asDouble();
+            return jsonObject.get("result").get("list").get(0).get("availableBalance").asDouble();
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }
