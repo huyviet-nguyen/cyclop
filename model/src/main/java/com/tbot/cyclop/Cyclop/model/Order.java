@@ -1,5 +1,6 @@
 package com.tbot.cyclop.Cyclop.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.*;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
@@ -26,6 +27,7 @@ public class Order {
     private double candleOpenPrice;
     private int volume;
     private String placedByBotName;
+    @JsonIgnore
     private LocalDateTime createdAt;
     private long platformTimestamp;
     private LocalDateTime updatedAt;

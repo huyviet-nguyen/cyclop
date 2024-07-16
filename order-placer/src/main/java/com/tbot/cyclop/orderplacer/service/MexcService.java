@@ -1,5 +1,6 @@
 package com.tbot.cyclop.orderplacer.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tbot.cyclop.Cyclop.dto.KlineData;
@@ -62,10 +63,13 @@ public class MexcService implements PlatformService {
 
     private final HttpRequestLogRepo requestLogRepo;
 
+    private final MarketContextHolder marketContextHolder;
 
-    public MexcService(OrderRepo orderRepo, HttpRequestLogRepo requestLogRepo) {
+
+    public MexcService(OrderRepo orderRepo, HttpRequestLogRepo requestLogRepo, MarketContextHolder marketContextHolder) {
         this.orderRepo = orderRepo;
         this.requestLogRepo = requestLogRepo;
+        this.marketContextHolder = marketContextHolder;
     }
 
 
@@ -86,13 +90,18 @@ public class MexcService implements PlatformService {
 
     private void appendLog(String url, String reqBody, String resBody, LocalDateTime reqTime, LocalDateTime resTime, String symbol, String strategyId) {
         HttpRequestLog log = new HttpRequestLog();
-        log.setUrl(url);
+        log.setUrl(url.split("/")[url.split("/").length - 1]);
         log.setRequestTime(reqTime);
         log.setResponseTime(resTime);
         log.setRequestBody(reqBody);
         log.setResponseBody(resBody);
         log.setSymbolString(symbol);
         log.setStrategyId(strategyId);
+        try{
+            log.setCurrentBotJson(objectMapper.writeValueAsString(marketContextHolder.getOrder(strategyId)));
+        } catch (JsonProcessingException e){
+            logger.error("Error serializing current bot state", e);
+        }
         requestLogRepo.save(log).block();
     }
 
@@ -149,7 +158,7 @@ public class MexcService implements PlatformService {
         String stringResponse;
         try {
             stringResponse = reqRestTemplate(HttpMethod.POST, path, stringPayload, strategy.getSymbolString(), webToken, headerHash, timestamp, 10, strategy.getId());
-        } catch (Exception e){
+        } catch (Exception e) {
             orderWithUpdatedProfit.setErrorMessage(e.getLocalizedMessage());
             orderRepo.save(orderWithUpdatedProfit).block();
             logger.error("CANNOT CANCEL ORDER : {}", orderWithUpdatedProfit.getPlatformOrderId());
@@ -167,7 +176,7 @@ public class MexcService implements PlatformService {
         double pu = strategy.getSymbol().getPu();
         MexcChangePriceRequest changePriceRequest = new MexcChangePriceRequest();
         changePriceRequest.setTakeProfitPrice(normalizeDouble(roundToSameDecimal(pu, order.getCurrentTakeProfitPrice())));
-        if (strategy.isUseStopLoss()){
+        if (strategy.isUseStopLoss()) {
             changePriceRequest.setStopLossPrice(normalizeDouble(roundToSameDecimal(pu, order.getStopLossPrice())));
             changePriceRequest.setLossTrend(stopOrder.getLossTrend());
         }
@@ -404,7 +413,7 @@ public class MexcService implements PlatformService {
         mexcOrder.setSide(Integer.parseInt(side));
         mexcOrder.setSymbol(sysOrder.getSymbol());
         mexcOrder.setLeverage(LEVERAGE);
-        if (strategy.isUseStopLoss()){
+        if (strategy.isUseStopLoss()) {
             mexcOrder.setStopLossPrice(normalizeDouble(roundToSameDecimal(pu, sysOrder.getStopLossPrice())));
             mexcOrder.setLossTrend("1");
         }

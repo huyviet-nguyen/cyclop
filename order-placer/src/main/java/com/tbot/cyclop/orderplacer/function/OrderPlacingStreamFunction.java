@@ -3,6 +3,7 @@ package com.tbot.cyclop.orderplacer.function;
 import com.tbot.cyclop.Cyclop.dto.KlineData;
 import com.tbot.cyclop.Cyclop.model.*;
 import com.tbot.cyclop.orderplacer.exception.OpenOrderFailException;
+import com.tbot.cyclop.orderplacer.exception.SilentException;
 import com.tbot.cyclop.orderplacer.repo.BotRepo;
 import com.tbot.cyclop.orderplacer.repo.ErrorTraceRepo;
 import com.tbot.cyclop.orderplacer.repo.OrderRepo;
@@ -113,7 +114,9 @@ public class OrderPlacingStreamFunction {
                                             trace.setCreatedAt(LocalDateTime.now());
                                             trace.setStackTrace(exceptionToString(ignored));
                                             errorTraceRepo.save(trace).block();
-                                            notificationService.sendErrorNotification(strategy, value, ignored.getMessage());
+                                            if (!(ignored instanceof SilentException)){
+                                                notificationService.sendErrorNotification(strategy, value, ignored.getMessage());
+                                            }
                                         }
                                         return null;
                                     }
@@ -216,9 +219,11 @@ public class OrderPlacingStreamFunction {
             marketContextHolder.removeOrder(strategy.getId());
             marketContextHolder.cacheOrder(strategy.getId(), submitOrder);
             return submitOrder;
-        } catch (OpenOrderFailException e) {
+        } catch (Exception e) {
             logger.error(e.getMessage());
-            notificationService.sendErrorNotification(strategy, value, e.getMessage());
+            if (!(e instanceof SilentException)){
+                notificationService.sendErrorNotification(strategy, value, e.getMessage());
+            }
             throw e;
         }
     }

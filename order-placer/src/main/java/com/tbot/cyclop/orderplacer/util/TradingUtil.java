@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tbot.cyclop.Cyclop.dto.KlineData;
 import com.tbot.cyclop.Cyclop.model.*;
 import com.tbot.cyclop.orderplacer.exception.OpenOrderFailException;
+import com.tbot.cyclop.orderplacer.exception.SilentException;
 
 import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
@@ -170,7 +171,7 @@ public class TradingUtil {
     public static int getBybitQuantity(double balance, double strategyAmount, double lev, double price) {
         double equityFraction = balance * strategyAmount / 100.0;
         if ((equityFraction * lev ) < 5){
-            throw new OpenOrderFailException("Amount smaller than 5$, cannot proceed order");
+            throw new SilentException("Amount smaller than 5$, cannot proceed order");
         }
         return (int) (equityFraction * lev / price);
     }

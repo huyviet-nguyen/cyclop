@@ -3,6 +3,8 @@ package com.tbot.cyclop.orderplacer.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.tbot.cyclop.Cyclop.dto.KlineData;
 import com.tbot.cyclop.Cyclop.dto.req.bybit.BybitCancelOrderReq;
 import com.tbot.cyclop.Cyclop.dto.req.bybit.BybitOrderReq;
@@ -57,7 +59,7 @@ public class BybitService implements PlatformService {
 
     private final Logger logger = LoggerFactory.getLogger(BybitService.class);
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper;
 
     private final HttpRequestLogRepo requestLogRepo;
 
@@ -70,6 +72,9 @@ public class BybitService implements PlatformService {
         this.requestLogRepo = requestLogRepo;
         this.orderRepo = orderRepo;
         this.marketContextHolder = marketContextHolder;
+        objectMapper = new ObjectMapper();
+        objectMapper.registerModule(new JavaTimeModule());
+        objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
     }
 
     @Override
@@ -178,23 +183,32 @@ public class BybitService implements PlatformService {
                     List<BybitGetOrderResponse> linkedOrder = new ArrayList<>(response.getResult()
                             .getList()
                             .stream()
-                            .filter(a -> a.getCreatedTime() <= order.getPlatformTimestamp())
-                            .filter(o -> {
-                                boolean mismatchOrderId = !o.getOrderId().equals(foundOrder.getOrderId());
-                                boolean sameQty = o.getQty().equals(foundOrder.getQty());
-                                boolean matchTp = Double.valueOf(o.getPrice()).equals(roundToSameDecimal(order.getTempPu(), order.getCurrentTakeProfitPrice()));
-                                boolean matchSl = Double.valueOf(o.getPrice()).equals(roundToSameDecimal(order.getTempPu(), order.getStopLossPrice()));
-                                return mismatchOrderId && sameQty && (matchTp || matchSl);
-                            })
+                            .filter(a -> a.getCreatedTime() > foundOrder.getCreatedTime())
+                            .filter(o -> o.getQty().equals(foundOrder.getQty()))
+                            .filter(a -> !a.getCreateType().equals("CreateByUser"))
                             .toList());
                     linkedOrder.sort((a, b) -> a.getCreatedTime() == b.getCreatedTime() ? 0 : (a.getCreatedTime() - b.getCreatedTime() > 0 ? 1 : -1));
-                    BybitGetOrderResponse takeProfitOrder = linkedOrder.getFirst().getCreateType().contains("CreateByPartialTakeProfit") ? linkedOrder.getFirst() : linkedOrder.get(1);
-                    BybitGetOrderResponse stopLossOrder = linkedOrder.getFirst().getCreateType().contains("CreateByPartialTakeProfit") ? linkedOrder.get(1) : linkedOrder.getFirst();
-                    if (takeProfitOrder == null || stopLossOrder == null || takeProfitOrder.equals(stopLossOrder)) {
+                    BybitGetOrderResponse takeProfitOrder = null;
+                    BybitGetOrderResponse stopLossOrder = null;
+                    if (linkedOrder.isEmpty()) {
                         return;
+                    } else {
+                        for (int i = 0; i < 2 && i < linkedOrder.size(); i++) {
+                            switch (linkedOrder.get(i).getCreateType()) {
+                                case "CreateByPartialTakeProfit" -> takeProfitOrder = linkedOrder.get(i);
+                                case "CreateByPartialStopLoss" -> stopLossOrder = linkedOrder.get(i);
+                                default -> {
+                                }
+                            }
+                        }
                     }
-                    order.setBybitTpOrderId(takeProfitOrder.getOrderId());
-                    if (takeProfitOrder.getOrderStatus().equals(BybitOrderStatus.Filled) || stopLossOrder.getOrderStatus().equals(BybitOrderStatus.Filled)) {
+
+                    if (takeProfitOrder == null) {
+                        return;
+                    } else {
+                        order.setBybitTpOrderId(takeProfitOrder.getOrderId());
+                    }
+                    if (takeProfitOrder.getOrderStatus().equals(BybitOrderStatus.Filled) || (stopLossOrder != null && stopLossOrder.getOrderStatus().equals(BybitOrderStatus.Filled))) {
                         BybitGetOrderResponse closedOrder = takeProfitOrder.getOrderStatus().equals(BybitOrderStatus.Filled) ? takeProfitOrder : stopLossOrder;
                         order.setOrderStatus(OrderStatus.CLOSED);
                         order.setProfit(getClosedPnl(closedOrder.getOrderId(), strategy));
@@ -307,9 +321,9 @@ public class BybitService implements PlatformService {
         log.setStrategyId(strategyId);
         log.setStrategyOc(strategyOc);
         log.setBotName(botName);
-        try{
+        try {
             log.setCurrentBotJson(objectMapper.writeValueAsString(marketContextHolder.getOrder(strategyId)));
-        } catch (JsonProcessingException e){
+        } catch (JsonProcessingException e) {
             logger.error("Error serializing current bot state", e);
         }
         requestLogRepo.save(log).block();

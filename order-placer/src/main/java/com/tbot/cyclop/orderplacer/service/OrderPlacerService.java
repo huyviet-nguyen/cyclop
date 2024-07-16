@@ -75,6 +75,7 @@ public class OrderPlacerService {
         ComparisonMethod<Double> method = strategy.getPositionSide().equals("LONG") ? SMALLER : BIGGER;
         switch (order.getOrderStatus()) {
             case SUBMIT -> {
+                logger.info("IGNORE SYNC SUBMIT {} : {} | {} | IGNORED : {}", strategy.getPositionSide(), klineData.getCurrentPrice(), order.getOpenOrderPrice(), method.compare(klineData.getCurrentPrice(), order.getOpenOrderPrice()) ? "TRUE" : "FALSE");
                 return method.compare(klineData.getCurrentPrice(), order.getOpenOrderPrice());
             }
             case OPEN -> {
