@@ -176,7 +176,7 @@ public class BybitService implements PlatformService {
             }
 
             switch (foundOrder.getOrderStatus()) {
-                case Cancelled -> order.setOrderStatus(OrderStatus.IGNORED);
+                case Cancelled -> order.setOrderStatus(OrderStatus.REMOVE_CACHE);
                 case Filled -> {
                     order.setPlatformBuyPrice(Double.parseDouble(foundOrder.getPrice()));
                     order.setOrderStatus(OrderStatus.OPEN);
