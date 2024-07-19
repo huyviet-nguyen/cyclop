@@ -131,11 +131,11 @@ public class BybitService implements PlatformService {
             bybitOrderReq.setSide("Sell");
         }
         bybitOrderReq.setSymbol(order.getSymbol());
-        bybitOrderReq.setPrice(String.valueOf(roundToSameDecimal(order.getTempPu(), order.getOpenOrderPrice())));
-        bybitOrderReq.setQuantity(String.valueOf(roundToSameDecimal(order.getTempPu(), getBybitQuantity(balance, strategy.getRealAmount(), LEVERAGE, order.getOpenOrderPrice()))));
-        bybitOrderReq.setTakeProfitPrice(String.valueOf(roundToSameDecimal(order.getTempPu(), order.getCurrentTakeProfitPrice())));
+        bybitOrderReq.setPrice(String.valueOf(roundToSameDecimal(strategy.getSymbol().getPu(), order.getOpenOrderPrice())));
+        bybitOrderReq.setQuantity(String.valueOf(roundToSameDecimal(strategy.getSymbol().getPu(), getBybitQuantity(balance, strategy.getRealAmount(), LEVERAGE, order.getOpenOrderPrice()))));
+        bybitOrderReq.setTakeProfitPrice(String.valueOf(roundToSameDecimal(strategy.getSymbol().getPu(), order.getCurrentTakeProfitPrice())));
         if (strategy.isUseStopLoss()) {
-            bybitOrderReq.setStopLossPrice(String.valueOf(roundToSameDecimal(order.getTempPu(), order.getStopLossPrice())));
+            bybitOrderReq.setStopLossPrice(String.valueOf(roundToSameDecimal(strategy.getSymbol().getPu(), order.getStopLossPrice())));
         }
         String orderLinkId = "2tbot_" + System.currentTimeMillis();
         bybitOrderReq.setOrderLinkId(orderLinkId);
@@ -149,7 +149,7 @@ public class BybitService implements PlatformService {
             BybitReduceTpReq reduceTpReq = new BybitReduceTpReq();
             reduceTpReq.setSymbol(orderWithUpdatedProfit.getSymbol());
             reduceTpReq.setOrderId(orderWithUpdatedProfit.getBybitTpOrderId());
-            reduceTpReq.setPrice(String.valueOf(roundToSameDecimal(orderWithUpdatedProfit.getTempPu(), orderWithUpdatedProfit.getCurrentTakeProfitPrice())));
+            reduceTpReq.setPrice(String.valueOf(roundToSameDecimal(strategy.getSymbol().getPu(), orderWithUpdatedProfit.getCurrentTakeProfitPrice())));
 
             String path = bybitBaseUrl.concat("order/replace");
             String response = reqRestTemplate(HttpMethod.POST, path, objectMapper.writeValueAsString(reduceTpReq), strategy);
