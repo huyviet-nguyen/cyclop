@@ -123,8 +123,8 @@ public class OrderPlacerService {
         double maxDiff = partialIgnoreFlag ? marketContextHolder.getPreviousCandleMaxDiff(mapkey) : 0;
         double ignoreAmount = maxDiff * strategy.getIgnore() / 100;
         double openOrderPrice = strategy.getPositionSide().equals("SHORT")
-                ? addPercentage(klineData.getOpenPrice(), strategy.getOrderChange()) + ignoreAmount
-                : deductPercentage(klineData.getOpenPrice(), strategy.getOrderChange()) - ignoreAmount;
+                ? addPercentage(klineData.getOpenPrice() + ignoreAmount, strategy.getOrderChange())
+                : deductPercentage(klineData.getOpenPrice() - ignoreAmount, strategy.getOrderChange());
         ack.setOpenOrderPrice(openOrderPrice);
         ack.setTimestamp(System.currentTimeMillis());
         ack.setCandleOpenPrice(klineData.getOpenPrice());

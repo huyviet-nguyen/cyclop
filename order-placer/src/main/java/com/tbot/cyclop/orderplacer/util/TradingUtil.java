@@ -26,16 +26,17 @@ public class TradingUtil {
     //checked
     public static boolean canSubmit(Strategy strategy, KlineData klineData, double maxDiffAbs, boolean partialIgnoreFlag) {
         double ignoreAmount = partialIgnoreFlag ? maxDiffAbs * strategy.getIgnore() / 100 : 0;
-        double orderChangeExtendedAmount = klineData.getOpenPrice() * strategy.getActualOrderChange() / 100;
+        double openPriceAfterIgnore = strategy.getPositionSide().equals("SHORT") ? klineData.getOpenPrice() + ignoreAmount : klineData.getOpenPrice() - ignoreAmount;
+        double orderChangeExtendedAmount = openPriceAfterIgnore * strategy.getActualOrderChange() / 100;
         double orderChangeAmount = klineData.getOpenPrice() * strategy.getOrderChange() / 100;
         boolean exceedExtendedPriceWithIgnore;
         boolean notExceedOrderChangeWithIgnore;
         if (strategy.getPositionSide().equals("LONG")){
-            exceedExtendedPriceWithIgnore = klineData.getOpenPrice() - ignoreAmount - orderChangeExtendedAmount >= klineData.getCurrentPrice();
-            notExceedOrderChangeWithIgnore = klineData.getOpenPrice() - ignoreAmount - orderChangeAmount < klineData.getCurrentPrice();
+            exceedExtendedPriceWithIgnore = openPriceAfterIgnore - orderChangeExtendedAmount >= klineData.getCurrentPrice();
+            notExceedOrderChangeWithIgnore = openPriceAfterIgnore - orderChangeAmount < klineData.getCurrentPrice();
         } else {
-            exceedExtendedPriceWithIgnore = klineData.getOpenPrice() + ignoreAmount + orderChangeExtendedAmount <= klineData.getCurrentPrice();
-            notExceedOrderChangeWithIgnore = klineData.getOpenPrice() + ignoreAmount + orderChangeAmount > klineData.getCurrentPrice();
+            exceedExtendedPriceWithIgnore = openPriceAfterIgnore + orderChangeExtendedAmount <= klineData.getCurrentPrice();
+            notExceedOrderChangeWithIgnore = openPriceAfterIgnore + orderChangeAmount > klineData.getCurrentPrice();
         }
         return exceedExtendedPriceWithIgnore && notExceedOrderChangeWithIgnore;
     }
