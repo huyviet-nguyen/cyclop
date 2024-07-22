@@ -30,7 +30,7 @@ public class BybitOrderReq {
     private String timeInForce= "GoodTillCancel";
 
     @JsonProperty("positionIdx")
-    private String positionIdx;
+    private Integer positionIdx;
 
 
     @JsonProperty("takeProfit")
@@ -56,6 +56,9 @@ public class BybitOrderReq {
 
     @JsonProperty("slOrderType")
     private String slOrderType;
+
+    @JsonProperty("reduceOnly")
+    private boolean reduceOnly = false;
 
 
     public void setTakeProfitPrice(String takeProfitPrice) {
