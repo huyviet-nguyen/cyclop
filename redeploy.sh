@@ -1,6 +1,6 @@
 #!/bin/bash
 
-kubectl config use-context arn:aws:eks:ap-southeast-2:055540832687:cluster/k8s-2t;
+kubectl config use-context arn:aws:eks:ap-southeast-2:[AWS_ACCOUNT_ID]:cluster/[EKS_CLUSTER_NAME];
 kubectl delete deployment --all;
 kubectl delete service --all;
 sleep 10;

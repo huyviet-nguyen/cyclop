@@ -31,3 +31,9 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Secrets ###
+dev-ops/auth.json
+**/auth.json
+*.env
+.env.local

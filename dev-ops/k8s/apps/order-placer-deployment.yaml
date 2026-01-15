@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: orderplacer
-          image: 055540832687.dkr.ecr.ap-southeast-2.amazonaws.com/2tbot-order-placer:latest
+          image: [AWS_ACCOUNT_ID].dkr.ecr.ap-southeast-2.amazonaws.com/[ECR_REPO_NAME]-order-placer:latest
           env:
             - name: spring.kafka.bootstrap-servers
               value: "kafka:9092"

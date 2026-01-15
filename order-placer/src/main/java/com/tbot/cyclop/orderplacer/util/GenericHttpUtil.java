@@ -21,11 +21,10 @@ import java.util.Map;
 
 public class GenericHttpUtil {
 
-    public static final String ENCRYPT_SECRET_KEY = "sec1r2e3t-vv";
+    public static final String ENCRYPT_SECRET_KEY = "[ENCRYPT_SECRET_KEY]";
     private static final String ENCRYPTION_ALGORITHM = "AES/CBC/PKCS5Padding";
 
-    public static final String PUBLIC_KEY =
-            "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqqpMCeNv7qfsKe09xwE5o05ZCq/qJvTok6WbqYZOXA16UQqR+sHH0XXfnWxLSEvCviP9qjZjruHWdpMmC4i/yQJe7MJ66YoNloeNtmMgtqEIjOvSxRktmAxywul/eJolrhDnRPXYll4fA5+24t1g6L5fgo/p66yLtZRg4fC1s3rAF1WPe6dSJQx7jQ/xhy8Z0WojmzIeaoBa0m8qswx0DMIdzXfswH+gwMYCQGR3F/NAlxyvlWPMBlpFEuHZWkp9TXlTtbLf+YL8vYjV5HNqIdNjVzrIvg/Bis49ktfsWuQxT/RIyCsTEuHmZyZR6NJAMPZUE5DBnVWdLShb6KuyqwIDAQAB";
+    public static final String PUBLIC_KEY = "[RSA_PUBLIC_KEY]";
 
     public static String calculateHmacSHA256(String secret, String message) {
         Mac hmacSha256;

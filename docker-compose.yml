@@ -50,7 +50,7 @@ services:
     networks:
       - mynetwork
   orderplacer:
-    image: huyvietjava/tradebot-consumer:latest
+    image: [DOCKER_HUB_USERNAME]/tradebot-consumer:latest
     environment:
       - spring.kafka.bootstrap-servers=kafka1:19092
     depends_on:
@@ -62,7 +62,7 @@ services:
       - mynetwork
 
   publisher:
-    image: huyvietjava/tradebot-publisher:latest
+    image: [DOCKER_HUB_USERNAME]/tradebot-publisher:latest
     environment:
       - spring.kafka.bootstrap-servers=kafka1:19092
       - app.runMexc=true

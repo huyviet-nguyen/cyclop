@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ECR repository host
-REPO_HOST="055540832687.dkr.ecr.ap-southeast-2.amazonaws.com"
+REPO_HOST="[AWS_ACCOUNT_ID].dkr.ecr.ap-southeast-2.amazonaws.com"
 
 # Authentication token
 AUTH_TOKEN=$(aws ecr get-login-password --region ap-southeast-2)

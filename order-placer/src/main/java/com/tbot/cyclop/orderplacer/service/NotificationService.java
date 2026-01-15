@@ -29,7 +29,7 @@ public class NotificationService {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    private static final String DEFAULT_CHANNEL_ID = "-1002026702728";
+    private static final String DEFAULT_CHANNEL_ID = "[TELEGRAM_CHANNEL_ID]";
 
     private static final String FAILED_NOTIFICATION_TEMPLATE = "Cannot send notification to telegram. Order ID: {}";
 
